@@ -1,0 +1,1370 @@
+//
+// This file is part of the Tioga software library
+//
+// Tioga  is a tool for overset grid assembly on parallel distributed systems
+// Copyright (C) 2015 Jay Sitaraman
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#include "tioga.h"
+#include <assert.h>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
+
+#ifdef _GPU
+#include "cuda_funcs.h"
+#endif
+
+/**
+ * Set MPI communicator and initialize a few variables
+ */
+void tioga::setCommunicator(MPI_Comm communicator, int id_proc, int nprocs)
+{
+  scomm=communicator;
+  myid=id_proc;
+  nproc=nprocs;
+  sendCount=(int *) malloc(sizeof(int)*nproc); /// Never used?
+  recvCount=(int *) malloc(sizeof(int)*nproc);
+  //
+  // only one mesh block per process for now
+  // this can be changed at a later date
+  // but will be a fairly invasive change
+  //
+  nblocks=0;
+  mb = new MeshBlock();
+  //
+  // instantiate the parallel communication class
+  //
+  pc = new parallelComm();
+  pc->myid=myid;
+  pc->scomm=scomm;
+  pc->numprocs=nproc;
+ 
+  // instantiate the parallel communication class
+  //   
+  pc_cart = new parallelComm();
+  pc_cart->myid=myid;
+  pc_cart->scomm=scomm;
+  pc_cart->numprocs=nproc;
+
+#ifdef _GPU
+//  mb_d = new dMeshBlock(); /// TODO
+#endif
+}
+/**
+ * register grid data for each mesh block
+ */
+void tioga::registerGridData(int btag,int nnodes,double *xyz,int *ibl, int nwbc,int nobc,
+           int *wbcnode,int *obcnode,int ntypes, int *nv, int *ncf, int *nc, int **vconn)
+{
+  if (nnodes > 0) nblocks=1;
+  mb->setData(btag,nnodes,xyz,ibl,nwbc,nobc,wbcnode,obcnode,ntypes,nv,ncf,nc,vconn);
+  mb->myid=myid;
+  mb->nproc=nproc;
+  mytag=btag;
+}
+
+void tioga::registerFaceConnectivity(int gtype, int nftype, int *nf, int *nfv,
+    int **fconn, int *f2c, int **c2f, int *iblank_face, int nOverFaces,
+    int nWallFaces, int nMpiFaces, int *overFaces, int *wallFaces, int *mpiFaces, 
+    int *mpiProcR, int *mpiFidR)
+{
+  mb->setFaceData(gtype, nftype, nf, nfv, fconn, f2c, c2f, iblank_face, nOverFaces,
+                  nWallFaces, nMpiFaces, overFaces, wallFaces, mpiFaces, mpiProcR, mpiFidR);
+}
+
+#ifdef _GPU
+void tioga::registerDeviceGridData(double *xyz, double *coords, int *ibc, int *ibf)
+{
+  mb->setDeviceData(xyz,coords,ibc,ibf);
+}
+#endif
+
+void tioga::profile(void)
+{
+  mb->preprocess();
+
+  MPI_Allreduce(&iartbnd, &iabGlobal, 1, MPI_INT, MPI_MAX, scomm);
+  MPI_Allreduce(&ihigh, &ihighGlobal, 1, MPI_INT, MPI_MAX, scomm);
+    
+  if (iabGlobal)
+  {
+    /// TODO: find a better location for this?
+    // Split the global communicator into a mesh-local communicator
+    MPI_Comm_split(scomm, mytag, myid, &meshcomm);
+    MPI_Comm_rank(meshcomm, &meshRank);
+    MPI_Comm_size(meshcomm, &nprocMesh);
+
+    gridType = mb->gridType;
+
+    // For the direct-cut method
+    // gridType == 0: background;  gridType == 1: body grid
+    gridIDs.resize(nproc);
+    gridTypes.resize(nproc);
+    MPI_Allgather(&mytag, 1, MPI_INT, gridIDs.data(), 1, MPI_INT, scomm);
+    MPI_Allgather(&gridType, 1, MPI_INT, gridTypes.data(), 1, MPI_INT, scomm);
+
+    nGrids = 0;
+    for (auto g : gridIDs)
+      nGrids = std::max(nGrids, g);
+    nGrids++; // 0-index to size
+    
+    // Setup send/recv map based on grid ID
+    std::vector<int> ptags(nproc);
+    MPI_Allgather(&mytag, 1, MPI_INT, ptags.data(), 1, MPI_INT, scomm);
+
+    // Enforcing symmetry in sends/recvs
+    int nsend = 0;
+    for (int i = 0; i < nproc; i++)
+      if (ptags[i] != mytag)
+        nsend++;
+
+    std::vector<int> sndMap(nsend);
+    for (int p = 0, m = 0; p < nproc; p++)
+    {
+      if (ptags[p] != mytag)
+      {
+        sndMap[m] = p;
+        m++;
+      }
+    }
+
+    pc->setMap(nsend, nsend, sndMap.data(), sndMap.data());
+
+    mb->setupADT();
+
+    mb->extraConn();
+  }
+}
+
+void tioga::performConnectivity(void)
+{
+  //printf("before hole cutting\n");
+  doHoleCutting();
+  
+  //printf("done hole cutting\n");
+  mb->calcFaceIblanks(meshcomm);
+
+  doPointConnectivity();
+}
+
+
+void tioga::unblankPart1(void)
+{
+  // Switch iblank_cell to separate memory range
+  mb->swapPointers();
+  //printf("unblank 1 Done swapPointers\n");
+  mb->updateOBB();
+  //printf("unblank 1 Done updateOBB\n");
+  doHoleCutting(true);
+  //printf("unblank 1 unblankPart1\n");
+}
+
+void tioga::unblankPart2(int nvar)
+{
+  // Swap iblank_cell pointer back
+  mb->resetCurrentGrid();
+  
+  //printf("unblank 2 done resetCurrentGrid\n");
+
+  mb->updateOBB();
+
+  //printf("unblank2 done updateOBB\n");
+
+  doHoleCutting();
+  
+  // Determine final blanking status to use over time step
+  int nunblank = mb->getIterIblanks();
+
+  mb->calcFaceIblanks(meshcomm);
+
+  MPI_Allreduce(MPI_IN_PLACE, &nunblank, 1, MPI_INT, MPI_SUM, scomm);
+  //printf("nunblank is %d\n",nunblank);
+  if (nunblank > 0)
+  { 
+    //printf("update artifical boundaries send and recv\n");
+    doPointConnectivity(true); /// TODO: just do unblank cells only, no faces
+
+    dataUpdate_artBnd(nvar, 0);
+
+    mb->clearUnblanks();
+  }
+  //printf("Done unblankpart2\n");
+}
+
+void tioga::unblankAllGrids(int nvar)
+{
+  mb->setAllCellsNormal();
+
+  mb->updateOBB();
+
+  doPointConnectivity(true);
+
+  dataUpdate_artBnd(nvar, 0);
+
+  mb->clearUnblanks();
+}
+
+#ifdef _GPU
+#define TG_DIRECTCUT
+#else
+#define TG_NORMAL
+#endif
+void tioga::doHoleCutting(bool unblanking)
+{
+#ifdef TG_NORMAL
+  // Generate structured map of solid boundary (hole) locations
+  getHoleMap();
+  //printf("done getHole map %d\n",unblanking);
+
+  // Send/Recv oriented bounding boxes to/from all ranks and setup sndMap / rcvMap
+  exchangeBoxes();
+  //printf("done exchangeBoxes %d\n",unblanking);
+
+  // Find a list of all potential receptor points and send to all possible
+  // donor ranks
+  exchangeSearchData();
+  //printf("done exchangeSearchData %d\n",unblanking);
+
+  // Find donors for all search points (other grids' possible receptor points)
+  mb->search();
+  //printf("done searchData %d\n",unblanking);
+
+  // Exchange found donor data and do final iblank setting
+  exchangeDonors();
+  //printf("done exchangeDonors %d\n",unblanking);
+
+  if (ihighGlobal)
+  {
+    // Calculate cell iblank values from nodal iblank values
+    mb->getCellIblanks(meshcomm);
+  }
+#endif
+
+#ifdef TG_DIRECTCUT
+  getHoleMap();
+  getOversetMap();
+  //outputHoleMap();
+  if (!unblanking)
+    exchangeBoxes();
+
+  directCut();
+#endif
+}
+
+void tioga::doPointConnectivity(bool unblanking)
+{
+  if (!ihighGlobal) return;
+
+  //printf("done doPointConnectivity %d\n",unblanking);
+  // Get all fringe point locations (high-order face/cell points + low-order vertices)
+  mb->getFringeNodes(unblanking);
+  //printf("done getFringeNodes %d\n",unblanking);
+
+  // Exchange new list of points, including high-order Artificial Boundary
+  // face points or internal points (or fringe nodes for non-high order)
+  exchangePointSearchData();
+  
+  //printf("done exchangePointSearchData\n");
+  // Search for donor cells for all given points
+  mb->search();
+
+  //printf("done search\n");
+  
+  // Setup interpolation weights and such for final interp-point list
+#ifdef _GPU
+  mb->processPointDonorsGPU();
+  //printf("done proceePointDonorsGPU\n");
+#else
+  mb->processPointDonors();
+#endif
+
+#ifdef _GPU
+  setupCommBuffersGPU();
+  //printf("done setupCommBuffersGPU\n");
+#endif
+  
+}
+
+#ifdef _GPU
+void tioga::setupCommBuffersGPU(void)
+{
+  // Setup additional index arrars for GPU to automatically pack MPI buffers
+  int nsend, nrecv, *sndMap, *rcvMap;
+  pc->getMap(&nsend, &nrecv, &sndMap, &rcvMap);
+
+  sndVPack.resize(nsend);
+  rcvVPack.resize(nrecv);
+
+  pc->initPacketsV(sndVPack,rcvVPack);
+
+  mb->setupBuffersGPU(nsend, intData, sndVPack);
+
+  ninterp = mb->ninterp2;
+}
+#endif
+
+void tioga::performConnectivityHighOrder(void)
+{
+  mb->getInternalNodes();
+  exchangePointSearchData();
+  mb->search();
+  mb->processPointDonors();
+  iorphanPrint=0;
+}
+
+void tioga::directCut(void)
+{
+  int nDims = mb->nDims;
+
+  /// TODO: Callbacks
+  nCutFringe = mb->nCutFringe;
+  nCutHole = mb->nCutHole;
+
+  // Get cutting-group bounding-box data for this rank
+  std::vector<double> faceNodesW; // wall face nodes
+  std::vector<double> faceNodesO; // overset face nodes
+
+  std::vector<double> bboxW, bboxO;
+  int nvertf = mb->getCuttingFaces(faceNodesW, faceNodesO, bboxW, bboxO);
+
+  // # nodes-per-face, and # of cutting faces, for each rank
+  std::vector<int> nvertf_p(nproc);
+  std::vector<int> nHoleFace_p(nproc), nOverFace_p(nproc);
+  MPI_Allgather(&nvertf, 1, MPI_INT, nvertf_p.data(), 1, MPI_INT, scomm);
+  MPI_Allgather(&nCutHole, 1, MPI_INT, nHoleFace_p.data(), 1, MPI_INT, scomm);
+  MPI_Allgather(&nCutFringe, 1, MPI_INT, nOverFace_p.data(), 1, MPI_INT, scomm);
+
+  // Setup buffers for receiving cutting surfaces from each grid
+
+  std::vector<MPI_Request> sreqs, rreqs;
+  sreqs.reserve(2*nproc); rreqs.reserve(2*nproc);
+  std::vector<std::vector<double>> faceNodes_g(nGrids);
+  std::vector<std::vector<double>> bbox_g(nGrids);
+  std::vector<int> nFace_p(nproc), nFaceTot_g(nGrids);
+  std::vector<double> bbox_tmp(2*nDims*nproc);
+  std::vector<double> aabb_tmp(2*nDims*nproc);
+
+  for (int g = 0; g < nGrids; g++)
+  {
+    bbox_g[g].resize(2 * nDims);
+
+    for (int d = 0; d < nDims; d++)
+    {
+      bbox_g[g][d]       =  BIG_DOUBLE;
+      bbox_g[g][d+nDims] = -BIG_DOUBLE;
+    }
+  }
+
+  // Send / recv cutting group bounding-box data
+
+  for (int p = 0; p < nproc; p++)
+  {
+    int g = gridIDs[p];
+    if (g == mytag) continue;
+
+    nFace_p[p] = (gridType == 0) ? nOverFace_p[p] : nHoleFace_p[p];
+    nFaceTot_g[g] += nFace_p[p];
+
+    if (nFace_p[p] > 0)
+    {
+      // Receive the rank's cutting-face and overall bounding box
+      rreqs.emplace_back();
+      MPI_Irecv(&bbox_tmp[2*nDims*p], 2*nDims, MPI_DOUBLE, p, 1, scomm, &rreqs.back());
+      sreqs.emplace_back();
+      MPI_Isend(mb->aabb, 2*nDims, MPI_DOUBLE, p, 2, scomm, &sreqs.back());
+    }
+    
+    // Get pointers to face node & bounding-box data based on grid type
+    double *Bptr;
+    int size = 0;
+    if (nCutHole > 0 && gridTypes[p] > 0)
+    {
+      Bptr = bboxW.data();
+      size = nCutHole;
+    }
+    else if (nCutFringe > 0 && gridTypes[p] == 0)
+    {
+      Bptr = bboxO.data();
+      size = nCutFringe;
+    }
+
+    if (size > 0)
+    {
+      // Send bounding box
+      sreqs.emplace_back();
+      MPI_Isend(Bptr, 2*nDims, MPI_DOUBLE, p, 1, scomm, &sreqs.back());
+      rreqs.emplace_back();
+      MPI_Irecv(&aabb_tmp[2*nDims*p], 2*nDims, MPI_DOUBLE, p, 2, scomm, &rreqs.back());
+    }
+  }
+
+  // Complete the communication
+  MPI_Waitall((int)sreqs.size(), sreqs.data(), MPI_STATUSES_IGNORE);
+  MPI_Waitall((int)rreqs.size(), rreqs.data(), MPI_STATUSES_IGNORE);
+
+  // Get global AABB for each cutting surface
+  for (int p = 0; p < nproc; p++)
+  {
+    int g = gridIDs[p];
+    if (g == mytag) continue;
+
+    for (int d = 0; d < nDims; d++)
+    {
+      bbox_g[g][d] = std::min(bbox_g[g][d], bbox_tmp[2*nDims*p+d]);
+      bbox_g[g][d+nDims] = std::max(bbox_g[g][d+nDims], bbox_tmp[2*nDims*p+d+nDims]);
+    }
+  }
+
+  // Also get global AABB for this grid using grid-specific MPI Comm
+  MPI_Allreduce(&bboxW[0], &bbox_g[mytag][0], 3, MPI_DOUBLE, MPI_MIN, meshcomm);
+  MPI_Allreduce(&bboxW[3], &bbox_g[mytag][3], 3, MPI_DOUBLE, MPI_MAX, meshcomm);
+  MPI_Allreduce(&bboxO[0], &bbox_g[mytag][0], 3, MPI_DOUBLE, MPI_MIN, meshcomm);
+  MPI_Allreduce(&bboxO[3], &bbox_g[mytag][3], 3, MPI_DOUBLE, MPI_MAX, meshcomm);
+
+  // Get a 'reference length' / error tolerance for each cutting surface
+  std::vector<double> href_g(nGrids);
+  for (int g = 0; g < nGrids; g++)
+  {
+    // 3% of the longest side length of the surface's AABB
+    href_g[g] = .03 * max(max(bbox_g[g][3]-bbox_g[g][0], bbox_g[g][4]-bbox_g[g][1]),
+                          bbox_g[g][5]-bbox_g[g][2]);
+    // (This is designed to be larger than the 'ds' used in the hole map)
+  }
+
+
+  // Figure out which ranks cut faces must be sent/received from
+
+  std::vector<int> dcSndMap;  // List of ranks to send cut faces to
+  std::vector<int> dcRcvMap;  // List of ranks to recv cut faces from
+
+  dcSndMap.resize(0);
+  dcRcvMap.resize(0);
+
+  for (int p = 0; p < nproc; p++)
+  {
+    int g = gridIDs[p];
+    if (g == mytag) continue;
+
+    // Check if our bbox overlaps with global cut-group bbox and nearly-overlaps
+    // with other rank's local cut-group bbox [within tolerance 'href']
+    if (nFace_p[p] > 0 && tg_funcs::boundingBoxCheck(mb->aabb, &bbox_g[g][0], 3)
+        && tg_funcs::boundingBoxCheck(mb->aabb, &bbox_tmp[2*nDims*p], 3, href_g[g]))
+      dcRcvMap.push_back(p);
+
+    double *Bptr;
+    int size = 0;
+    if (nCutHole > 0 && gridTypes[p] > 0)
+    {
+      Bptr = bboxW.data();
+      size = nCutHole;
+    }
+    else if (nCutFringe > 0 && gridTypes[p] == 0)
+    {
+      Bptr = bboxO.data();
+      size = nCutFringe;
+    }
+
+    // Check if other rank's bbox overlaps with our cut-group bbox
+    if (size > 0 && tg_funcs::boundingBoxCheck(Bptr, &aabb_tmp[2*nDims*p], 3, href_g[mytag]))
+      dcSndMap.push_back(p);
+  }
+
+  int nrecv = dcRcvMap.size();
+  int nsend = dcSndMap.size();
+
+  // Figure out displacements into per-grid storage (rather than per-rank)
+
+  std::vector<int> nFace_g(nGrids), nFace_r(nrecv);
+  std::vector<int> faceDisp_r(nrecv);
+  std::vector<int> nProc_g(nGrids), nVertf_g(nGrids);
+
+  for (int i = 0; i < nrecv; i++)
+  {
+    int p = dcRcvMap[i];
+    int g = gridIDs[p];
+
+    faceDisp_r[i] = nFace_g[g];
+    if (gridType > 0)
+      nFace_r[i] += nHoleFace_p[p];
+    else
+      nFace_r[i] += nOverFace_p[p];
+
+    nFace_g[g] += nFace_r[i];
+    nVertf_g[g] = nvertf_p[p];
+    nProc_g[g]++;
+  }
+
+  for (int g = 0; g < nGrids; g++)
+  {
+    faceNodes_g[g].resize(nFace_g[g] * nVertf_g[g] * nDims);
+  }
+
+  // Reset the request buffers
+  sreqs.resize(0); sreqs.reserve(nsend);
+  rreqs.resize(0); rreqs.reserve(nrecv);
+
+  // Send / recv face nodes data - only to required ranks
+
+  for (int i = 0; i < nrecv; i++)
+  {
+    int p = dcRcvMap[i];
+    int g = gridIDs[p];
+
+    if (nFace_r[i] > 0)
+    {
+      // Receive the cutting faces
+      rreqs.emplace_back();
+      MPI_Irecv(faceNodes_g[g].data() + faceDisp_r[i]*nVertf_g[g]*nDims,
+          nFace_r[i]*nvertf_p[p]*nDims, MPI_DOUBLE, p, 0, scomm, &rreqs.back());
+    }
+  }
+
+  for (int i = 0; i < nsend; i++)
+  {
+    int p = dcSndMap[i];
+
+    // Get pointers to face node & bounding-box data based on grid type
+    double *Fptr;
+    int size = 0;
+    if (nCutHole > 0 && gridTypes[p] > 0)
+    {
+      Fptr = faceNodesW.data();
+      size = nCutHole*nvertf*nDims;
+    }
+    else if (nCutFringe > 0 && gridTypes[p] == 0)
+    {
+      Fptr = faceNodesO.data();
+      size = nCutFringe*nvertf*nDims;
+    }
+
+    if (size > 0)
+    {
+      // Send face nodes
+      sreqs.emplace_back();
+      MPI_Isend(Fptr, size, MPI_DOUBLE, p, 0, scomm, &sreqs.back());
+    }
+  }
+
+  // Complete the communication
+  MPI_Waitall((int)sreqs.size(), sreqs.data(), MPI_STATUSES_IGNORE);
+  MPI_Waitall((int)rreqs.size(), rreqs.data(), MPI_STATUSES_IGNORE);
+
+  // Reduce the bounding box data to one box per grid, using only bboxes of
+  // ranks sending faces to us
+  for (int i = 0; i < nrecv; i++)
+  {
+    int p = dcRcvMap[i];
+    int g = gridIDs[p];
+
+    for (int d = 0; d < nDims; d++)
+    {
+      bbox_g[g][d]       =  BIG_DOUBLE;
+      bbox_g[g][d+nDims] = -BIG_DOUBLE;
+    }
+
+    for (int d = 0; d < nDims; d++)
+    {
+      bbox_g[g][d] = std::min(bbox_g[g][d], bbox_tmp[2*nDims*p+d]);
+      bbox_g[g][d+nDims] = std::max(bbox_g[g][d+nDims], bbox_tmp[2*nDims*p+d+nDims]);
+    }
+  }
+
+  // Do the cutting
+  std::vector<CutMap> cutMap(nGrids);
+
+  Timer cutTime("Cutting Time: ");
+    
+  //printf("nGrids is %d\n", nGrids);
+  int ncut = 0;
+  for (int g = 0; g < nGrids; g++)
+  {
+    if (g == mytag) continue;
+
+    cutTime.startTimer();
+    
+    if (nFaceTot_g[g] > 0)
+    {
+      HOLEMAP hm = (gridType == 0) ? overMap[g] : holeMap[g];
+      mb->directCut_gpu(faceNodes_g[g], nFace_g[g], nVertf_g[g], bbox_g[g], hm, cutMap[ncut], gridType);
+      ncut++;
+    }
+    cutTime.stopTimer();
+  }
+
+  cutMap.resize(ncut);
+  mb->unifyCutFlags(cutMap);
+}
+
+void tioga::performConnectivityAMR(void)
+{
+  int iamr = (ncart >0) ? 1:0;
+  MPI_Allreduce(&iamr, &iamrGlobal, 1, MPI_INT, MPI_MAX, scomm);
+
+  cg->preprocess();
+
+  for (int i = 0; i < ncart; i++) cb[i].preprocess(cg,1);
+
+  if (nblocks > 0)
+  {
+    // Get Cartesian-grid fringe nodes & search meshblock for donors
+    mb->getCartReceptors(cg,pc_cart,1);
+    mb->ihigh = ihigh;
+    mb->search();
+
+    // Fringe nodes on the artificial boundary
+    mb->getFringeNodes();
+
+    // Find donors for unstructured-grid fringe nodes in Cartesian grid
+    cg->search(mb->rxyzCart,mb->donorIdCart,mb->ntotalPointsCart);
+  }
+
+  exchangeAMRDonors(1);
+}
+
+void tioga::dataUpdate_AMR(int nvar,double **q,int interptype)
+{
+  // initialize send and recv packets
+  int nsend,nrecv;
+  int *sndMap,*rcvMap;
+  pc_cart->getMap(&nsend,&nrecv,&sndMap,&rcvMap);
+  if (nsend==0) return;
+  PACKET* sndPack = (PACKET *)malloc(sizeof(PACKET)*nsend);
+  PACKET* rcvPack = (PACKET *)malloc(sizeof(PACKET)*nrecv);
+  int* icount = (int *)malloc(sizeof(int)*nsend);
+  int* dcount = (int *)malloc(sizeof(int)*nrecv);
+
+  pc_cart->initPackets(sndPack,rcvPack);  
+
+  // get the interpolated solution now
+  int nints, nreals;
+  int* integerRecords = NULL;
+  double* realRecords = NULL;
+  mb->getInterpolatedSolutionAtPointsAMR(&nints,&nreals,&integerRecords,&realRecords,q,nvar,interptype);
+
+  for (int i = 0; i < ncart; i++)
+    cb[i].getInterpolatedData(&nints,&nreals,&integerRecords,&realRecords,nvar,1);
+
+  // populate the packets
+  for (int i = 0; i < nints; i++)
+  {
+    int k = integerRecords[3*i];
+    sndPack[k].nints+=2;
+    sndPack[k].nreals+=nvar;
+  }
+
+  for (int k = 0; k < nsend; k++)
+  {
+    sndPack[k].intData=(int *)malloc(sizeof(int)*sndPack[k].nints);
+    sndPack[k].realData=(double *)malloc(sizeof(double)*sndPack[k].nreals);
+    icount[k]=dcount[k]=0;
+  }
+
+  int m = 0;
+  for (int i = 0; i < nints; i++)
+  {
+    int k = integerRecords[3*i];
+    sndPack[k].intData[icount[k]++] = integerRecords[3*i+1];
+    sndPack[k].intData[icount[k]++] = integerRecords[3*i+2];
+    for (int j = 0; j < nvar; j++)
+      sndPack[k].realData[dcount[k]++] = realRecords[m++];
+  }
+
+  // communicate the data across
+  pc_cart->sendRecvPackets(sndPack,rcvPack);
+
+  int stride = nvar;
+
+  // Decode the packets and update the values in the solver's data array
+
+  std::vector<double> qtmp;
+  if (iartbnd)
+    qtmp.resize(stride*mb->ntotalPoints);
+
+  for (int k = 0; k < nrecv; k++)
+  {
+    m = 0;
+    for (int i = 0; i < rcvPack[k].nints/2; i++)
+    {
+      const int bid = rcvPack[k].intData[2*i];
+      if (bid < 0) // Unstructured grid
+      {
+        const int ind = rcvPack[k].intData[2*i+1];
+        if (iartbnd)
+        {
+          // Pack all data into buffer for use in callback function
+          for (int j = 0; j < stride; j++)
+            qtmp[ind*stride+j] = rcvPack[k].realData[m+j];
+        }
+        else
+        {
+          mb->updateSolnData(ind,&rcvPack[k].realData[m],q[0],nvar,interptype);
+        }
+      }
+      else // AMR grid
+      {
+        cb[bid].update(&rcvPack[k].realData[m],rcvPack[k].intData[2*i+1],nvar,1);
+      }
+
+      m += nvar;
+    }
+  }
+
+  // Update all fringe data now using callback functions
+  if (iartbnd)
+    mb->updateFringePointData(qtmp.data(),nvar);
+
+  // release all memory
+  pc_cart->clearPackets2(sndPack,rcvPack);
+  free(sndPack);
+  free(rcvPack);
+  free(integerRecords);
+  free(realRecords);
+  free(icount);
+  free(dcount);
+}
+
+
+void tioga::dataUpdate(int nvar,double *q,int interptype)
+{
+  int i,j,k,m;
+  int nints;
+  int nreals;
+  int *integerRecords;
+  double *realRecords;
+  int nsend,nrecv;
+  int *sndMap,*rcvMap;
+  PACKET *sndPack,*rcvPack;
+  int *icount,*dcount;
+  //
+  // initialize send and recv packets
+  //
+  icount=dcount=NULL;
+  integerRecords=NULL;
+  realRecords=NULL;
+  //
+  pc->getMap(&nsend,&nrecv,&sndMap,&rcvMap);
+  if (nsend==0) return;
+  sndPack=(PACKET *)malloc(sizeof(PACKET)*nsend);
+  rcvPack=(PACKET *)malloc(sizeof(PACKET)*nrecv);
+  icount=(int *)malloc(sizeof(int)*nsend);
+  dcount=(int *)malloc(sizeof(int)*nrecv);
+  //
+  pc->initPackets(sndPack,rcvPack);  
+  //
+  // get the interpolated solution now
+  //
+  integerRecords=NULL;
+  realRecords=NULL;
+  mb->getInterpolatedSolution(&nints,&nreals,&integerRecords,&realRecords,q,nvar,interptype);
+  //
+  // populate the packets
+  //
+  for(i=0;i<nints;i++)
+    {
+      k=integerRecords[2*i];
+      sndPack[k].nints++;
+      sndPack[k].nreals+=nvar;
+    }
+
+  for(k=0;k<nsend;k++)
+    {
+     sndPack[k].intData=(int *)malloc(sizeof(int)*sndPack[k].nints);
+     sndPack[k].realData=(double *)malloc(sizeof(double)*sndPack[k].nreals);
+     icount[k]=dcount[k]=0;
+    }  
+
+  m=0;
+  for(i=0;i<nints;i++)
+    {
+      k=integerRecords[2*i];
+      sndPack[k].intData[icount[k]++]=integerRecords[2*i+1];
+      for(j=0;j<nvar;j++)
+	sndPack[k].realData[dcount[k]++]=realRecords[m++];
+    }
+  //
+  // communicate the data across
+  //
+  pc->sendRecvPackets(sndPack,rcvPack);
+  //
+  // decode the packets and update the data
+  //
+  for(k=0;k<nrecv;k++)
+    {
+      m=0;
+      for(i=0;i<rcvPack[k].nints;i++)
+	{
+	  mb->updateSolnData(rcvPack[k].intData[i],&rcvPack[k].realData[m],q,nvar,interptype);
+	  m+=nvar;
+	}
+    }
+  //
+  // release all memory
+  //
+  pc->clearPackets2(sndPack,rcvPack);
+  free(sndPack);
+  free(rcvPack);
+  if (integerRecords) free(integerRecords);
+  if (realRecords) free(realRecords);
+  if (icount) free(icount);
+  if (dcount) free(dcount);
+}
+
+void tioga::writeData(int nvar,double *q,int interptype)
+{
+  //mb->writeGridFile(myid);
+  mb->writeFlowFile(myid,q,nvar,interptype);
+}
+
+void tioga::getDonorCount(int *dcount,int *fcount)
+{
+  mb->getDonorCount(dcount,fcount);
+}
+
+void tioga::getDonorInfo(int *receptors,int *indices,double *frac,int *dcount)
+{
+  int nsend,nrecv;
+  int *sndMap,*rcvMap;
+  int i;
+  mb->getDonorInfo(receptors,indices,frac);
+  pc->getMap(&nsend,&nrecv,&sndMap,&rcvMap); 
+  //
+  // change to actual processor id here
+  //
+  for(i=0;i<3*(*dcount);i+=3)
+    receptors[i]=sndMap[receptors[i]];
+      
+}
+
+int tioga::findPointDonor(double *x_pt)
+{
+  return mb->findPointDonor(x_pt);
+}
+
+std::unordered_set<int> tioga::findCellDonors(double *bbox)
+{
+  return mb->findCellDonors(bbox);
+}
+
+tioga::~tioga()
+{      
+  waitTime.showTime();
+  interpTime.showTime();
+
+  delete mb;
+  if (holeMap)
+  {
+    for (int i = 0; i < nmesh; i++)
+      if (holeMap[i].existWall)
+        free(holeMap[i].sam);
+    delete holeMap;
+  }
+  delete pc;
+
+  free(sendCount);
+  free(recvCount);
+  free(obblist);
+
+  if (myid==0) printf("#tioga :successfully cleared all the memory accessed\n");
+}
+
+void tioga::dataUpdate_highorder(int nvar,double *q,int interptype)
+{
+  int i,j,k,m;
+  int nints;
+  int nreals;
+  int *integerRecords;
+  double *realRecords;
+  int nsend,nrecv;
+  int *sndMap,*rcvMap;
+  PACKET *sndPack,*rcvPack;
+  int *icount,*dcount;
+  double *qtmp;
+  int norphanPoint;
+  int *itmp;
+  FILE *fp;
+  char ofname[100];
+  //
+  // initialize send and recv packets
+  //
+  fp=NULL;
+  icount=dcount=NULL;
+  integerRecords=NULL;
+  realRecords=NULL;
+  //
+  pc->getMap(&nsend,&nrecv,&sndMap,&rcvMap);
+  if (nsend==0) return;
+  sndPack=(PACKET *)malloc(sizeof(PACKET)*nsend);
+  rcvPack=(PACKET *)malloc(sizeof(PACKET)*nrecv);
+  icount=(int *)malloc(sizeof(int)*nsend);
+  dcount=(int *)malloc(sizeof(int)*nrecv);
+  //
+  pc->initPackets(sndPack,rcvPack);  
+  //
+  // get the interpolated solution now
+  //
+  integerRecords=NULL;
+  realRecords=NULL;
+  mb->getInterpolatedSolutionAtPoints(&nints,&nreals,&integerRecords,
+				      &realRecords,q,nvar,interptype);
+  //
+  // populate the packets
+  //
+  for(i=0;i<nints;i++)
+    {
+      k=integerRecords[2*i];
+      sndPack[k].nints++;
+      sndPack[k].nreals+=nvar;
+    }
+
+  for(k=0;k<nsend;k++)
+    {
+     sndPack[k].intData=(int *)malloc(sizeof(int)*sndPack[k].nints);
+     sndPack[k].realData=(double *)malloc(sizeof(double)*sndPack[k].nreals);
+     icount[k]=dcount[k]=0;
+    }  
+
+  m=0;
+  for(i=0;i<nints;i++)
+    {
+      k=integerRecords[2*i];
+      sndPack[k].intData[icount[k]++]=integerRecords[2*i+1];
+      for(j=0;j<nvar;j++)
+	sndPack[k].realData[dcount[k]++]=realRecords[m++];
+    }
+  //
+  // communicate the data across
+  //
+  pc->sendRecvPackets(sndPack,rcvPack);
+  //
+  // decode the packets and update the data
+  //
+  qtmp=(double *)malloc(sizeof(double)*nvar*mb->ntotalPoints);
+  itmp=(int *) malloc(sizeof(int)*mb->ntotalPoints);
+  for(i=0;i<mb->ntotalPoints;i++) itmp[i]=0;
+  //
+  for(k=0;k<nrecv;k++)
+  {
+    m=0;
+    for(i=0;i<rcvPack[k].nints;i++)
+    {
+      for(j=0;j<nvar;j++)
+      {
+        itmp[rcvPack[k].intData[i]]=1;
+        qtmp[rcvPack[k].intData[i]*nvar+j]=rcvPack[k].realData[m];
+        m++;
+      }
+    }
+  }
+  
+  norphanPoint=0;
+  for(i=0;i<mb->ntotalPoints;i++)
+  {
+    if (itmp[i]==0 && iorphanPrint) {
+      if (fp==NULL) 
+      {
+        sprintf(ofname,"orphan%d.dat",myid);
+        fp=fopen(ofname,"w");
+      }
+      mb->outputOrphan(fp,i);
+      norphanPoint++;
+    }
+  }
+  if (fp!=NULL) fclose(fp);
+  if (norphanPoint > 0 && iorphanPrint) {
+   printf("Warning::update highorder number of orphans in rank %d = %d of %d\n",myid,norphanPoint,
+	mb->ntotalPoints);
+    iorphanPrint=0;
+   }
+  // change the state of cells/nodes who are orphans
+  mb->clearOrphans(holeMap,nmesh,itmp);
+  //
+  mb->updatePointData(q,qtmp,nvar,interptype);
+  //
+  // release all memory
+  //
+  pc->clearPackets2(sndPack,rcvPack);
+  free(sndPack);
+  free(rcvPack);
+  free(qtmp);
+  free(itmp);
+  if (integerRecords) free(integerRecords);
+  if (realRecords) free(realRecords);
+  if (icount) free(icount);
+  if (dcount) free(dcount);
+}
+
+void tioga::dataUpdate_artBnd(int nvar, int dataFlag)
+{
+  dataUpdate_artBnd_send(nvar,dataFlag);
+
+  dataUpdate_artBnd_recv(nvar,dataFlag);
+}
+
+#ifdef _GPU
+void tioga::dataUpdate_artBnd_send(int nvar, int dataFlag)
+{
+  // initialize send and recv packets
+  int nsend,nrecv;
+  int *sndMap,*rcvMap;
+
+  pc->getMap(&nsend,&nrecv,&sndMap,&rcvMap);
+
+  if (nsend+nrecv == 0) return;
+  
+  // get the interpolated solution now
+  int stride = nvar;
+  if (iartbnd && dataFlag == 1) stride = 3*nvar;
+
+  ubuf_d.resize(mb->ninterp2*stride);
+  ubuf_h.resize(mb->ninterp2*stride);
+
+  for (int k = 0; k < nsend; k++)
+  {
+    sndVPack[k].nreals = sndVPack[k].nints * stride;
+    sndVPack[k].realData.resize(sndVPack[k].nreals);
+//    sndPack2[k].nreals = sndPack2[k].nints * stride; /// newer method
+  }
+
+  interpTime.startTimer();
+
+  //printf("finish interpolation GPU ubuf_d.size() is %d\n",ubuf_d.size());
+  if (dataFlag == 0)
+    mb->interpSolution_gpu(ubuf_d.data(), nvar);
+  else
+    mb->interpGradient_gpu(ubuf_d.data(), nvar);
+    
+  int world_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  
+  //printf("current rank is %d and pid is %d nsend is %d and nrecv is %d sendMap is %d recvMap is %d interp2 is %d strides is %d\n",
+  //          world_rank, getpid(), nsend , nrecv, sndMap[0], rcvMap[0], mb->ninterp2, stride );
+  //int idbg = 0;
+  //while(idbg) {
+
+  //}
+
+  ubuf_h.assign(ubuf_d.data(), ubuf_d.size(), &mb->stream_handle);
+
+  interpTime.stopTimer();
+
+  //printf("finish interpolation GPU 1 %d\n",mb->stream_handle);
+  // Wait for D2H transfer to complete and pack separate buffer
+  cudaStreamSynchronize(mb->stream_handle);
+  //printf("finish interpolation GPU 2\n");
+  // Populate the packets [organize interp data by rank to send to]
+  for (int p = 0; p < nsend; p++)
+  {
+    for (int i = 0; i < sndVPack[p].nints; i++)
+      for (int j = 0; j < stride; j++)
+        sndVPack[p].realData[i*stride+j] = ubuf_h[(mb->buf_disp[p]+i)*stride+j];
+  }
+  pc->sendPacketsV(sndVPack,rcvVPack);
+  //printf("finish sending gpu\n");
+}
+
+void tioga::dataUpdate_artBnd_recv(int nvar, int dataFlag)
+{
+  // initialize send and recv packets
+  int nsend,nrecv;
+  int *sndMap,*rcvMap;
+
+  pc->getMap(&nsend,&nrecv,&sndMap,&rcvMap);
+
+  if (nsend+nrecv == 0) return;
+
+  // get the interpolated solution now
+  int stride = nvar;
+  if (iartbnd && dataFlag == 1) stride = 3*nvar;
+
+  // Wait on all of the sends/recvs for the interpolated data
+  pc->recvPacketsV();
+
+  // Decode the packets and update the values in the solver's data array
+  if (ihigh)
+  {
+    fringebuf_h.resize(mb->ntotalPoints*stride);
+    recv_itmp.assign(mb->ntotalPoints,0);
+
+    for (int k = 0; k < nrecv; k++)
+    {
+      for (int i = 0; i < rcvVPack[k].nints; i++)
+      {
+        int ind = rcvVPack[k].intData[i];
+        recv_itmp[ind] = 1;
+        for (int j = 0; j < stride; j++)
+        {
+          fringebuf_h[ind*stride+j] = rcvVPack[k].realData[i*stride+j];
+        }
+      }
+    }
+
+    // Print any 'orphan' points which may exist
+    std::ofstream fp;
+    int norphanPoint = 0;
+    for (int i = 0; i < mb->ntotalPoints; i++)
+    {
+      if (recv_itmp[i] == 0) {
+        if (!fp.is_open())
+        {
+          std::stringstream ss;
+          ss << "orphan" << myid << ".dat";
+          fp.open(ss.str().c_str(),std::ofstream::out);
+        }
+        mb->outputOrphan(fp,i);
+        norphanPoint++;
+      }
+    }
+    fp.close();
+
+    if (norphanPoint > 0) {
+      printf("Orphan points n = %d found! myid is %d\n",norphanPoint,myid);
+      MPI_Finalize();
+      exit(2);
+    }
+    if (norphanPoint > 0 && iorphanPrint) {
+      printf("Warning::art_bnd recv gpu number of orphans in rank %d = %d of %d\n",myid,norphanPoint,mb->ntotalPoints);
+      iorphanPrint = 0;
+    }
+
+    // change the state of cells/nodes who are orphans
+    if (!iartbnd)
+      mb->clearOrphans(holeMap,nmesh,recv_itmp.data());
+
+    if (iartbnd)
+    {
+      interpTime.startTimer();
+      if (dataFlag == 0) {
+        mb->updateFringePointData(fringebuf_h.data(),nvar);
+      } else {
+        mb->updateFringePointGradient(fringebuf_h.data(),nvar);
+      }
+      interpTime.stopTimer();
+    }
+    else
+      ThrowException("Not written for non-artificial boundary codes right now");
+  }
+}
+#endif
+
+#ifdef _CPU
+void tioga::dataUpdate_artBnd_send(int nvar, int dataFlag)
+{
+  // initialize send and recv packets
+  int nsend,nrecv;
+  int *sndMap,*rcvMap;
+
+  pc->getMap(&nsend,&nrecv,&sndMap,&rcvMap);
+
+  sndVPack.resize(nsend);
+  rcvVPack.resize(nrecv);
+
+  if (nsend+nrecv == 0) return;
+
+  std::vector<int> icount(nsend), dcount(nsend);
+
+  pc->initPacketsV(sndVPack,rcvVPack);
+
+  // get the interpolated solution now
+  int *integerRecords = NULL;  // procID & pointID
+  double *realRecords = NULL;  // Interpolated solution
+
+  int stride = nvar;
+  if (iartbnd && dataFlag == 1) stride = 3*nvar;
+
+  int nints, nreals;
+  if (iartbnd)
+  {
+    if (dataFlag == 0)
+      mb->getInterpolatedSolutionAtPoints(&nints,&nreals,&integerRecords,
+                                          &realRecords,NULL,nvar,dataFlag);
+    else
+      mb->getInterpolatedGradientAtPoints(nints,nreals,integerRecords,
+                                          realRecords,NULL,nvar);
+  }
+  else if (ihigh && (ncart == 0))
+  {
+    mb->getInterpolatedSolutionAtPoints(&nints,&nreals,&integerRecords,
+                                        &realRecords,NULL,nvar,dataFlag);
+  }
+  else if (ncart > 0)
+  {
+    mb->getInterpolatedSolutionAMR(&nints,&nreals,&integerRecords,&realRecords,
+                                   NULL,nvar,dataFlag);
+    for (int i = 0; i < ncart; i++)
+      cb[i].getInterpolatedData(&nints,&nreals,&integerRecords,&realRecords,nvar);
+  }
+  else
+  {
+    // Note: same as original func, but using interpList2 instead
+    mb->getInterpolatedSolution2(nints,nreals,integerRecords,realRecords,NULL,
+                                 nvar,dataFlag);
+  }
+
+  // Populate the packets [organize interp data by rank to send to]
+  for (int i = 0; i < nints; i++)
+  {
+    int k = integerRecords[2*i]; // rank that interp point belongs to
+    sndVPack[k].nints++;
+    sndVPack[k].nreals += stride;
+  }
+
+  for (int k = 0; k < nsend; k++)
+  {
+    sndVPack[k].intData.resize(sndVPack[k].nints);
+    sndVPack[k].realData.resize(sndVPack[k].nreals);
+    icount[k] = dcount[k] = 0;
+  }
+
+  for (int i = 0; i < nints; i++)
+  {
+    int k = integerRecords[2*i];
+    sndVPack[k].intData[icount[k]++] = integerRecords[2*i+1];
+    for (int j = 0; j < stride; j++)
+      sndVPack[k].realData[dcount[k]++] = realRecords[stride*i+j];
+  }
+
+  // communicate the data across all partitions
+  pc->sendPacketsV(sndVPack,rcvVPack);
+
+  free(integerRecords);
+  free(realRecords);
+}
+
+void tioga::dataUpdate_artBnd_recv(int nvar, int dataFlag)
+{
+  int es, ss, vs, ds;
+  unsigned int soasz = mb->get_soasz();
+  // use callbacks to get the memory address
+  double* q_spts = (dataFlag == 0) ? get_q_spts(es, ss, vs, 0) :
+                                     get_dq_spts(es, ss, vs, ds, 0); ///TODO:ntypes
+
+  printf("q_spts first element is %f\n", q_spts[0]);
+
+  int nsend,nrecv;
+  int *sndMap,*rcvMap;
+  pc->getMap(&nsend,&nrecv,&sndMap,&rcvMap);
+
+  pc->recvPacketsV();
+
+  int stride = nvar;
+  if (iartbnd && dataFlag == 1) stride = 3*nvar;
+
+  // Decode the packets and update the values in the solver's data array
+  if (ihigh)
+  {
+    std::vector<double> qtmp(stride*mb->ntotalPoints);
+    std::vector<int> itmp(mb->ntotalPoints);
+
+    for (int k = 0; k < nrecv;k++)
+    {
+      int m = 0;
+      for (int i = 0; i < rcvVPack[k].nints; i++)
+      {
+        for (int j = 0; j < stride; j++)
+        {
+          itmp[rcvVPack[k].intData[i]] = 1;
+          qtmp[rcvVPack[k].intData[i]*stride+j] = rcvVPack[k].realData[m];
+          m++;
+        }
+      }
+    }
+
+    // Print any 'orphan' points which may exist
+    std::ofstream fp;
+    int norphanPoint = 0;
+    for (int i = 0; i < mb->ntotalPoints; i++)
+    {
+      if (itmp[i] == 0) {
+        if (!fp.is_open())
+        {
+          std::stringstream ss;
+          ss << "orphan" << myid << ".dat";
+          fp.open(ss.str().c_str(),std::ofstream::out);
+        }
+        mb->outputOrphan(fp,i);
+        norphanPoint++;
+      }
+    }
+    fp.close();
+
+    if (norphanPoint > 0 && iorphanPrint) {
+      printf("Warning::artbnd recv cpu number of orphans in rank %d = %d of %d\n",myid,norphanPoint,mb->ntotalPoints);
+      iorphanPrint = 0;
+    }
+
+    // change the state of cells/nodes who are orphans
+    if (!iartbnd)
+      mb->clearOrphans(holeMap, nmesh, itmp.data());
+
+    if (iartbnd)
+    {
+      interpTime.startTimer();
+      if (dataFlag == 0)
+        mb->updateFringePointData(qtmp.data(),nvar);
+      else
+        mb->updateFringePointGradient(qtmp.data(),nvar);
+      interpTime.startTimer();
+    }
+    else
+      mb->updatePointData(q_spts,qtmp.data(),nvar,dataFlag);
+  }
+  else
+  {
+    for (int k = 0; k < nrecv; k++)
+    {
+      for (int i = 0; i < rcvVPack[k].nints; i++)
+      {
+        mb->updateSolnData(rcvVPack[k].intData[i],&rcvVPack[k].realData[nvar*i],q_spts,nvar,dataFlag);
+      }
+    }
+  }
+}
+#endif
+
+void tioga::register_amr_global_data(int nf,int qstride,double *qnodein,int *idata,
+				     double *rdata,int ngridsin,
+				     int qnodesize)
+{
+  if (cg) delete [] cg;
+  cg=new CartGrid[1];
+  cg->myid=myid;
+  cg->registerData(nf,qstride,qnodein,idata,rdata,ngridsin,qnodesize);
+  //writeqnode_(&myid,qnodein,&qnodesize);
+}
+
+void tioga::set_amr_patch_count(int npatchesin)
+{
+  ncart=npatchesin;
+  if (cb) delete [] cb;
+  cb=new CartBlock[ncart];
+}
+
+void tioga::register_amr_local_data(int ipatch,int global_id,int *iblank,double *q)
+{
+  cb[ipatch].registerData(ipatch,global_id,iblank,q);
+}
+
+void tioga::get_igbp_ptr(double *& igbp_ptr)
+{
+  mb->getIgbpData(igbp_ptr);
+}
+#ifdef _GPU
+void tioga::set_stream_handle(cudaStream_t handle, cudaEvent_t event)
+{
+  mb->set_stream_handle(handle, event);
+}
+#endif

@@ -1,0 +1,488 @@
+include/error.hpp:  printf("Fatal error '%s' at %s:%d\n",s,__FILE__,__LINE__);        \
+include/error.hpp:  printf("Fatal error '%s' at %s:%d\n\n",s,__FILE__,__LINE__);      \
+include/tioga.i:    fprintf(stderr, "throw\n");
+include/tioga.i:  catch (Swig::DirectorException &e) { fprintf(stderr, "catch\n"); SWIG_fail; }
+include/tioga.i:    printf("c is %ld\n",c);
+include/tioga.i:    //printf("info fpt is %lf\n", *d);
+include/tioga.i:    //printf("info spts is %lf\n",*tmp);
+include/tioga.i:    printf("c is %ld\n", c);
+include/tioga.i:    printf("c[i] is %f\n", *tmp);
+include/dMeshBlock.h:  //printf("tol is %15.7e h is %15.7e\n", tol,h);
+include/dMeshBlock.h:  //printf(" fringe nodes x %lf y %lf z %lf\n", xyz[0], xyz[1], xyz[2]);
+include/dMeshBlock.h:  //printf("nNodes is %d\n", nNodes);
+include/dMeshBlock.h:  //  printf("coords x %lf y %lf z %lf\n", 
+include/dMeshBlock.h:  //printf("finish print nodes\n");
+include/dMeshBlock.h:  //printf("getRefLoc iters is %d norm is %lf r %lf s %lf d %lf\n",
+include/codetypes.h:# define tracei(x)  printf("#tioga:\t"#x" =%d\n",x);
+include/codetypes.h:# define traced(x)  printf("#tioga:\t"#x" =%.16e\n",x);
+include/codetypes.h:# define debug(x,y)  printf("#tioga:\t"#x"=%d,"#y"=%d\n",x,y);
+include/codetypes.h:# define stdwrite(x) if (myid==0) printf("#tioga:\t"#x"\n");
+include/codetypes.h:# define dstr(x) printf("#tioga:\t"#x"\n");
+include/MeshBlock.h:    fprintf(fp,"%f %f %f\n",rxyz[3*i],rxyz[3*i+1],rxyz[3*i+2]);
+src/getCartReceptors.C:              //if (intersectCount==1 && myid==0) fprintf(fp,"%lf %lf %lf\n",xtm[i3],xtm[i3+1],xtm[i3+2]);
+src/bookKeeping.C:      if (verbose) printf("No donor found for %d\n", i);
+src/bookKeeping.C:     printf("--------------------------------------------------------------------\n");
+src/bookKeeping.C:     printf("Alarm from process %d : wall node is being tagged as a hole %d %p\n",myid,wbcnode[i]-BASE,
+src/bookKeeping.C:     printf("xloc=%e %e %e\n",x[3*ii],x[3*ii+1],x[3*ii+2]);
+src/bookKeeping.C:     printf("Computations will continue, but may suffer from accuracy problems\n");
+src/bookKeeping.C:     printf("Please recheck positions of your grids\n");
+src/bookKeeping.C:     printf("--------------------------------------------------------------------\n");
+src/bookKeeping.C:    if (nvert > 8) printf("ERROR! Shouldn't have nvert > 8 now.  nvert = %d\n",nvert);
+src/highOrder.C:  printf("nCut is for direct cut %d\n",nCut);
+src/highOrder.C:  printf("ncells for directCut_gpu is %d\n",ncells);
+src/highOrder.C:  printf("before unifycutflags iblank_cell %d\n",iblank_cell);
+src/highOrder.C:    //printf("iblank_cell[ic] is %d\n", iblank_cell[ic]);
+src/highOrder.C:  printf("Done unifyCUtFlags\n");
+src/highOrder.C:  //printf("iartbnd %d\n", iartbnd);
+src/highOrder.C:  //printf("ncells is %d\n", ncells);
+src/highOrder.C:      //printf("iblank_cell %d\n", iblank_cell[n]);
+src/highOrder.C:    //printf("nvert is %d nc is %d BASE is %d vconn[0][0] %d iblank[0] %d iblankcell[0] %d\n",
+src/highOrder.C:    printf("before get_face_nodes_gpu ntotalPoints is %d\n",ntotalPoints);
+src/highOrder.C:                fprintf(fp, "%lf %lf %lf\n",
+src/highOrder.C:    printf("do unblanking only %d \n", unblanking);
+src/highOrder.C:      printf("number of ncells is %d\n",ncells);
+src/highOrder.C:      printf("done artificial\n");
+src/highOrder.C:      //printf("get_nodes_per_cell %d 0\n", pointsPerCell[i]);
+src/highOrder.C:      //printf("get_nodes_per_cell %d 1\n", pointsPerCell[i]);
+src/highOrder.C:    //printf("before get_cell_nodes_gpu %d on cpu %d ncells %d\n", unblanking, world_rank, nreceptorCells);
+src/highOrder.C:    //printf("donorID is %d\n",donorId[i]);
+src/highOrder.C:  printf("inter2ListSize is %d\n", interp2ListSize);
+src/highOrder.C:  printf("Here is getINterpolatedSolutionAtPoints\n");
+src/highOrder.C:    printf("soasz is %d\n", soasz);
+src/highOrder.C:            if(k == 0) printf("rho is %f\n",Q[n][idx1]);
+src/highOrder.C:            printf("warning: weights are not convex\n");
+src/highOrder.C:  printf("interpSolution_gpu %d\n", ninterp2);
+src/highOrder.C:  printf("gpu updatefringePointData nreceptorFaces %d nreceptorCells %d\n", nreceptorFaces, nreceptorCells);
+src/highOrder.C:          //printf("get_q_fpt b is %f\n",b);
+src/parallelComm.C:  //    printf("%d sending %d to %d\n",myid,sndPack[i].nints,sndMap[i]);
+src/parallelComm.C:  //   printf("%d receiving %d from %d\n",myid,rcvPack[i].nints,rcvMap[i]);
+src/tiogaInterface.C:    printf("A:%d %d %d %d\n",*nf,*qstride,*ngridsin,*qnodesize);
+src/tiogaInterface.C:    printf("B:%d %d %d %d\n",nf[0],qstride[0],ngridsin[0],qnodesize[0]);
+src/tiogaInterface.C:    printf("C:%d %d %d %d\n",idata[12],idata[13],idata[14],idata[15]);
+src/tiogaInterface.C:	printf("#tiogaInterface.C:dataupdate_:unknown data orientation\n");
+src/tiogaInterface.C:	    printf("Data udpate between high-order near-body and AMR cartesian Not implemented yet\n");
+src/tiogaInterface.C:	printf("#tiogaInterface.C:dataupdate_:unknown data orientation\n");
+src/CartGrid.C:  //                            if (myid==0) printf("qnode[%d]= %f\n",i,qnode[i]);}
+src/CartGrid.C:        fprintf(fp,"%d %d %d %d %d %f %f %f\n",global_id[i],level_num[i],proc_id[i],
+src/CartGrid.C: //printf("CartGrid::search Processor %d located %d of %d points\n",myid,dcount,npts);
+src/holeMap.C:	 sprintf(intstring,"%d",100000+i+100*myid);
+src/holeMap.C:	 sprintf(fname,"holeMap%s.dat",&(intstring[1]));
+src/holeMap.C:	 fprintf(fp,"TITLE =\"Tioga output\"\n");
+src/holeMap.C:	 fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK\"\n");
+src/holeMap.C:	 fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEBLOCK\n",nnodes,ncells);
+src/holeMap.C:	 fprintf(fp,"VARLOCATION = (1=NODAL, 2=NODAL, 3=NODAL, 4=CELLCENTERED)\n");
+src/holeMap.C:	       fprintf(fp,"%.14e\n",ii*ds[0]);
+src/holeMap.C:	       fprintf(fp,"%.14e\n",jj*ds[1]);
+src/holeMap.C:	       fprintf(fp,"%.14e\n",kk*ds[2]);
+src/holeMap.C:		 fprintf(fp,"%f\n",(double)holeMap[i].sam[m]);
+src/holeMap.C:		 fprintf(fp,"%d %d %d %d %d %d %d %d\n",m,m+1,m+1+ns1,m+ns1,
+src/dMeshBlock.cu:      printf("Points%d = [",id);
+src/dMeshBlock.cu:        printf("%f %f %f;\n",pts[3*i+0],pts[3*i+1],pts[3*i+2]);
+src/dMeshBlock.cu:      printf("%f %f %f];\n",pts[3*I+0],pts[3*I+1],pts[3*I+2]);
+src/dMeshBlock.cu:      printf("Points%d = [",id);
+src/dMeshBlock.cu:        printf("%f %f %f;\n",pts[3*i+0],pts[3*i+1],pts[3*i+2]);
+src/dMeshBlock.cu:      printf("%f %f %f];\n",pts[3*I+0],pts[3*I+1],pts[3*I+2]);
+src/dMeshBlock.cu:          //printf("mb.Rmat is %lf mb.offset is %lf\n", mb.Rmat[d1+3*d2], mb.offset[d2]);
+src/dMeshBlock.cu:  printf("cutFlag is %d\n", cutFlag[ic]);
+src/dMeshBlock.cu:  printf("nCut is %d nvertf is %d\n", nCut, nvertf);
+src/dMeshBlock.cu:  // printf the face to check ordering of the nodes
+src/dMeshBlock.cu:    fprintf(fp,"%lf %lf %lf %d\n",
+src/dMeshBlock.cu:      printf(" %d ", i);
+src/dMeshBlock.cu:    printf("\n");
+src/dMeshBlock.cu:      printf("nvert = %d\n",nvert);
+src/dMeshBlock.cu:      printf("nvertf = %d\n",nvertf);
+src/dMeshBlock.cu:        printf("nvertFace = %d, nCut = %d\n",nvertf,nCut);
+src/utils.C:  sprintf(intstring,"%d",100000+bid);
+src/utils.C:  sprintf(fname,"qbox%s.dat",&(intstring[1]));
+src/utils.C:  fprintf(fp,"TITLE =\"Box file\"\n");
+src/utils.C:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\"\n");
+src/utils.C:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEPOINT\n",8,
+src/utils.C:	      fprintf(fp,"%f %f %f\n",xx[0],xx[1],xx[2]);
+src/utils.C:  fprintf(fp,"1 2 4 3 5 6 8 7\n");
+src/utils.C:  sprintf(intstring,"%d",100000+bid);
+src/utils.C:  sprintf(fname,"points%s.dat",&(intstring[1]));
+src/utils.C:  fprintf(fp,"TITLE =\"Box file\"\n");
+src/utils.C:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\"\n");
+src/utils.C:    fprintf(fp,"%f %f %f\n",x[3*i],x[3*i+1],x[3*i+2]);
+src/exchangeSearchData.C:  printf("exchangePointSearchData %d\n", mb->nsearch);
+src/search.C:  printf("rrot is %d and adt is %d\n",rrot, adt);
+src/search.C:    printf("build adt ncells_adt %d\n", ncells_adt);
+src/search.C:  printf("search ADT before \n");
+src/search.C:  printf("%d: nsearch %d\n",myid,nsearch);
+src/test_amr_functions.c:  for(i=0;i<8;i++) printf("%d ",index1[i]);
+src/test_amr_functions.c:  printf("\n");
+src/test_amr_functions.c:      printf("%d %d %d %d %d %d\n",ijklmn[0],ijklmn[1],ijklmn[2],ijklmn[3],ijklmn[4],ijklmn[5]);
+src/exchangeDonors.C:  //printf("process %d has (%d,%d) points to interpolate out %d donors\n",myid,ninterp,m,mb->donorCount);
+src/exchangeDonors.C:  //printf("process %d has %d cancelled receptors\n",myid,nrecords);
+src/exchangeDonors.C:    printf("#tioga -----------------------------------------\n");
+src/exchangeDonors.C:    printf("#tioga : total receptors:\t%d\n",mstats_global[1]);
+src/exchangeDonors.C:    printf("#tioga : total holes    :\t%d\n",mstats_global[0]);
+src/exchangeDonors.C:    printf("#tioga -----------------------------------------\n");
+src/CartBlock.C:      printf("%d %d %d %d %d %d\n",ijklmn[0],ijklmn[1],ijklmn[2],
+src/CartBlock.C:            // fprintf(fp,"%f %f %f\n",xtmp[3*p],xtmp[3*p+1],xtmp[3*p+2]);
+src/CartBlock.C:              printf("fixing orphan: myid/globalid/localid/(i,j,k)=%d %d %d %d %d %d \n",
+src/CartBlock.C:  sprintf(intstring,"%d",100000+myid);
+src/CartBlock.C:  sprintf(fname,"cart_cell%s.dat",&(intstring[1]));
+src/CartBlock.C:  fprintf(fp,"TITLE =\"Tioga output\"\n");
+src/CartBlock.C:    fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK_CELL\" ");
+src/CartBlock.C:   fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK \" ");
+src/CartBlock.C:  fprintf(fp,"\n");
+src/CartBlock.C:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEBLOCK\n",nnodes,
+src/CartBlock.C:      fprintf(fp,"VARLOCATION =  (1=NODAL, 2=NODAL, 3=NODAL, 4=CELLCENTERED)\n");
+src/CartBlock.C:      fprintf(fp,"VARLOCATION =  (1=NODAL, 2=NODAL, 3=NODAL, 4=NODAL)\n");
+src/CartBlock.C:	fprintf(fp,"%lf\n",xlo[0]+dx[0]*i);
+src/CartBlock.C:	fprintf(fp,"%lf\n",xlo[1]+dx[1]*j);
+src/CartBlock.C:	fprintf(fp,"%lf\n",xlo[2]+dx[2]*k);
+src/CartBlock.C:          // printf("problem: %d %d %d\n",myid,bid,ibindex);
+src/CartBlock.C:	  fprintf(fp,"%d\n", ibl[ibindex]);
+src/CartBlock.C:  //printf("proc %d , block %d, ibmin/ibmax=%d %d\n",myid,bid,ibmin,ibmax);
+src/CartBlock.C:          fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/checkContainment.C:      printf("TIOGA: invalid icell (adtElement) in checkContainment\n");
+src/.svn/text-base/tiogaInterface.C.svn-base:	printf("#tiogaInterface.C:dataupdate_:unknown data orientation\n");
+src/.svn/text-base/tiogaInterface.C.svn-base:	    printf("Data udpate between high-order near-body and AMR cartesian Not implemented yet\n");
+src/.svn/text-base/tiogaInterface.C.svn-base:	printf("#tiogaInterface.C:dataupdate_:unknown data orientation\n");
+src/.svn/text-base/cartOps.C.svn-base:      //printf("getInternalNodes : %d %d\n",myid,ntotalPoints);
+src/.svn/text-base/cartOps.C.svn-base:  sprintf(intstring,"%d",100000+bid);
+src/.svn/text-base/cartOps.C.svn-base:  sprintf(fname,"cbox%s.dat",&(intstring[1]));
+src/.svn/text-base/cartOps.C.svn-base:  fprintf(fp,"TITLE =\"Box file\"\n");
+src/.svn/text-base/cartOps.C.svn-base:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\"\n");
+src/.svn/text-base/cartOps.C.svn-base:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEPOINT\n",8,
+src/.svn/text-base/cartOps.C.svn-base:	      fprintf(fp,"%f %f %f\n",xx[0],xx[1],xx[2]);
+src/.svn/text-base/cartOps.C.svn-base:  fprintf(fp,"1 2 4 3 5 6 8 7\n");
+src/.svn/text-base/cartOps.C.svn-base:  fprintf(fp,"%e %e %e\n",obc->xc[0],obc->xc[1],obc->xc[2]);
+src/.svn/text-base/cartOps.C.svn-base:   fprintf(fp,"%e %e %e\n",obc->vec[0][k],obc->vec[1][k],obc->vec[2][k]);
+src/.svn/text-base/cartOps.C.svn-base:  fprintf(fp,"%e %e %e\n",obc->dxc[0],obc->dxc[1],obc->dxc[2]);
+src/.svn/text-base/cartOps.C.svn-base:                    printf("warning: weights are not convex 3\n");
+src/.svn/text-base/cartOps.C.svn-base:                    printf("warning: weights are not convex 4\n");
+src/.svn/text-base/cartOps.C.svn-base:		     //   printf("nsu3d/interp: %d %d %f %f\n",k,inode,weight,q[inode*nvar+k]);
+src/.svn/text-base/exchangeBoxes.C.svn-base:  //printf("%d %d %d\n",myid,nsend,nrecv);
+src/.svn/text-base/codetypes.h.svn-base:# define tracei(x)  printf("#tioga:\t"#x" =%d\n",x);
+src/.svn/text-base/codetypes.h.svn-base:# define traced(x)  printf("#tioga:\t"#x" =%.16e\n",x);
+src/.svn/text-base/codetypes.h.svn-base:# define debug(x,y)  printf("#tioga:\t"#x"=%d,"#y"=%d\n",x,y);
+src/.svn/text-base/codetypes.h.svn-base:# define stdwrite(x) if (myid==0) printf("#tioga:\t"#x"\n");
+src/.svn/text-base/codetypes.h.svn-base:# define dstr(x) printf("#tioga:\t"#x"\n");
+src/.svn/text-base/CartGrid.C.svn-base:  //                            if (myid==0) printf("qnode[%d]= %f\n",i,qnode[i]);}
+src/.svn/text-base/CartGrid.C.svn-base:        fprintf(fp,"%d %d %d %d %d %f %f %f\n",global_id[i],level_num[i],proc_id[i],
+src/.svn/text-base/CartGrid.C.svn-base: //printf("CartGrid::search Processor %d located %d of %d points\n",myid,dcount,npts);
+src/.svn/text-base/CartBlock.C.svn-base:      //  printf("--------------------------\n");
+src/.svn/text-base/CartBlock.C.svn-base:    printf("%d %d %d %d %d %d\n",ijklmn[0],ijklmn[1],ijklmn[2],
+src/.svn/text-base/CartBlock.C.svn-base:  //sprintf(intstring,"%d",100000+myid);
+src/.svn/text-base/CartBlock.C.svn-base:  //sprintf(fname,"fringes_%s.dat",&(intstring[1]));
+src/.svn/text-base/CartBlock.C.svn-base:	          // fprintf(fp,"%f %f %f\n",xtmp[3*p],xtmp[3*p+1],xtmp[3*p+2]);
+src/.svn/text-base/CartBlock.C.svn-base:                  printf("fixing orphan: myid/globalid/localid/(i,j,k)=%d %d %d %d %d %d \n",
+src/.svn/text-base/CartBlock.C.svn-base:  sprintf(intstring,"%d",100000+myid);
+src/.svn/text-base/CartBlock.C.svn-base:  sprintf(fname,"cart_cell%s.dat",&(intstring[1]));
+src/.svn/text-base/CartBlock.C.svn-base:  fprintf(fp,"TITLE =\"Tioga output\"\n");
+src/.svn/text-base/CartBlock.C.svn-base:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK_CELL\" ");
+src/.svn/text-base/CartBlock.C.svn-base:  fprintf(fp,"\n");
+src/.svn/text-base/CartBlock.C.svn-base:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEBLOCK\n",nnodes,
+src/.svn/text-base/CartBlock.C.svn-base:  fprintf(fp,"VARLOCATION =  (1=NODAL, 2=NODAL, 3=NODAL, 4=CELLCENTERED)\n");
+src/.svn/text-base/CartBlock.C.svn-base:	fprintf(fp,"%lf\n",xlo[0]+dx[0]*i);
+src/.svn/text-base/CartBlock.C.svn-base:	fprintf(fp,"%lf\n",xlo[1]+dx[1]*j);
+src/.svn/text-base/CartBlock.C.svn-base:	fprintf(fp,"%lf\n",xlo[2]+dx[2]*k);
+src/.svn/text-base/CartBlock.C.svn-base:	  fprintf(fp,"%d\n", ibl[ibindex]);
+src/.svn/text-base/CartBlock.C.svn-base:  //printf("proc %d , block %d, ibmin/ibmax=%d %d\n",myid,bid,ibmin,ibmax);
+src/.svn/text-base/CartBlock.C.svn-base:          fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:      sprintf(intstring,"%d",100000+myid);
+src/.svn/text-base/MeshBlock.C.svn-base:      sprintf(fname,"nodeRes%s.dat",&(intstring[1]));
+src/.svn/text-base/MeshBlock.C.svn-base:         fprintf(fp,"%e %e %e\n",x[3*i],x[3*i+1],x[3*i+2]);
+src/.svn/text-base/MeshBlock.C.svn-base:  sprintf(intstring,"%d",100000+bid);
+src/.svn/text-base/MeshBlock.C.svn-base:  sprintf(fname,"part%s.dat",&(intstring[1]));
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"TITLE =\"Tioga output\"\n");
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK\"\n");
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEPOINT\n",nnodes,
+src/.svn/text-base/MeshBlock.C.svn-base:      fprintf(fp,"%.14e %.14e %.14e %d\n",x[3*i],x[3*i+1],x[3*i+2],iblank[i]);
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:  sprintf(intstring,"%d",100000+bid);
+src/.svn/text-base/MeshBlock.C.svn-base:  sprintf(fname,"cell%s.dat",&(intstring[1]));
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"TITLE =\"Tioga output\"\n");
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK\",\"IBLANK_CELL\" ");
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"\n");
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEBLOCK\n",nnodes,
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"VARLOCATION =  (1=NODAL, 2=NODAL, 3=NODAL, 4=NODAL,5=CELLCENTERED)\n");
+src/.svn/text-base/MeshBlock.C.svn-base:  for(i=0;i<nnodes;i++) fprintf(fp,"%lf\n",x[3*i]);
+src/.svn/text-base/MeshBlock.C.svn-base:  for(i=0;i<nnodes;i++) fprintf(fp,"%lf\n",x[3*i+1]);
+src/.svn/text-base/MeshBlock.C.svn-base:  for(i=0;i<nnodes;i++) fprintf(fp,"%lf\n",x[3*i+2]);
+src/.svn/text-base/MeshBlock.C.svn-base:  for(i=0;i<nnodes;i++) fprintf(fp,"%d\n",iblank[i]);
+src/.svn/text-base/MeshBlock.C.svn-base:  for(i=0;i<ncells;i++) fprintf(fp,"%d\n",iblank_cell[i]);
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:  sprintf(intstring,"%d",100000+bid);
+src/.svn/text-base/MeshBlock.C.svn-base:  sprintf(fname,"flow%s.dat",&(intstring[1]));
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"TITLE =\"Tioga output\"\n");
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK\" ");
+src/.svn/text-base/MeshBlock.C.svn-base:      sprintf(qstr,"Q%d",i);
+src/.svn/text-base/MeshBlock.C.svn-base:      fprintf(fp,"\"%s\",",qstr);
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"\n");
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEPOINT\n",nnodes,
+src/.svn/text-base/MeshBlock.C.svn-base:	  fprintf(fp,"%lf %lf %lf %d ",x[3*i],x[3*i+1],x[3*i+2],iblank[i]);
+src/.svn/text-base/MeshBlock.C.svn-base:	    fprintf(fp,"%lf ",q[i*nvar+j]);      
+src/.svn/text-base/MeshBlock.C.svn-base:	  //  fprintf(fp,"%lf ", x[3*i]+x[3*i+1]+x[3*i+2]);
+src/.svn/text-base/MeshBlock.C.svn-base:          fprintf(fp,"\n");
+src/.svn/text-base/MeshBlock.C.svn-base:          fprintf(fp,"%lf %lf %lf %d ",x[3*i],x[3*i+1],x[3*i+2],iblank[i]);
+src/.svn/text-base/MeshBlock.C.svn-base:            fprintf(fp,"%lf ",q[j*nnodes+i]);
+src/.svn/text-base/MeshBlock.C.svn-base:          fprintf(fp,"\n");
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/MeshBlock.C.svn-base:  //sprintf(intstring,"%d",100000+myid);
+src/.svn/text-base/MeshBlock.C.svn-base:  //sprintf(fname,"wbc%s.dat",&(intstring[1]));
+src/.svn/text-base/MeshBlock.C.svn-base:    //fprintf(fp,"%e %e %e\n",x[3*ii],x[3*ii+1],x[3*ii+2]);
+src/.svn/text-base/MeshBlock.C.svn-base:  sprintf(intstring,"%d",100000+bid);
+src/.svn/text-base/MeshBlock.C.svn-base:  sprintf(fname,"box%s.dat",&(intstring[1]));
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"TITLE =\"Box file\"\n");
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\"\n");
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEPOINT\n",8,
+src/.svn/text-base/MeshBlock.C.svn-base:	      fprintf(fp,"%f %f %f\n",xx[0],xx[1],xx[2]);
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"1 2 4 3 5 6 8 7\n");
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"%e %e %e\n",obb->xc[0],obb->xc[1],obb->xc[2]);
+src/.svn/text-base/MeshBlock.C.svn-base:   fprintf(fp,"%e %e %e\n",obb->vec[0][k],obb->vec[1][k],obb->vec[2][k]);
+src/.svn/text-base/MeshBlock.C.svn-base:  fprintf(fp,"%e %e %e\n",obb->dxc[0],obb->dxc[1],obb->dxc[2]);
+src/.svn/text-base/dataUpdate.C.svn-base:                    printf("warning: weights are not convex 1\n");
+src/.svn/text-base/exchangeDonors.C.svn-base:  //printf("process %d has (%d,%d) points to interpolate out %d donors\n",myid,ninterp,m,mb->donorCount);
+src/.svn/text-base/exchangeDonors.C.svn-base:  //printf("process %d has %d cancelled receptors\n",myid,nrecords);
+src/.svn/text-base/exchangeDonors.C.svn-base:    printf("#tioga -----------------------------------------\n");
+src/.svn/text-base/exchangeDonors.C.svn-base:    printf("#tioga : total receptors:\t%d\n",mstats_global[1]);
+src/.svn/text-base/exchangeDonors.C.svn-base:    printf("#tioga : total holes    :\t%d\n",mstats_global[0]);
+src/.svn/text-base/exchangeDonors.C.svn-base:    printf("#tioga -----------------------------------------\n");
+src/.svn/text-base/MeshBlock.h.svn-base:    fprintf(fp,"%f %f %f\n",rxyz[3*i],rxyz[3*i+1],rxyz[3*i+2]);
+src/.svn/text-base/parallelComm.C.svn-base:  //    printf("%d sending %d to %d\n",myid,sndPack[i].nints,sndMap[i]);
+src/.svn/text-base/parallelComm.C.svn-base:  //   printf("%d receiving %d from %d\n",myid,rcvPack[i].nints,rcvMap[i]);
+src/.svn/text-base/getCartReceptors.C.svn-base:  //sprintf(intstring,"%d",100000+myid);
+src/.svn/text-base/getCartReceptors.C.svn-base:  //sprintf(fname,"zsearch_%s.dat",&(intstring[1]));
+src/.svn/text-base/getCartReceptors.C.svn-base:                      //if (intersectCount==1 && myid==0) fprintf(fp,"%lf %lf %lf\n",xtm[i3],xtm[i3+1],xtm[i3+2]);
+src/.svn/text-base/math.c.svn-base:      printf("Interpolation not implemented for polyhedra with %d vertices\n",nvert);
+src/.svn/text-base/exchangeAMRDonors.C.svn-base:  //sprintf(intstring,"%d",100000+myid);
+src/.svn/text-base/exchangeAMRDonors.C.svn-base:  //sprintf(fname,"ysearch_%s.dat",&(intstring[1]));  
+src/.svn/text-base/exchangeAMRDonors.C.svn-base:	      //      fprintf(fp,"%lf %lf %lf\n",mb->xsearch[3*i],mb->xsearch[3*i+1],mb->xsearch[3*i+2]);
+src/.svn/text-base/exchangeAMRDonors.C.svn-base:  //  printf("intcount/intcount=%d %d\n",sndPack[i].nints,intcount[i]);
+src/.svn/text-base/exchangeAMRDonors.C.svn-base:  //  printf("intcount/intcount=%d %d\n",sndPack[i].nreals,realcount[i]);
+src/.svn/text-base/exchangeAMRDonors.C.svn-base:  printf("checkComm complete in %d\n",myid);
+src/.svn/text-base/highOrder.C.svn-base:      //printf("getInternalNodes : %d %d\n",myid,ntotalPoints);
+src/.svn/text-base/highOrder.C.svn-base:  //printf("nsearch=%d %d\n",nsearch,myid);
+src/.svn/text-base/highOrder.C.svn-base:		  //	printf("warning: weights are not convex\n");
+src/.svn/text-base/highOrder.C.svn-base:                    printf("warning: weights are not convex 2\n");
+src/.svn/text-base/exchangeSearchData.C.svn-base:  //printf("%d %d\n",myid,mb->nsearch);
+src/.svn/text-base/exchangeSearchData.C.svn-base:  //if (myid==0) printf("AAAAA\n");
+src/.svn/text-base/exchangeSearchData.C.svn-base:  //printf("%d %d\n",myid,mb->nsearch);
+src/.svn/text-base/bookKeeping.C.svn-base:	//printf("\n\t Deallocate (nnodes) i: %d %d ",nnodes,i);
+src/.svn/text-base/bookKeeping.C.svn-base:            printf("No donor found for %d\n",i);
+src/.svn/text-base/bookKeeping.C.svn-base:     printf("--------------------------------------------------------------------\n");
+src/.svn/text-base/bookKeeping.C.svn-base:     printf("Alarm from process %d : wall node is being tagged as a hole %d %p\n",myid,wbcnode[i]-BASE,
+src/.svn/text-base/bookKeeping.C.svn-base:     printf("xloc=%e %e %e\n",x[3*ii],x[3*ii+1],x[3*ii+2]);
+src/.svn/text-base/bookKeeping.C.svn-base:     printf("Computations will continue, but may suffer from accuracy problems\n");
+src/.svn/text-base/bookKeeping.C.svn-base:     printf("Please recheck positions of your grids\n");
+src/.svn/text-base/bookKeeping.C.svn-base:     printf("--------------------------------------------------------------------\n");
+src/.svn/text-base/tioga.C.svn-base:  //printf("Finished performConnectivityAMR in %d\n",myid);
+src/.svn/text-base/tioga.C.svn-base:  if (myid==0) printf("#tioga :successfully cleared all the memory accessed\n");
+src/.svn/text-base/tioga.C.svn-base:         //if (myid==12) printf("rcvPack[k].intData[i]=%d %d\n",rcvPack[k].intData[i],mb->ntotalPoints);
+src/.svn/text-base/tioga.C.svn-base:	    sprintf(ofname,"orphan%d.dat",myid);
+src/.svn/text-base/tioga.C.svn-base:   printf("Warning::number of orphans in %d = %d of %d\n",myid,norphanPoint,
+src/.svn/text-base/writeOutput.C.svn-base:  sprintf(fname,"cell_dcf%d.plt",bid);
+src/.svn/text-base/writeOutput.C.svn-base:  fprintf(fp,"TITLE =\"DCF output\"\n");
+src/.svn/text-base/writeOutput.C.svn-base:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK\"\n");
+src/.svn/text-base/writeOutput.C.svn-base:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEBLOCK\n",blk[bid].nnodes,
+src/.svn/text-base/writeOutput.C.svn-base:  fprintf(fp,"VARLOCATION = (1=NODAL, 2=NODAL, 3=NODAL, 4=CELLCENTERED)\n");
+src/.svn/text-base/writeOutput.C.svn-base:    fprintf(fp,"%.14e\n",blk[bid].x[3*i]);
+src/.svn/text-base/writeOutput.C.svn-base:    fprintf(fp,"%.14e\n",blk[bid].x[3*i+1]);
+src/.svn/text-base/writeOutput.C.svn-base:    fprintf(fp,"%.14e\n",blk[bid].x[3*i+2]);
+src/.svn/text-base/writeOutput.C.svn-base:    fprintf(fp,"%d\n",blk[bid].iblank[i]);
+src/.svn/text-base/writeOutput.C.svn-base:      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/writeOutput.C.svn-base:      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/writeOutput.C.svn-base:      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/writeOutput.C.svn-base:      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/.svn/text-base/utils.c.svn-base:  sprintf(intstring,"%d",100000+bid);
+src/.svn/text-base/utils.c.svn-base:  sprintf(fname,"qbox%s.dat",&(intstring[1]));
+src/.svn/text-base/utils.c.svn-base:  fprintf(fp,"TITLE =\"Box file\"\n");
+src/.svn/text-base/utils.c.svn-base:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\"\n");
+src/.svn/text-base/utils.c.svn-base:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEPOINT\n",8,
+src/.svn/text-base/utils.c.svn-base:	      fprintf(fp,"%f %f %f\n",xx[0],xx[1],xx[2]);
+src/.svn/text-base/utils.c.svn-base:  fprintf(fp,"1 2 4 3 5 6 8 7\n");
+src/.svn/text-base/utils.c.svn-base:  sprintf(intstring,"%d",100000+bid);
+src/.svn/text-base/utils.c.svn-base:  sprintf(fname,"points%s.dat",&(intstring[1]));
+src/.svn/text-base/utils.c.svn-base:  fprintf(fp,"TITLE =\"Box file\"\n");
+src/.svn/text-base/utils.c.svn-base:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\"\n");
+src/.svn/text-base/utils.c.svn-base:    fprintf(fp,"%f %f %f\n",x[3*i],x[3*i+1],x[3*i+2]);
+src/.svn/text-base/ADT.C.svn-base:  //   fprintf(fp,"%.8e %.8e %.8e %.8e %.8e %.8e\n",adtReals[6*i],adtReals[6*i+1],adtReals[6*i+2],adtReals[6*i+3],
+src/.svn/text-base/ADT.C.svn-base:   // fprintf(fp1,"%d %d %d %d\n",adtIntegers[4*i],adtIntegers[4*i+1],adtIntegers[4*i+2],adtIntegers[4*i+3]);
+src/.svn/text-base/holeMap.C.svn-base:	 sprintf(intstring,"%d",100000+i+100*myid);
+src/.svn/text-base/holeMap.C.svn-base:	 sprintf(fname,"holeMap%s.dat",&(intstring[1]));
+src/.svn/text-base/holeMap.C.svn-base:	 fprintf(fp,"TITLE =\"Tioga output\"\n");
+src/.svn/text-base/holeMap.C.svn-base:	 fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK\"\n");
+src/.svn/text-base/holeMap.C.svn-base:	 fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEBLOCK\n",nnodes,ncells);
+src/.svn/text-base/holeMap.C.svn-base:	 fprintf(fp,"VARLOCATION = (1=NODAL, 2=NODAL, 3=NODAL, 4=CELLCENTERED)\n");
+src/.svn/text-base/holeMap.C.svn-base:	       fprintf(fp,"%.14e\n",ii*ds[0]);
+src/.svn/text-base/holeMap.C.svn-base:	       fprintf(fp,"%.14e\n",jj*ds[1]);
+src/.svn/text-base/holeMap.C.svn-base:	       fprintf(fp,"%.14e\n",kk*ds[2]);
+src/.svn/text-base/holeMap.C.svn-base:		 fprintf(fp,"%f\n",(double)holeMap[i].sam[m]);
+src/.svn/text-base/holeMap.C.svn-base:		 fprintf(fp,"%d %d %d %d %d %d %d %d\n",m,m+1,m+1+ns1,m+ns1,
+src/dADT.cu:  //printf("pt is %d out of total %d flag is true\n",pt,mb.nsearch);
+src/dADT.cu:  //printf("pt is %d out of total %d flag is %d\n",pt,mb.nsearch,flag);
+src/dADT.cu:  printf("search ADT\n");
+src/funcs.cpp:      printf("bbox[dim] is %lf and bbox[nDims+dim] is %lf\n",bbox[dim],bbox[nDims+dim]);
+src/exchangeAMRDonors.C:  //sprintf(intstring,"%d",100000+myid);
+src/exchangeAMRDonors.C:  //sprintf(fname,"ysearch_%s.dat",&(intstring[1]));  
+src/exchangeAMRDonors.C:  printf("checkComm complete in %d\n",myid);
+src/writeOutput.C:  sprintf(fname,"cell_dcf%d.plt",bid);
+src/writeOutput.C:  fprintf(fp,"TITLE =\"DCF output\"\n");
+src/writeOutput.C:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK\"\n");
+src/writeOutput.C:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEBLOCK\n",blk[bid].nnodes,
+src/writeOutput.C:  fprintf(fp,"VARLOCATION = (1=NODAL, 2=NODAL, 3=NODAL, 4=CELLCENTERED)\n");
+src/writeOutput.C:    fprintf(fp,"%.14e\n",blk[bid].x[3*i]);
+src/writeOutput.C:    fprintf(fp,"%.14e\n",blk[bid].x[3*i+1]);
+src/writeOutput.C:    fprintf(fp,"%.14e\n",blk[bid].x[3*i+2]);
+src/writeOutput.C:    fprintf(fp,"%d\n",blk[bid].iblank[i]);
+src/writeOutput.C:      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/writeOutput.C:      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/writeOutput.C:      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/writeOutput.C:      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/helper.cu:        printf("thread %d data is %d\n",idx,data[idx]);
+src/helper.cu:        printf("thread %d data is %f\n",idx,data[idx]);
+src/helper.cu:        printf("thread %d data is %lf\n",idx,data[idx]);
+src/helper.cu:  //printf("thread id is %d pt is %d gft is %d\n", tot_ind, pt, fringe_fpts[pt] );
+src/MeshBlock.C:  sprintf(intstring,"%d",100000+bid);
+src/MeshBlock.C:  sprintf(fname,"part%s.dat",&(intstring[1]));
+src/MeshBlock.C:  fprintf(fp,"TITLE =\"Tioga output\"\n");
+src/MeshBlock.C:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK\"\n");
+src/MeshBlock.C:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEPOINT\n",nnodes,
+src/MeshBlock.C:      fprintf(fp,"%.14e %.14e %.14e %d\n",x[3*i],x[3*i+1],x[3*i+2],iblank[i]);
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:  sprintf(intstring,"%d",100000+bid);
+src/MeshBlock.C:  sprintf(fname,"cell%s.dat",&(intstring[1]));
+src/MeshBlock.C:  fprintf(fp,"TITLE =\"Tioga output\"\n");
+src/MeshBlock.C:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK\",\"IBLANK_CELL\" ");
+src/MeshBlock.C:  fprintf(fp,"\n");
+src/MeshBlock.C:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEBLOCK\n",nnodes,
+src/MeshBlock.C:  fprintf(fp,"VARLOCATION =  (1=NODAL, 2=NODAL, 3=NODAL, 4=NODAL,5=CELLCENTERED)\n");
+src/MeshBlock.C:  for (int i = 0; i < nnodes; i++) fprintf(fp,"%lf\n",x[3*i]);
+src/MeshBlock.C:  for (int i = 0; i < nnodes; i++) fprintf(fp,"%lf\n",x[3*i+1]);
+src/MeshBlock.C:  for (int i = 0; i < nnodes; i++) fprintf(fp,"%lf\n",x[3*i+2]);
+src/MeshBlock.C:  for (int i = 0; i < nnodes; i++) fprintf(fp,"%d\n",iblank[i]);
+src/MeshBlock.C:    for (int i = 0; i < ncells; i++) fprintf(fp,"%d\n",flag[i]);
+src/MeshBlock.C:    for (int i = 0; i < ncells; i++) fprintf(fp,"%d\n",iblank_cell[i]);
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:  sprintf(intstring,"%d",100000+bid);
+src/MeshBlock.C:  sprintf(fname,"flow%s.dat",&(intstring[1]));
+src/MeshBlock.C:  fprintf(fp,"TITLE =\"Tioga output\"\n");
+src/MeshBlock.C:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\",\"IBLANK\" ");
+src/MeshBlock.C:      sprintf(qstr,"Q%d",i);
+src/MeshBlock.C:      fprintf(fp,"\"%s\",",qstr);
+src/MeshBlock.C:  fprintf(fp,"\n");
+src/MeshBlock.C:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEPOINT\n",nnodes,
+src/MeshBlock.C:	  fprintf(fp,"%lf %lf %lf %d ",x[3*i],x[3*i+1],x[3*i+2],iblank[i]);
+src/MeshBlock.C:	    fprintf(fp,"%lf ",q[i*nvar+j]);      
+src/MeshBlock.C:	  //  fprintf(fp,"%lf ", x[3*i]+x[3*i+1]+x[3*i+2]);
+src/MeshBlock.C:          fprintf(fp,"\n");
+src/MeshBlock.C:          fprintf(fp,"%lf %lf %lf %d ",x[3*i],x[3*i+1],x[3*i+2],iblank[i]);
+src/MeshBlock.C:            fprintf(fp,"%lf ",q[j*nnodes+i]);
+src/MeshBlock.C:          fprintf(fp,"\n");
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:	      fprintf(fp,"%d %d %d %d %d %d %d %d\n",
+src/MeshBlock.C:  sprintf(intstring,"%d",100000+bid);
+src/MeshBlock.C:  sprintf(fname,"box%s.dat",&(intstring[1]));
+src/MeshBlock.C:  fprintf(fp,"TITLE =\"Box file\"\n");
+src/MeshBlock.C:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\"\n");
+src/MeshBlock.C:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEPOINT\n",8,
+src/MeshBlock.C:	      fprintf(fp,"%f %f %f\n",xx[0],xx[1],xx[2]);
+src/MeshBlock.C:  fprintf(fp,"1 2 4 3 5 6 8 7\n");
+src/MeshBlock.C:  fprintf(fp,"%e %e %e\n",obb->xc[0],obb->xc[1],obb->xc[2]);
+src/MeshBlock.C:   fprintf(fp,"%e %e %e\n",obb->vec[0][k],obb->vec[1][k],obb->vec[2][k]);
+src/MeshBlock.C:  fprintf(fp,"%e %e %e\n",obb->dxc[0],obb->dxc[1],obb->dxc[2]);
+src/tioga.C:  printf("unblank 1 Done swapPointers\n");
+src/tioga.C:  printf("unblank 1 Done updateOBB\n");
+src/tioga.C:  printf("unblank 1 unblankPart1\n");
+src/tioga.C:  printf("unblank 2 done resetCurrentGrid\n");
+src/tioga.C:  printf("unblank2 done updateOBB\n");
+src/tioga.C:  printf("nunblank is %d\n",nunblank);
+src/tioga.C:    printf("update artifical boundaries send and recv\n");
+src/tioga.C:  printf("Done unblankpart2\n");
+src/tioga.C:  //printf("done getHole map %d\n",unblanking);
+src/tioga.C:  //printf("done exchangeBoxes %d\n",unblanking);
+src/tioga.C:  //printf("done exchangeSearchData %d\n",unblanking);
+src/tioga.C:  //printf("done searchData %d\n",unblanking);
+src/tioga.C:  //printf("done exchangeDonors %d\n",unblanking);
+src/tioga.C:    printf("direct cut\n");
+src/tioga.C:  printf("done doPointConnectivity %d\n",unblanking);
+src/tioga.C:  printf("done getFringeNodes %d\n",unblanking);
+src/tioga.C:  printf("done exchangePointSearchData\n");
+src/tioga.C:  printf("done search\n");
+src/tioga.C:  printf("done proceePointDonorsGPU\n");
+src/tioga.C:  printf("done setupCommBuffersGPU\n");
+src/tioga.C:  printf("nGrids is %d\n", nGrids);
+src/tioga.C:    printf("nFaceTot_g[g] is %d on grid g %d nFaces_g[g] is %d\n",
+src/tioga.C:  printf("post direct cut %d\n", ncut);
+src/tioga.C:  if (myid==0) printf("#tioga :successfully cleared all the memory accessed\n");
+src/tioga.C:        sprintf(ofname,"orphan%d.dat",myid);
+src/tioga.C:   printf("Warning::update highorder number of orphans in rank %d = %d of %d\n",myid,norphanPoint,
+src/tioga.C:  printf("finish interpolation GPU ubuf_d.size() is %d\n",ubuf_d.size());
+src/tioga.C:  printf("current rank is %d and pid is %d nsend is %d and nrecv is %d sendMap is %d recvMap is %d interp2 is %d strides is %d\n",
+src/tioga.C:  printf("finish interpolation GPU 1 %d\n",mb->stream_handle);
+src/tioga.C:  printf("finish interpolation GPU 2\n");
+src/tioga.C:  printf("finish sending gpu\n");
+src/tioga.C:      printf("Orphan points n = %d found!\n",norphanPoint);
+src/tioga.C:      printf("Warning::art_bnd recv gpu number of orphans in rank %d = %d of %d\n",myid,norphanPoint,mb->ntotalPoints);
+src/tioga.C:  printf("q_spts first element is %f\n", q_spts[0]);
+src/tioga.C:      printf("Warning::artbnd recv cpu number of orphans in rank %d = %d of %d\n",myid,norphanPoint,mb->ntotalPoints);
+src/dataUpdate.C:                    printf("warning: weights are not convex 1\n");
+src/dataUpdate.C:            printf("warning: weights are not convex\n");
+src/math_funcs.C:      printf("Interpolation not implemented for polyhedra with %d vertices\n",nvert);
+src/math_funcs.C:     printf("Error in computeCellVolume: unknown nvert!\n");
+src/math_funcs.C:     printf("Unknown nvert = %d!\n",nvert);
+src/cartOps.C:  sprintf(intstring,"%d",100000+bid);
+src/cartOps.C:  sprintf(fname,"cbox%s.dat",&(intstring[1]));
+src/cartOps.C:  fprintf(fp,"TITLE =\"Box file\"\n");
+src/cartOps.C:  fprintf(fp,"VARIABLES=\"X\",\"Y\",\"Z\"\n");
+src/cartOps.C:  fprintf(fp,"ZONE T=\"VOL_MIXED\",N=%d E=%d ET=BRICK, F=FEPOINT\n",8,
+src/cartOps.C:	      fprintf(fp,"%f %f %f\n",xx[0],xx[1],xx[2]);
+src/cartOps.C:  fprintf(fp,"1 2 4 3 5 6 8 7\n");
+src/cartOps.C:  fprintf(fp,"%e %e %e\n",obc->xc[0],obc->xc[1],obc->xc[2]);
+src/cartOps.C:   fprintf(fp,"%e %e %e\n",obc->vec[0][k],obc->vec[1][k],obc->vec[2][k]);
+src/cartOps.C:  fprintf(fp,"%e %e %e\n",obc->dxc[0],obc->dxc[1],obc->dxc[2]);
+src/cartOps.C:                    printf("warning: weights are not convex 3\n");
+src/cartOps.C:                    printf("warning: weights are not convex 4\n");
+src/cartOps.C:		     //   printf("nsu3d/interp: %d %d %f %f\n",k,inode,weight,q[inode*nvar+k]);
+Binary file bin/superMesh.o matches
+Binary file bin/math_funcs.o matches
+Binary file bin/tioga_wrap.o matches
+Binary file bin/dataUpdate.o matches
+Binary file bin/exchangeBoxes.o matches
+Binary file bin/bookKeeping.o matches
+Binary file bin/holeMap.o matches
+Binary file bin/searchADTrecursion.o matches
+Binary file bin/dMeshBlock.o matches
+Binary file bin/getCartReceptors.o matches
+Binary file bin/tiogaInterface.o matches
+Binary file bin/highOrder_kernels.o matches
+Binary file bin/exchangeDonors.o matches
+Binary file bin/_tioga.so matches
+Binary file bin/CartBlock.o matches
+Binary file bin/dADT.o matches
+Binary file bin/exchangeAMRDonors.o matches
+Binary file bin/ADT.o matches
+Binary file bin/MeshBlock.o matches
+Binary file bin/CartGrid.o matches
+Binary file bin/checkContainment.o matches
+Binary file bin/funcs.o matches
+Binary file bin/search.o matches
+Binary file bin/points.o matches
+Binary file bin/utils.o matches
+Binary file bin/tioga.o matches
+Binary file bin/cartOps.o matches
+Binary file bin/helper.o matches
+Binary file bin/_convert.so matches
+Binary file bin/exchangeSearchData.o matches
+Binary file bin/highOrder.o matches

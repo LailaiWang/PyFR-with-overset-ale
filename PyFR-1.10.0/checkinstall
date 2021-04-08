@@ -1,0 +1,736 @@
+running install
+running bdist_egg
+running egg_info
+writing pyfr.egg-info/PKG-INFO
+writing dependency_links to pyfr.egg-info/dependency_links.txt
+writing entry points to pyfr.egg-info/entry_points.txt
+writing requirements to pyfr.egg-info/requires.txt
+writing top-level names to pyfr.egg-info/top_level.txt
+package init file 'pyfr/solvers/moving_grid/kernels/__init__.py' not found (or not a regular file)
+reading manifest file 'pyfr.egg-info/SOURCES.txt'
+writing manifest file 'pyfr.egg-info/SOURCES.txt'
+installing library code to build/bdist.linux-x86_64/egg
+running install_lib
+running build_py
+creating build/bdist.linux-x86_64/egg
+creating build/bdist.linux-x86_64/egg/pyfr
+copying build/lib/pyfr/progress_bar.py -> build/bdist.linux-x86_64/egg/pyfr
+creating build/bdist.linux-x86_64/egg/pyfr/backends
+copying build/lib/pyfr/backends/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/backends
+creating build/bdist.linux-x86_64/egg/pyfr/backends/base
+copying build/lib/pyfr/backends/base/backend.py -> build/bdist.linux-x86_64/egg/pyfr/backends/base
+copying build/lib/pyfr/backends/base/generator.py -> build/bdist.linux-x86_64/egg/pyfr/backends/base
+copying build/lib/pyfr/backends/base/kernels.py -> build/bdist.linux-x86_64/egg/pyfr/backends/base
+copying build/lib/pyfr/backends/base/makoutil.py -> build/bdist.linux-x86_64/egg/pyfr/backends/base
+copying build/lib/pyfr/backends/base/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/backends/base
+copying build/lib/pyfr/backends/base/packing.py -> build/bdist.linux-x86_64/egg/pyfr/backends/base
+copying build/lib/pyfr/backends/base/types.py -> build/bdist.linux-x86_64/egg/pyfr/backends/base
+creating build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+copying build/lib/pyfr/backends/openmp/base.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+copying build/lib/pyfr/backends/openmp/compiler.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+copying build/lib/pyfr/backends/openmp/generator.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+copying build/lib/pyfr/backends/openmp/gimmik.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+copying build/lib/pyfr/backends/openmp/xsmm.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+copying build/lib/pyfr/backends/openmp/provider.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+copying build/lib/pyfr/backends/openmp/cblas.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+copying build/lib/pyfr/backends/openmp/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+copying build/lib/pyfr/backends/openmp/packing.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+copying build/lib/pyfr/backends/openmp/types.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+creating build/bdist.linux-x86_64/egg/pyfr/backends/openmp/kernels
+copying build/lib/pyfr/backends/openmp/kernels/base.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp/kernels
+copying build/lib/pyfr/backends/openmp/kernels/par-xsmm.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp/kernels
+copying build/lib/pyfr/backends/openmp/kernels/par-memcpy.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp/kernels
+copying build/lib/pyfr/backends/openmp/kernels/errest.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp/kernels
+copying build/lib/pyfr/backends/openmp/kernels/axnpby.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp/kernels
+copying build/lib/pyfr/backends/openmp/kernels/loop-sched.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp/kernels
+copying build/lib/pyfr/backends/openmp/kernels/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp/kernels
+copying build/lib/pyfr/backends/openmp/kernels/par-gemm.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp/kernels
+copying build/lib/pyfr/backends/openmp/kernels/pack.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp/kernels
+copying build/lib/pyfr/backends/openmp/blasext.py -> build/bdist.linux-x86_64/egg/pyfr/backends/openmp
+creating build/bdist.linux-x86_64/egg/pyfr/backends/opencl
+copying build/lib/pyfr/backends/opencl/base.py -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl
+copying build/lib/pyfr/backends/opencl/generator.py -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl
+copying build/lib/pyfr/backends/opencl/gimmik.py -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl
+copying build/lib/pyfr/backends/opencl/provider.py -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl
+copying build/lib/pyfr/backends/opencl/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl
+copying build/lib/pyfr/backends/opencl/packing.py -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl
+copying build/lib/pyfr/backends/opencl/types.py -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl
+copying build/lib/pyfr/backends/opencl/clblast.py -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl
+creating build/bdist.linux-x86_64/egg/pyfr/backends/opencl/kernels
+copying build/lib/pyfr/backends/opencl/kernels/base.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl/kernels
+copying build/lib/pyfr/backends/opencl/kernels/errest.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl/kernels
+copying build/lib/pyfr/backends/opencl/kernels/axnpby.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl/kernels
+copying build/lib/pyfr/backends/opencl/kernels/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl/kernels
+copying build/lib/pyfr/backends/opencl/kernels/pack.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl/kernels
+copying build/lib/pyfr/backends/opencl/blasext.py -> build/bdist.linux-x86_64/egg/pyfr/backends/opencl
+creating build/bdist.linux-x86_64/egg/pyfr/backends/cuda
+copying build/lib/pyfr/backends/cuda/base.py -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda
+copying build/lib/pyfr/backends/cuda/cublas.py -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda
+copying build/lib/pyfr/backends/cuda/generator.py -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda
+copying build/lib/pyfr/backends/cuda/gimmik.py -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda
+copying build/lib/pyfr/backends/cuda/provider.py -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda
+copying build/lib/pyfr/backends/cuda/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda
+copying build/lib/pyfr/backends/cuda/packing.py -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda
+copying build/lib/pyfr/backends/cuda/types.py -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda
+creating build/bdist.linux-x86_64/egg/pyfr/backends/cuda/kernels
+copying build/lib/pyfr/backends/cuda/kernels/base.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda/kernels
+copying build/lib/pyfr/backends/cuda/kernels/errest.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda/kernels
+copying build/lib/pyfr/backends/cuda/kernels/axnpby.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda/kernels
+copying build/lib/pyfr/backends/cuda/kernels/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda/kernels
+copying build/lib/pyfr/backends/cuda/kernels/pack.mako -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda/kernels
+copying build/lib/pyfr/backends/cuda/blasext.py -> build/bdist.linux-x86_64/egg/pyfr/backends/cuda
+creating build/bdist.linux-x86_64/egg/pyfr/integrators
+copying build/lib/pyfr/integrators/base.py -> build/bdist.linux-x86_64/egg/pyfr/integrators
+creating build/bdist.linux-x86_64/egg/pyfr/integrators/dual
+copying build/lib/pyfr/integrators/dual/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual
+creating build/bdist.linux-x86_64/egg/pyfr/integrators/dual/phys
+copying build/lib/pyfr/integrators/dual/phys/steppers.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/phys
+copying build/lib/pyfr/integrators/dual/phys/base.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/phys
+copying build/lib/pyfr/integrators/dual/phys/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/phys
+copying build/lib/pyfr/integrators/dual/phys/controllers.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/phys
+creating build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo
+copying build/lib/pyfr/integrators/dual/pseudo/pseudosteppers.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo
+copying build/lib/pyfr/integrators/dual/pseudo/base.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo
+copying build/lib/pyfr/integrators/dual/pseudo/pseudocontrollers.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo
+copying build/lib/pyfr/integrators/dual/pseudo/multip.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo
+copying build/lib/pyfr/integrators/dual/pseudo/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo
+creating build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo/kernels
+copying build/lib/pyfr/integrators/dual/pseudo/kernels/localdtau.mako -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo/kernels
+copying build/lib/pyfr/integrators/dual/pseudo/kernels/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo/kernels
+copying build/lib/pyfr/integrators/dual/pseudo/kernels/localerrest.mako -> build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo/kernels
+creating build/bdist.linux-x86_64/egg/pyfr/integrators/schemes
+copying build/lib/pyfr/integrators/schemes/vermeire-s7-p1-sp7.txt -> build/bdist.linux-x86_64/egg/pyfr/integrators/schemes
+copying build/lib/pyfr/integrators/schemes/vermeire-s7-p1-sp8.txt -> build/bdist.linux-x86_64/egg/pyfr/integrators/schemes
+copying build/lib/pyfr/integrators/schemes/vermeire-s7-p1-sp1.txt -> build/bdist.linux-x86_64/egg/pyfr/integrators/schemes
+copying build/lib/pyfr/integrators/schemes/vermeire-s7-p1-sp5.txt -> build/bdist.linux-x86_64/egg/pyfr/integrators/schemes
+copying build/lib/pyfr/integrators/schemes/vermeire-s7-p1-sp3.txt -> build/bdist.linux-x86_64/egg/pyfr/integrators/schemes
+copying build/lib/pyfr/integrators/schemes/vermeire-s7-p1-sp2.txt -> build/bdist.linux-x86_64/egg/pyfr/integrators/schemes
+copying build/lib/pyfr/integrators/schemes/vermeire-s7-p1-sp0.txt -> build/bdist.linux-x86_64/egg/pyfr/integrators/schemes
+copying build/lib/pyfr/integrators/schemes/vermeire-s7-p1-sp4.txt -> build/bdist.linux-x86_64/egg/pyfr/integrators/schemes
+copying build/lib/pyfr/integrators/schemes/vermeire-s7-p1-sp6.txt -> build/bdist.linux-x86_64/egg/pyfr/integrators/schemes
+copying build/lib/pyfr/integrators/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/integrators
+creating build/bdist.linux-x86_64/egg/pyfr/integrators/std
+copying build/lib/pyfr/integrators/std/steppers.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/std
+copying build/lib/pyfr/integrators/std/base.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/std
+copying build/lib/pyfr/integrators/std/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/std
+copying build/lib/pyfr/integrators/std/controllers.py -> build/bdist.linux-x86_64/egg/pyfr/integrators/std
+copying build/lib/pyfr/util.py -> build/bdist.linux-x86_64/egg/pyfr
+copying build/lib/pyfr/inifile.py -> build/bdist.linux-x86_64/egg/pyfr
+creating build/bdist.linux-x86_64/egg/pyfr/writers
+copying build/lib/pyfr/writers/native.py -> build/bdist.linux-x86_64/egg/pyfr/writers
+copying build/lib/pyfr/writers/base.py -> build/bdist.linux-x86_64/egg/pyfr/writers
+copying build/lib/pyfr/writers/tec.py -> build/bdist.linux-x86_64/egg/pyfr/writers
+copying build/lib/pyfr/writers/vtk.py -> build/bdist.linux-x86_64/egg/pyfr/writers
+copying build/lib/pyfr/writers/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/writers
+copying build/lib/pyfr/template.py -> build/bdist.linux-x86_64/egg/pyfr
+copying build/lib/pyfr/rank_allocator.py -> build/bdist.linux-x86_64/egg/pyfr
+copying build/lib/pyfr/shapes.py -> build/bdist.linux-x86_64/egg/pyfr
+copying build/lib/pyfr/__main__.py -> build/bdist.linux-x86_64/egg/pyfr
+copying build/lib/pyfr/nputil.py -> build/bdist.linux-x86_64/egg/pyfr
+creating build/bdist.linux-x86_64/egg/pyfr/partitioners
+copying build/lib/pyfr/partitioners/metis.py -> build/bdist.linux-x86_64/egg/pyfr/partitioners
+copying build/lib/pyfr/partitioners/base.py -> build/bdist.linux-x86_64/egg/pyfr/partitioners
+copying build/lib/pyfr/partitioners/scotch.py -> build/bdist.linux-x86_64/egg/pyfr/partitioners
+copying build/lib/pyfr/partitioners/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/partitioners
+copying build/lib/pyfr/polys.py -> build/bdist.linux-x86_64/egg/pyfr
+copying build/lib/pyfr/ctypesutil.py -> build/bdist.linux-x86_64/egg/pyfr
+creating build/bdist.linux-x86_64/egg/pyfr/readers
+copying build/lib/pyfr/readers/native.py -> build/bdist.linux-x86_64/egg/pyfr/readers
+copying build/lib/pyfr/readers/base.py -> build/bdist.linux-x86_64/egg/pyfr/readers
+copying build/lib/pyfr/readers/cgns.py -> build/bdist.linux-x86_64/egg/pyfr/readers
+copying build/lib/pyfr/readers/nodemaps.py -> build/bdist.linux-x86_64/egg/pyfr/readers
+copying build/lib/pyfr/readers/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/readers
+copying build/lib/pyfr/readers/gmsh.py -> build/bdist.linux-x86_64/egg/pyfr/readers
+creating build/bdist.linux-x86_64/egg/pyfr/solvers
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes
+copying build/lib/pyfr/solvers/acnavstokes/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes
+copying build/lib/pyfr/solvers/acnavstokes/inters.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes
+copying build/lib/pyfr/solvers/acnavstokes/system.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels
+copying build/lib/pyfr/solvers/acnavstokes/kernels/bccflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels
+copying build/lib/pyfr/solvers/acnavstokes/kernels/mpicflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels
+copying build/lib/pyfr/solvers/acnavstokes/kernels/intconu.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels
+copying build/lib/pyfr/solvers/acnavstokes/kernels/bcconu.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels
+copying build/lib/pyfr/solvers/acnavstokes/kernels/tflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels/bcs
+copying build/lib/pyfr/solvers/acnavstokes/kernels/bcs/slp-wall.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels/bcs
+copying build/lib/pyfr/solvers/acnavstokes/kernels/bcs/common.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels/bcs
+copying build/lib/pyfr/solvers/acnavstokes/kernels/bcs/ac-in-fv.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels/bcs
+copying build/lib/pyfr/solvers/acnavstokes/kernels/bcs/ghost.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels/bcs
+copying build/lib/pyfr/solvers/acnavstokes/kernels/bcs/no-slp-wall.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels/bcs
+copying build/lib/pyfr/solvers/acnavstokes/kernels/bcs/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels/bcs
+copying build/lib/pyfr/solvers/acnavstokes/kernels/bcs/ac-out-fp.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels/bcs
+copying build/lib/pyfr/solvers/acnavstokes/kernels/bcs/ac-char-riem-inv.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels/bcs
+copying build/lib/pyfr/solvers/acnavstokes/kernels/intcflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels
+copying build/lib/pyfr/solvers/acnavstokes/kernels/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels
+copying build/lib/pyfr/solvers/acnavstokes/kernels/mpiconu.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels
+copying build/lib/pyfr/solvers/acnavstokes/kernels/flux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels
+copying build/lib/pyfr/solvers/acnavstokes/elements.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff
+copying build/lib/pyfr/solvers/baseadvecdiff/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff
+copying build/lib/pyfr/solvers/baseadvecdiff/inters.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff
+copying build/lib/pyfr/solvers/baseadvecdiff/system.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff/kernels
+copying build/lib/pyfr/solvers/baseadvecdiff/kernels/artvisc.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff/kernels
+copying build/lib/pyfr/solvers/baseadvecdiff/kernels/shocksensor.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff/kernels
+copying build/lib/pyfr/solvers/baseadvecdiff/kernels/gradcoru.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff/kernels
+copying build/lib/pyfr/solvers/baseadvecdiff/kernels/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff/kernels
+copying build/lib/pyfr/solvers/baseadvecdiff/elements.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/moving_grid
+copying build/lib/pyfr/solvers/moving_grid/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/moving_grid
+copying build/lib/pyfr/solvers/moving_grid/movgrid.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/moving_grid
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/moving_grid/kernels
+copying build/lib/pyfr/solvers/moving_grid/kernels/upjaco.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/moving_grid/kernels
+copying build/lib/pyfr/solvers/moving_grid/kernels/upploc.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/moving_grid/kernels
+copying build/lib/pyfr/solvers/moving_grid/kernels/upmvel.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/moving_grid/kernels
+copying build/lib/pyfr/solvers/moving_grid/kernels/updjac.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/moving_grid/kernels
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec
+copying build/lib/pyfr/solvers/baseadvec/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec
+copying build/lib/pyfr/solvers/baseadvec/inters.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec
+copying build/lib/pyfr/solvers/baseadvec/system.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec/kernels
+copying build/lib/pyfr/solvers/baseadvec/kernels/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec/kernels
+copying build/lib/pyfr/solvers/baseadvec/kernels/negdivconf.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec/kernels
+copying build/lib/pyfr/solvers/baseadvec/elements.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/euler
+copying build/lib/pyfr/solvers/euler/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler
+copying build/lib/pyfr/solvers/euler/inters.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler
+copying build/lib/pyfr/solvers/euler/system.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels
+copying build/lib/pyfr/solvers/euler/kernels/bccflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels
+copying build/lib/pyfr/solvers/euler/kernels/mpicflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels
+copying build/lib/pyfr/solvers/euler/kernels/tflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/bcs
+copying build/lib/pyfr/solvers/euler/kernels/bcs/sup-in-fa.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/bcs
+copying build/lib/pyfr/solvers/euler/kernels/bcs/char-riem-inv.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/bcs
+copying build/lib/pyfr/solvers/euler/kernels/bcs/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/bcs
+copying build/lib/pyfr/solvers/euler/kernels/bcs/slp-adia-wall.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/bcs
+copying build/lib/pyfr/solvers/euler/kernels/intcflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels
+copying build/lib/pyfr/solvers/euler/kernels/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/rsolvers
+copying build/lib/pyfr/solvers/euler/kernels/rsolvers/roem.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/rsolvers
+copying build/lib/pyfr/solvers/euler/kernels/rsolvers/rusanov.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/rsolvers
+copying build/lib/pyfr/solvers/euler/kernels/rsolvers/roe.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/rsolvers
+copying build/lib/pyfr/solvers/euler/kernels/rsolvers/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/rsolvers
+copying build/lib/pyfr/solvers/euler/kernels/rsolvers/hll.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/rsolvers
+copying build/lib/pyfr/solvers/euler/kernels/rsolvers/hllc.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/rsolvers
+copying build/lib/pyfr/solvers/euler/kernels/flux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels
+copying build/lib/pyfr/solvers/euler/elements.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/euler
+copying build/lib/pyfr/solvers/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/base
+copying build/lib/pyfr/solvers/base/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/base
+copying build/lib/pyfr/solvers/base/inters.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/base
+copying build/lib/pyfr/solvers/base/system.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/base
+copying build/lib/pyfr/solvers/base/elements.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/base
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes
+copying build/lib/pyfr/solvers/navstokes/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes
+copying build/lib/pyfr/solvers/navstokes/inters.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes
+copying build/lib/pyfr/solvers/navstokes/system.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels
+copying build/lib/pyfr/solvers/navstokes/kernels/bccflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels
+copying build/lib/pyfr/solvers/navstokes/kernels/mpicflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels
+copying build/lib/pyfr/solvers/navstokes/kernels/intconu.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels
+copying build/lib/pyfr/solvers/navstokes/kernels/bcconu.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels
+copying build/lib/pyfr/solvers/navstokes/kernels/tflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/sup-in-fa.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/char-riem-inv.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/no-slp-isot-wall.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/sup-out-fn.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/common.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/sub-out-fp.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/ghost.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/sub-in-frv.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/slp-adia-wall.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/no-slp-adia-wall.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/bcs/sub-in-ftpttang.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs
+copying build/lib/pyfr/solvers/navstokes/kernels/intcflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels
+copying build/lib/pyfr/solvers/navstokes/kernels/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels
+copying build/lib/pyfr/solvers/navstokes/kernels/mpiconu.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels
+copying build/lib/pyfr/solvers/navstokes/kernels/flux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels
+copying build/lib/pyfr/solvers/navstokes/elements.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler
+copying build/lib/pyfr/solvers/aceuler/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler
+copying build/lib/pyfr/solvers/aceuler/inters.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler
+copying build/lib/pyfr/solvers/aceuler/system.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels
+copying build/lib/pyfr/solvers/aceuler/kernels/bccflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels
+copying build/lib/pyfr/solvers/aceuler/kernels/mpicflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels
+copying build/lib/pyfr/solvers/aceuler/kernels/tflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/bcs
+copying build/lib/pyfr/solvers/aceuler/kernels/bcs/slp-wall.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/bcs
+copying build/lib/pyfr/solvers/aceuler/kernels/bcs/ac-in-fv.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/bcs
+copying build/lib/pyfr/solvers/aceuler/kernels/bcs/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/bcs
+copying build/lib/pyfr/solvers/aceuler/kernels/bcs/ac-out-fp.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/bcs
+copying build/lib/pyfr/solvers/aceuler/kernels/bcs/ac-char-riem-inv.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/bcs
+copying build/lib/pyfr/solvers/aceuler/kernels/intcflux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels
+copying build/lib/pyfr/solvers/aceuler/kernels/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels
+creating build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/rsolvers
+copying build/lib/pyfr/solvers/aceuler/kernels/rsolvers/rusanov.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/rsolvers
+copying build/lib/pyfr/solvers/aceuler/kernels/rsolvers/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/rsolvers
+copying build/lib/pyfr/solvers/aceuler/kernels/flux.mako -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels
+copying build/lib/pyfr/solvers/aceuler/elements.py -> build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler
+copying build/lib/pyfr/__init__.py -> build/bdist.linux-x86_64/egg/pyfr
+creating build/bdist.linux-x86_64/egg/pyfr/quadrules
+creating build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n3-d2-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/alpha-opt-n3-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/williams-shunn-n45-d14-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n33-d12-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n6-d4-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/alpha-opt-n10-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n79-d20-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/alpha-opt-n28-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n12-d6-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n19-d9-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n7-d5-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/alpha-opt-n21-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n15-d7-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n42-d14-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/alpha-opt-n15-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/williams-shunn-n1-d1-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/alpha-opt-n45-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n55-d16-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/williams-shunn-n36-d12-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/alpha-opt-n36-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n60-d17-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n37-d13-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n16-d8-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/williams-shunn-n21-d8-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n25-d10-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n67-d18-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/alpha-opt-n6-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/williams-shunn-n3-d2-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/williams-shunn-n28-d10-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n28-d11-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n49-d15-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/williams-shunn-n15-d7-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n73-d19-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/williams-shunn-n6-d4-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/witherden-vincent-n1-d1-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+copying build/lib/pyfr/quadrules/tri/williams-shunn-n10-d5-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tri
+creating build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n5-d9-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n2-d1-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n9-d15-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n13-d23-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n5-d7-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n16-d29-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n14-d25-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n1-d1-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n10-d19-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n15-d27-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n3-d5-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n16-d31-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n6-d9-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n6-d11-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n14-d27-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n17-d33-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n17-d31-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n10-d17-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n12-d23-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n19-d35-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n18-d33-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n15-d29-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n7-d11-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n2-d3-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n11-d21-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n4-d7-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n11-d19-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n7-d13-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n12-d21-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n18-d35-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n20-d37-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n4-d5-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n13-d25-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n19-d37-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n8-d13-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-lobatto-n3-d3-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n8-d15-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n20-d39-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+copying build/lib/pyfr/quadrules/line/gauss-legendre-n9-d17-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/line
+creating build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/witherden-vincent-n24-d6-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/witherden-vincent-n81-d10-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/alpha-opt-n4-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/witherden-vincent-n46-d8-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/alpha-opt-n10-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/alpha-opt-n165-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/witherden-vincent-n59-d9-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/alpha-opt-n35-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/alpha-opt-n120-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/shunn-ham-n4-d2-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/shunn-ham-n35-d6-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/alpha-opt-n56-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/alpha-opt-n220-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/shunn-ham-n1-d1-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/shunn-ham-n56-d8-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/witherden-vincent-n14-d5-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/shunn-ham-n20-d5-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/shunn-ham-n10-d3-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/shunn-ham-n84-d9-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/witherden-vincent-n35-d7-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/witherden-vincent-n4-d2-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/witherden-vincent-n8-d3-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/witherden-vincent-n1-d1-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/alpha-opt-n84-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+copying build/lib/pyfr/quadrules/tet/alpha-opt-n20-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/tet
+creating build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/witherden-vincent-n85-d21-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n81-d17-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n196-d25-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n64-d15-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/witherden-vincent-n4-d3-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n4-d1-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n16-d7-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n1-d1-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n9-d3-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n9-d5-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/witherden-vincent-n72-d19-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n121-d19-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/witherden-vincent-n12-d7-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n100-d17-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n36-d9-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/witherden-vincent-n48-d15-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n169-d23-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n64-d13-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n169-d25-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/witherden-vincent-n60-d17-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n144-d23-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/witherden-vincent-n37-d13-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n49-d13-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n100-d19-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/witherden-vincent-n8-d5-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n25-d7-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n81-d15-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/witherden-vincent-n28-d11-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n144-d21-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n4-d3-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n196-d27-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/witherden-vincent-n20-d9-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n121-d21-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/witherden-vincent-n1-d1-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n25-d9-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n16-d5-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-n36-d11-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+copying build/lib/pyfr/quadrules/quad/gauss-legendre-lobatto-n49-d11-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/quad
+creating build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/witherden-vincent-n24-d6-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-n140-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-n30-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-lobatto-n5-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/witherden-vincent-n15-d5-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-lobatto-n14-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-n91-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-lobatto-n91-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/witherden-vincent-n62-d9-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-lobatto-n30-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/witherden-vincent-n47-d8-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/witherden-vincent-n10-d4-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-lobatto-n55-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-lobatto-n140-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-n14-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/witherden-vincent-n31-d7-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-n55-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/witherden-vincent-n6-d3-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-n1-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/gauss-legendre-n5-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/witherden-vincent-n83-d10-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/witherden-vincent-n1-d1-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+copying build/lib/pyfr/quadrules/pyr/witherden-vincent-n5-d2-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pyr
+creating build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-n196-d10-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/alpha-opt~gauss-legendre-lobatto-n6-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/witherden-vincent-n16-d5-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/witherden-vincent-n46-d8-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/witherden-vincent-n60-d9-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/witherden-vincent-n11-d4-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-n75-d7-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-lobatto-n18-d3-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-n18-d4-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-n1-d1-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/witherden-vincent-n85-d10-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-n288-d12-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/alpha-opt~gauss-legendre-lobatto-n75-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/alpha-opt~gauss-legendre-lobatto-n196-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/alpha-opt~gauss-legendre-lobatto-n405-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/alpha-opt~gauss-legendre-lobatto-n288-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/alpha-opt~gauss-legendre-lobatto-n40-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-n405-d14-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-lobatto-n75-d7-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-n126-d8-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-lobatto-n196-d10-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-lobatto-n126-d8-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-lobatto-n40-d5-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-n40-d5-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-lobatto-n6-d1-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/witherden-vincent-n35-d7-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-lobatto-n405-d14-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-lobatto-n288-d12-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/alpha-opt~gauss-legendre-lobatto-n18-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/witherden-vincent-n8-d3-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/williams-shunn~gauss-legendre-n6-d2-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/alpha-opt~gauss-legendre-lobatto-n126-su.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/witherden-vincent-n1-d1-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/witherden-vincent-n28-d6-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/pri/witherden-vincent-n5-d2-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/pri
+copying build/lib/pyfr/quadrules/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/quadrules
+creating build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-n125-d9-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-lobatto-n125-d7-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-n1-d1-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-lobatto-n27-d3-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-n512-d15-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/witherden-vincent-n90-d11-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-lobatto-n512-d13-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-lobatto-n729-d15-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-n8-d3-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-n27-d5-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-lobatto-n343-d11-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-n216-d11-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-lobatto-n8-d1-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-lobatto-n64-d5-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/witherden-vincent-n34-d7-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/witherden-vincent-n14-d5-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-n64-d7-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/witherden-vincent-n6-d3-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-n729-d17-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-n343-d13-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/witherden-vincent-n1-d1-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/gauss-legendre-lobatto-n216-d9-spu.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/quadrules/hex/witherden-vincent-n58-d9-sp.txt -> build/bdist.linux-x86_64/egg/pyfr/quadrules/hex
+copying build/lib/pyfr/_version.py -> build/bdist.linux-x86_64/egg/pyfr
+creating build/bdist.linux-x86_64/egg/pyfr/tests
+copying build/lib/pyfr/tests/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/tests
+copying build/lib/pyfr/tests/test_ele_mats.py -> build/bdist.linux-x86_64/egg/pyfr/tests
+copying build/lib/pyfr/tests/hex-gleg-ord3.npz -> build/bdist.linux-x86_64/egg/pyfr/tests
+copying build/lib/pyfr/mpiutil.py -> build/bdist.linux-x86_64/egg/pyfr
+creating build/bdist.linux-x86_64/egg/pyfr/plugins
+copying build/lib/pyfr/plugins/pseudostats.py -> build/bdist.linux-x86_64/egg/pyfr/plugins
+copying build/lib/pyfr/plugins/base.py -> build/bdist.linux-x86_64/egg/pyfr/plugins
+copying build/lib/pyfr/plugins/residual.py -> build/bdist.linux-x86_64/egg/pyfr/plugins
+copying build/lib/pyfr/plugins/writer.py -> build/bdist.linux-x86_64/egg/pyfr/plugins
+copying build/lib/pyfr/plugins/sampler.py -> build/bdist.linux-x86_64/egg/pyfr/plugins
+copying build/lib/pyfr/plugins/__init__.py -> build/bdist.linux-x86_64/egg/pyfr/plugins
+copying build/lib/pyfr/plugins/nancheck.py -> build/bdist.linux-x86_64/egg/pyfr/plugins
+copying build/lib/pyfr/plugins/tavg.py -> build/bdist.linux-x86_64/egg/pyfr/plugins
+copying build/lib/pyfr/plugins/dtstats.py -> build/bdist.linux-x86_64/egg/pyfr/plugins
+copying build/lib/pyfr/plugins/fluidforce.py -> build/bdist.linux-x86_64/egg/pyfr/plugins
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/progress_bar.py to progress_bar.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/base/backend.py to backend.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/base/generator.py to generator.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/base/kernels.py to kernels.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/base/makoutil.py to makoutil.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/base/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/base/packing.py to packing.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/base/types.py to types.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/base.py to base.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/compiler.py to compiler.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/generator.py to generator.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/gimmik.py to gimmik.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/xsmm.py to xsmm.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/provider.py to provider.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/cblas.py to cblas.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/packing.py to packing.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/types.py to types.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/kernels/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/openmp/blasext.py to blasext.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/opencl/base.py to base.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/opencl/generator.py to generator.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/opencl/gimmik.py to gimmik.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/opencl/provider.py to provider.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/opencl/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/opencl/packing.py to packing.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/opencl/types.py to types.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/opencl/clblast.py to clblast.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/opencl/kernels/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/opencl/blasext.py to blasext.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/cuda/base.py to base.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/cuda/cublas.py to cublas.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/cuda/generator.py to generator.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/cuda/gimmik.py to gimmik.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/cuda/provider.py to provider.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/cuda/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/cuda/packing.py to packing.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/cuda/types.py to types.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/cuda/kernels/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/backends/cuda/blasext.py to blasext.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/base.py to base.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/dual/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/dual/phys/steppers.py to steppers.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/dual/phys/base.py to base.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/dual/phys/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/dual/phys/controllers.py to controllers.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo/pseudosteppers.py to pseudosteppers.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo/base.py to base.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo/pseudocontrollers.py to pseudocontrollers.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo/multip.py to multip.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/dual/pseudo/kernels/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/std/steppers.py to steppers.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/std/base.py to base.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/std/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/integrators/std/controllers.py to controllers.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/util.py to util.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/inifile.py to inifile.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/writers/native.py to native.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/writers/base.py to base.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/writers/tec.py to tec.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/writers/vtk.py to vtk.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/writers/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/template.py to template.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/rank_allocator.py to rank_allocator.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/shapes.py to shapes.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/__main__.py to __main__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/nputil.py to nputil.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/partitioners/metis.py to metis.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/partitioners/base.py to base.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/partitioners/scotch.py to scotch.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/partitioners/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/polys.py to polys.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/ctypesutil.py to ctypesutil.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/readers/native.py to native.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/readers/base.py to base.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/readers/cgns.py to cgns.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/readers/nodemaps.py to nodemaps.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/readers/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/readers/gmsh.py to gmsh.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/inters.py to inters.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/system.py to system.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels/bcs/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/kernels/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/acnavstokes/elements.py to elements.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff/inters.py to inters.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff/system.py to system.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff/kernels/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvecdiff/elements.py to elements.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/moving_grid/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/moving_grid/movgrid.py to movgrid.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec/inters.py to inters.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec/system.py to system.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec/kernels/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/baseadvec/elements.py to elements.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/euler/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/euler/inters.py to inters.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/euler/system.py to system.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/bcs/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/euler/kernels/rsolvers/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/euler/elements.py to elements.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/base/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/base/inters.py to inters.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/base/system.py to system.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/base/elements.py to elements.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/inters.py to inters.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/system.py to system.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/bcs/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/kernels/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/navstokes/elements.py to elements.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/inters.py to inters.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/system.py to system.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/bcs/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/kernels/rsolvers/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/solvers/aceuler/elements.py to elements.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/quadrules/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/_version.py to _version.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/tests/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/tests/test_ele_mats.py to test_ele_mats.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/mpiutil.py to mpiutil.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/plugins/pseudostats.py to pseudostats.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/plugins/base.py to base.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/plugins/residual.py to residual.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/plugins/writer.py to writer.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/plugins/sampler.py to sampler.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/plugins/__init__.py to __init__.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/plugins/nancheck.py to nancheck.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/plugins/tavg.py to tavg.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/plugins/dtstats.py to dtstats.cpython-36.pyc
+byte-compiling build/bdist.linux-x86_64/egg/pyfr/plugins/fluidforce.py to fluidforce.cpython-36.pyc
+installing package data to build/bdist.linux-x86_64/egg
+running install_data
+copying pyfr/__main__.py -> build/bdist.linux-x86_64/egg/
+creating build/bdist.linux-x86_64/egg/EGG-INFO
+copying pyfr.egg-info/PKG-INFO -> build/bdist.linux-x86_64/egg/EGG-INFO
+copying pyfr.egg-info/SOURCES.txt -> build/bdist.linux-x86_64/egg/EGG-INFO
+copying pyfr.egg-info/dependency_links.txt -> build/bdist.linux-x86_64/egg/EGG-INFO
+copying pyfr.egg-info/entry_points.txt -> build/bdist.linux-x86_64/egg/EGG-INFO
+copying pyfr.egg-info/requires.txt -> build/bdist.linux-x86_64/egg/EGG-INFO
+copying pyfr.egg-info/top_level.txt -> build/bdist.linux-x86_64/egg/EGG-INFO
+zip_safe flag not set; analyzing archive contents...
+creating 'dist/pyfr-1.10.0-py3.6.egg' and adding 'build/bdist.linux-x86_64/egg' to it
+removing 'build/bdist.linux-x86_64/egg' (and everything under it)
+Processing pyfr-1.10.0-py3.6.egg
+Removing /home/staff/l/laiwang/.local/lib/python3.6/site-packages/pyfr-1.10.0-py3.6.egg
+Copying pyfr-1.10.0-py3.6.egg to /home/staff/l/laiwang/.local/lib/python3.6/site-packages
+pyfr 1.10.0 is already the active version in easy-install.pth
+Installing pyfr script to /home/staff/l/laiwang/.local/bin
+
+Installed /home/staff/l/laiwang/.local/lib/python3.6/site-packages/pyfr-1.10.0-py3.6.egg
+Processing dependencies for pyfr==1.10.0
+Searching for pytools==2020.1
+Best match: pytools 2020.1
+Adding pytools 2020.1 to easy-install.pth file
+
+Using /home/staff/l/laiwang/.local/lib/python3.6/site-packages
+Searching for numpy==1.19.0
+Best match: numpy 1.19.0
+Adding numpy 1.19.0 to easy-install.pth file
+Installing f2py script to /home/staff/l/laiwang/.local/bin
+Installing f2py3 script to /home/staff/l/laiwang/.local/bin
+Installing f2py3.6 script to /home/staff/l/laiwang/.local/bin
+
+Using /home/staff/l/laiwang/.local/lib/python3.6/site-packages
+Searching for mpi4py==3.0.3
+Best match: mpi4py 3.0.3
+Adding mpi4py 3.0.3 to easy-install.pth file
+
+Using /home/staff/l/laiwang/.local/lib/python3.6/site-packages
+Searching for Mako==1.1.1
+Best match: Mako 1.1.1
+Adding Mako 1.1.1 to easy-install.pth file
+Installing mako-render script to /home/staff/l/laiwang/.local/bin
+
+Using /home/staff/l/laiwang/.local/lib/python3.6/site-packages
+Searching for h5py==2.10.0
+Best match: h5py 2.10.0
+Adding h5py 2.10.0 to easy-install.pth file
+
+Using /home/staff/l/laiwang/.local/lib/python3.6/site-packages
+Searching for gimmik==2.1
+Best match: gimmik 2.1
+Adding gimmik 2.1 to easy-install.pth file
+
+Using /home/staff/l/laiwang/.local/lib/python3.6/site-packages
+Searching for appdirs==1.4.3
+Best match: appdirs 1.4.3
+Adding appdirs 1.4.3 to easy-install.pth file
+
+Using /home/staff/l/laiwang/.local/lib/python3.6/site-packages
+Searching for six==1.15.0
+Best match: six 1.15.0
+Adding six 1.15.0 to easy-install.pth file
+
+Using /home/staff/l/laiwang/.local/lib/python3.6/site-packages
+Searching for decorator==4.4.1
+Best match: decorator 4.4.1
+Adding decorator 4.4.1 to easy-install.pth file
+
+Using /home/staff/l/laiwang/.local/lib/python3.6/site-packages
+Searching for MarkupSafe==1.1.1
+Best match: MarkupSafe 1.1.1
+Adding MarkupSafe 1.1.1 to easy-install.pth file
+
+Using /home/staff/l/laiwang/.local/lib/python3.6/site-packages
+Finished processing dependencies for pyfr==1.10.0
