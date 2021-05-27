@@ -132,6 +132,7 @@ void MeshBlock::tagBoundary(void)
     for (int i = 0; i < nnodes; i++) nodeRes[i] = 0.0;
 
     int k = 0;
+    // loop over different element types
     for (int n = 0; n < ntypes; n++)
     {
       int nvert = nv[n];
@@ -143,19 +144,6 @@ void MeshBlock::tagBoundary(void)
       for (int i = 0; i < nc[n]; i++)
       {
         double vol = 0.;
-
-          /// TODO: high-order element volumes beyond hexas
-//          for (int m = 0; m < nvert; m++)
-//          {
-//            inode[m] = vconn[n][nvert*i+m]-BASE;
-//            int i3 = 3*inode[m];
-//            for (int j = 0; j < 3; j++)
-//              xv2[m*3+j] = x[i3+j];
-//          }
-//          vol = computeVolume(xv2.data(), nvert, 3);
-//        }
-//        else
-//        {
           for (int m = 0; m < nv[n]; m++)
           {
             inode[m] = vconn[n][nv[n]*i+m]-BASE;
