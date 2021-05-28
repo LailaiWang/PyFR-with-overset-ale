@@ -176,6 +176,15 @@ struct callbacks {
 };
 %}
 
+%feature("director") gmrespmg;
+%inline %{
+struct gmrespmg {
+    virtual void pmgupdate()=0;
+    virtual void rhsupdate()=0;
+    virtual ~gmrespmg() {}
+};
+%}
+
 %feature("director:except") {
   if ($error != NULL) {
     fprintf(stderr, "throw\n");
@@ -191,7 +200,19 @@ struct callbacks {
 
 %{
 extern callbacks *cb_ptr;
+extern gmrespmg  *pmg_ptr;
 %}
+
+%{
+gmrespmg* pmg_ptr = NULL;
+static void helper_pmgupdate() {
+    return pmg_ptr->pmgupdate();
+}
+static void helper_rhsupdate() {
+    return pmg_ptr->rhsupdate();
+}
+%}
+
 
 %{
 callbacks* cb_ptr = NULL;
@@ -371,6 +392,16 @@ void tioga_set_ab_callback_gpu_wrapper(callbacks* cb) {
                            &helper_donor_frac_gpu);
 }
 %}
+
+
+%inline %{
+
+void tioga_set_gmres_pmg_ptr () {
+
+}
+
+%}
+
 
 
 

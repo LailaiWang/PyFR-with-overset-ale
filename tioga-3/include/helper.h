@@ -88,4 +88,7 @@ void move_grid_nested_wrapper(
     double* Rmat,
     double* offset,
     int stream = -1);
+
+/// functions for gmres etc
+void pmg_helper(void (*pmgfunc) ());
 #endif
