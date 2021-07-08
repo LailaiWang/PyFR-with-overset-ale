@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from pyfr.solvers.baseadvec import BaseAdvectionSystem
 import numpy as np
 

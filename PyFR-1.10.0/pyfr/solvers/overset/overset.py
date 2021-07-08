@@ -10,12 +10,16 @@ from collections import defaultdict, OrderedDict
 from pyfr.solvers.overset.pycallbacks import Py_callbacks, face_vidx_incell, structured_hex_to_gmsh
 
 class Overset(object):
-
     def __init__(self, system, rallocs):
         
         self.nGrids = system.ngrids
         self.gid = system.gid
         self.system = system
+        
+        # data type for tioga
+        # right now integer must be int32 floats must be float64
+        self.intdtype = 'int32'
+        self.fpdtype = self.system.backend.fpdtype
         
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
@@ -45,7 +49,7 @@ class Overset(object):
             self.cudaevent = tg.get_event_handle()
 
         self.facevidxcell = face_vidx_incell()
-
+        
         self.griddata = self._prepare_griddata()
         self.callbacks = Py_callbacks(self.system, self.griddata)
         self._init_overset()
@@ -58,7 +62,11 @@ class Overset(object):
         
         self.name = 'tioga'
 
-    def _prepare_griddata(self, tol = 1e-8):
+    
+    def _form_unique_nodes(self, tol = 1e-9):
+        '''
+        This subroutine finds the unique nodes in the mesh
+        '''
         elemap = self.system.ele_map
         
         coords = []  # coordinates
@@ -71,7 +79,7 @@ class Overset(object):
         elesbasis = defaultdict()
          
         for idx, (etype, eles) in enumerate(elemap.items()):
-            xyz = eles.eles.swapaxes(0,1).reshape(-1,self.ndims)
+            xyz = eles.eles.swapaxes(0, 1).reshape(-1, self.ndims)
             nnodes_offset.append(xyz.shape[0] + nnodes_offset[idx])
             coords.append(xyz)
 
@@ -82,18 +90,25 @@ class Overset(object):
             elesbasis[etype.split('-g')[0]] = eles.basis
 
         maxnspt, maxnfcs = max(nspt_etypes), max(nfcs_etypes)
+        # keep track of some small things
+        self.elesbasis, self.maxnspt, self.maxnfcs = elesbasis, maxnspt, maxnfcs
 
         # dtype is crucial important for swig
-        nspt_etypes = np.array(nspt_etypes).astype('int32')
-        nfcs_etypes = np.array(nfcs_etypes).astype('int32')
-        nele_etypes = np.array(nele_etypes).astype('int32')
+        nspt_etypes = np.array(nspt_etypes).astype(self.intdtype)
+        nfcs_etypes = np.array(nfcs_etypes).astype(self.intdtype)
+        nele_etypes = np.array(nele_etypes).astype(self.intdtype)
+
+        # keep track of small things
+        self.nspt_etypes = nspt_etypes
+        self.nfcs_etypes = nfcs_etypes
+        self.nele_etypes = nele_etypes
 
         # merge nodes
-        coords = np.concatenate(coords,axis=0)
+        coords = np.concatenate(coords, axis = 0)
         
         srtd = fuzzysort(coords.T.tolist(), range(coords.shape[0]))
 
-        #coords = coords[srtd]
+        # coords = coords[srtd]
         # generate unique indices for nodes
         nodesmap = [0]*coords.shape[0]
         nodesidx = 0
@@ -106,65 +121,86 @@ class Overset(object):
                 pts = x
                 nodesidx = nodesidx+1
             nodesmap[idxsrtd] = nodesidx
-        nodesmap = np.array(nodesmap)
+
+        nodesmap = np.array(nodesmap).astype(self.intdtype)
 
         # get unique coordinates placed in order
-        unikcoords = np.zeros((nodesidx+1,coords.shape[1]))
+        unikcoords = np.zeros((nodesidx+1, coords.shape[1]))
         for idx, i in enumerate(nodesmap):
             unikcoords[i] = coords[idx]
         
-        # flattern the coordinates
+
         nnodes = unikcoords.shape[0]
-        unikcoords = unikcoords.reshape(-1).astype(self.system.backend.fpdtype)
-        # generate c2v and initialize c2f 
-        # within one partition cell are organized together by cell types
-        c2v = []
-        c2f = []
-        celltypes = [] 
-        # number of vertices for each cell type
-        nc2v = []
-        coffset = [0]
-        for idx,(etype,eles) in enumerate(elemap.items()):
+        self.nnodes = nnodes
+
+        # flattern the coordinates
+        unikcoords = unikcoords.reshape(-1).astype(self.fpdtype)
+        return unikcoords, nnodes_offset, nodesmap
+
+    def _form_cell_info(self, nnodes_offset, nodesmap):
+        '''
+        form cell connectivity information
+        figure out c2v, celltype, initialize c2f
+        '''
+        elemap = self.system.ele_map
+        c2v       = [ ]
+        c2f       = [ ]
+        celltypes = [ ] 
+        nc2v      = [ ]
+        coffset   = [0]
+        for idx, (etype, eles) in enumerate(elemap.items()):
             npts, neles = eles.eles.shape[0], eles.eles.shape[1]
-            b = np.tile(list(range(npts)),(neles,1))
+            b = np.tile(list(range(npts)), (neles, 1))
             b += (np.arange(neles)*npts)[:,None]
-            # add offset 
-            b = b+nnodes_offset[idx]
-            b = np.apply_along_axis(lambda x: nodesmap[x],1,b)
+            # add offset think about this again
+            b = b + nnodes_offset[idx]
+            b = np.apply_along_axis(lambda x: nodesmap[x], 1, b)
             # pad -1 to axis to make sure dimension consistency 
-            if nspt_etypes[idx] < maxnspt :
-                pad = np.tile([-1]*(maxnspt-nspt_etypes[idx]),(neles,1))
+            if self.nspt_etypes[idx] < self.maxnspt :
+                pad = np.tile([-1]*(self.maxnspt-self.nspt_etypes[idx]),(neles,1))
                 b = np.concatenate((b,pad),axis = 1)
 
             c2v.append(b)
             # initialize c2f
-            fcs = np.tile([-1]*maxnfcs, (neles,1)) 
+            fcs = np.tile([-1]*self.maxnfcs, (neles,1)) 
             c2f.append(fcs)
 
             ctype = np.array([etype]*neles)
             celltypes.append(ctype)
 
             coffset.append(neles)
+
         celloffset = []
         for idx, start in enumerate(coffset[:-1]):
             neles = coffset[idx+1]
             celloffset = celloffset + [sum(coffset[:idx+1])]*neles
-        celloffset = np.array(celloffset).astype('int32')
 
-        c2v = np.concatenate(c2v,axis = 0)
-        c2f = np.concatenate(c2f,axis = 0)
+        celloffset = np.array(celloffset).astype(self.intdtype)
+
+        c2v = np.concatenate(c2v, axis = 0)
+        c2f = np.concatenate(c2f, axis = 0)
         celltypes = np.concatenate(celltypes, axis = 0)
         
-        # number of cells
-        ncells = c2v.shape[0]
+        # save number of cells
+        self.ncells = c2v.shape[0]
+        # return some intermediate variables
+        return c2v, c2f, celltypes, celloffset
+
+    def _form_face_info(self, c2v, c2f):
+        elemap = self.system.ele_map
+        elesbasis = self.elesbasis
         
+        # two useful/heavily-used lambda expressions
         fetype = lambda etype, fidx: elesbasis[etype].faces[fidx][0]
-        fnodes = (lambda etype, eidx, fidx:
-            c2v[eidx][self.facevidxcell[etype+'_{}'.format(elesbasis[etype].nsptsord)][fidx]] ) 
+        fnodes = (
+            lambda etype, eidx, fidx:
+            c2v[eidx][self.facevidxcell[etype+'_{}'.format(elesbasis[etype].nsptsord)][fidx]] 
+        ) 
         
         # lists of interfaces
+        # most of things in PYTHON are pointers
         int_inters = self.system._int_inters
-        bc_inters = self.system._bc_inters
+        bc_inters  = self.system._bc_inters
         mpi_inters = self.system._mpi_inters
         
         # treat overset mpiinters as bc here
@@ -207,11 +243,14 @@ class Overset(object):
             bf2c = np.concatenate(bf2c, axis = 0)
             bfposition = np.concatenate(bfposition, axis = 0)
 
-        # deal with periodic faces here recover to bc faces
         for a in int_inters:
-            # then deal with interior inters
-            pd_ftypes_l = np.array([fetype(i[0].split('-g')[0],i[2]) for i in a.lhs if i[3] != 0])
-            pd_ftypes_r = np.array([fetype(i[0].split('-g')[0],i[2]) for i in a.rhs if i[3] != 0])
+            # deal with interior inters
+            pd_ftypes_l = np.array(
+                [fetype(i[0].split('-g')[0],i[2]) for i in a.lhs if i[3] != 0]
+            )
+            pd_ftypes_r = np.array(
+                [fetype(i[0].split('-g')[0],i[2]) for i in a.rhs if i[3] != 0]
+            )
             # sanity check
             if np.all(pd_ftypes_l == pd_ftypes_r) == False:
                 raise RuntimeError('Face types inconsistency for elements')
@@ -289,11 +328,15 @@ class Overset(object):
         itf2c = []
         itfinfo = []
         itfposition = []
-        # noway int_inters is an empty list
+        # no way int_inters is an empty list
         for a in int_inters:
             # then deal with interior inters
-            int_ftypes_l = np.array([fetype(i[0].split('-g')[0],i[2]) for i in a.lhs if i[3] == 0])
-            int_ftypes_r = np.array([fetype(i[0].split('-g')[0],i[2]) for i in a.rhs if i[3] == 0])
+            int_ftypes_l = np.array(
+                [fetype(i[0].split('-g')[0],i[2]) for i in a.lhs if i[3] == 0]
+            )
+            int_ftypes_r = np.array(
+                [fetype(i[0].split('-g')[0],i[2]) for i in a.rhs if i[3] == 0]
+            )
             # sanity check
             if np.all(int_ftypes_l == int_ftypes_r) == False:
                 raise RuntimeError('Face types inconsistency for elements')
@@ -313,6 +356,7 @@ class Overset(object):
 
             int_f2v = np.array(int_f2v_l)
             int_f2c = np.array([[il[1], ir[1]] for il,ir in zip(a.lhs,a.rhs)])
+
             int_fposition = np.array([[il[2], ir[2]] for il,ir in zip(a.lhs,a.rhs)])
 
             itfacetypes.append(int_facetypes)
@@ -329,28 +373,30 @@ class Overset(object):
         if   mf2v != [] and bf2v != []:
             f2v = np.concatenate((bf2v,mf2v,itf2v), axis = 0) 
             f2c = np.concatenate((bf2c,mf2c,itf2c), axis = 0) 
-            facetypes = np.concatenate((bfacetypes,mfacetypes,itfacetypes), axis = 0)
-            fposition = np.concatenate((bfposition,mfposition,itfposition), axis = 0)
+            facetypes = np.concatenate((bfacetypes, mfacetypes, itfacetypes), axis = 0)
+            fposition = np.concatenate((bfposition, mfposition, itfposition), axis = 0)
         elif mf2v == [] and bf2v != []:
             f2v = np.concatenate((bf2v,itf2v), axis = 0) 
             f2c = np.concatenate((bf2c,itf2c), axis = 0) 
-            facetypes = np.concatenate((bfacetypes,itfacetypes), axis = 0)
-            fposition = np.concatenate((bfposition,itfposition), axis = 0)
+            facetypes = np.concatenate((bfacetypes, itfacetypes), axis = 0)
+            fposition = np.concatenate((bfposition, itfposition), axis = 0)
         elif mf2v != [] and bf2v == []:
             f2v = np.concatenate((mf2v,itf2v), axis = 0) 
             f2c = np.concatenate((mf2c,itf2c), axis = 0) 
-            facetypes = np.concatenate((mfacetypes,itfacetypes), axis = 0)
-            fposition = np.concatenate((mfposition,itfposition), axis = 0)
+            facetypes = np.concatenate((mfacetypes, itfacetypes), axis = 0)
+            fposition = np.concatenate((mfposition, itfposition), axis = 0)
         else:
             f2v = np.concatenate((itf2v), axis = 0) 
             f2c = np.concatenate((itf2c), axis = 0) 
-            facetypes = np.concatenate((itfacetypes),axis = 0)
+            facetypes = np.concatenate((itfacetypes), axis = 0)
             fposition = np.concatenate((itfposition), axis = 0)
 
         nfaces = f2v.shape[0]
+        # keep track of nfaces
+        self.nfaces = nfaces
 
         # sort the facetypes 
-        srtdfaces = sorted(range(facetypes.shape[0]),key = facetypes.__getitem__)
+        srtdfaces = sorted(range(facetypes.shape[0]), key = facetypes.__getitem__)
 
         # generate c2f from f2c
         for idx, (cidxs, fp) in enumerate(zip(f2c[srtdfaces], fposition[srtdfaces])):
@@ -361,35 +407,41 @@ class Overset(object):
                 c2f[rc][rcfpos] = idx 
 
         # query wall nodes and overset nodes
-        wallnodes   = np.array([],dtype = 'int32')
-        overnodes   = np.array([],dtype = 'int32')
-        wallfaceidx = np.array([],dtype = 'int32') # each part has only one 
-        overfaceidx = np.array([],dtype = 'int32') # each part has only one
+        wallnodes   = np.array([], dtype = self.intdtype)
+        overnodes   = np.array([], dtype = self.intdtype)
+        wallfaceidx = np.array([], dtype = self.intdtype) # each part has only one 
+        overfaceidx = np.array([], dtype = self.intdtype) # each part has only one
         for idx, bc in enumerate(bc_inters):
             ist = sum(bcoffset[:idx+1])
             ied = sum(bcoffset[:idx+2])
             if 'MPI' in type(bc).__name__:
                 overnodes = np.unique(
-                    [ b for a in f2v[ist:ied] for b in a if b != -1]).astype('int32')
+                    [ b for a in f2v[ist:ied] for b in a if b != -1]).astype(self.intdtype)
                 overfaceidx = np.array(
-                    [srtdfaces[i] for i in np.arange(ist,ied)]).astype('int32')
+                    [srtdfaces[i] for i in np.arange(ist,ied)]).astype(self.intdtype)
             elif 'wall' in bc.type:
                 wallnodes = np.unique(
-                    [ b for a in f2v[ist:ied] for b in a if b != -1]).astype('int32')
+                    [ b for a in f2v[ist:ied] for b in a if b != -1]).astype(self.intdtype)
                 wallfaceidx = np.array(
-                    [srtdfaces[i] for i in np.arange(ist,ied)]).astype('int32')
+                    [srtdfaces[i] for i in np.arange(ist,ied)]).astype(self.intdtype)
         
         nwallnodes = wallnodes.shape[0] 
         novernodes = overnodes.shape[0] 
         nwallfaces = wallfaceidx.shape[0]
         noverfaces = overfaceidx.shape[0]
 
+        self.nwallnodes = nwallnodes
+        self.novernodes = novernodes
+        self.nwallfaces = nwallfaces
+        self.noverfaces = noverfaces
+
         # for mpi faces get the information from corresponding cores
         # communicate within the grid communicator
-        mpinodes = np.array([],dtype = c2v.dtype)
-        mpifaceidx = np.array([],dtype = c2v.dtype)
-        mpifaces_r = np.array([],dtype = c2v.dtype)
-        mpifaces_r_rank = np.array([],dtype = c2v.dtype)
+        mpinodes   = np.array([], dtype = self.intdtype)
+        mpifaceidx = np.array([], dtype = self.intdtype)
+        mpifaces_r = np.array([], dtype = self.intdtype)
+        mpifaces_r_rank = np.array([], dtype = self.intdtype)
+
         if mpi_inters != []:
             MPI_TAG = 2314
             comm = MPI.COMM_WORLD
@@ -411,7 +463,8 @@ class Overset(object):
                 rranks.append(rhsranks)
                 #mfaces.append(idxinfo)
                 mnodes.append(np.unique([[b] for a in f2v[idxinfo] for b in a if b != -1]))
-
+                
+                # do a datatype check won't hurt
                 dtype = MPI.LONG if idxinfo.dtype.name == 'int64' else MPI.INT
                 comm.Isend([idxinfo, dtype], destination, MPI_TAG)
 
@@ -420,22 +473,25 @@ class Overset(object):
 
             comm.Barrier()
             
-            mpifaceidx = np.concatenate(mpifidxinfo, axis = 0).astype('int32')
-            mpinodes = np.concatenate(mnodes, axis = 0).astype('int32')
-            mpifaces_r = np.concatenate(recvbuf, axis = 0).astype('int32')
-            mpifaces_r_rank = np.concatenate(rranks, axis= 0).astype('int32')
+            mpifaceidx = np.concatenate(mpifidxinfo, axis = 0).astype(self.intdtype)
+            mpinodes = np.concatenate(mnodes, axis = 0).astype(self.intdtype)
+            mpifaces_r = np.concatenate(recvbuf, axis = 0).astype(self.intdtype)
+            mpifaces_r_rank = np.concatenate(rranks, axis= 0).astype(self.intdtype)
 
         nmpifaces = mpifaceidx.shape[0]
         nmpinodes = mpinodes.shape[0]
 
+        self.nmpifaces = nmpifaces
+        self.nmpinodes = nmpinodes
+
         # flattern c2v c2f f2v by cell face types # need to remove -1
         c2v_flat = []
         c2f_flat = []
-        neletypes = [0] + nele_etypes.tolist()
+        neletypes = [0] + self.nele_etypes.tolist()
         
         vnums = []
         fnums = []
-        for i in range(nele_etypes.shape[0]):
+        for i in range(self.nele_etypes.shape[0]):
             ist = sum(neletypes[:i+1])
             ied = sum(neletypes[:i+2])
             
@@ -457,11 +513,11 @@ class Overset(object):
         for idx, (flatv, flatf) in enumerate(zip(c2v_flat,c2f_flat)):
             padv = np.array([-1]*(maxvnums-vnums[idx]))[None,...] 
             padf = np.array([-1]*(maxfnums-fnums[idx]))[None,...]
-            c2v_flat[idx] = np.concatenate((flatv, padv), axis = 1).astype('int32')
-            c2f_flat[idx] = np.concatenate((flatf, padf), axis = 1).astype('int32')
+            c2v_flat[idx] = np.concatenate((flatv, padv), axis = 1).astype(self.intdtype)
+            c2f_flat[idx] = np.concatenate((flatf, padf), axis = 1).astype(self.intdtype)
 
-        c2v_flat = np.concatenate(c2v_flat, axis = 0).astype('int32')
-        c2f_flat = np.concatenate(c2f_flat, axis = 0).astype('int32')
+        c2v_flat = np.concatenate(c2v_flat, axis = 0).astype(self.intdtype)
+        c2f_flat = np.concatenate(c2f_flat, axis = 0).astype(self.intdtype)
         
         # reorder the face, group faces of same type together
         f2v = f2v[srtdfaces]
@@ -469,7 +525,10 @@ class Overset(object):
 
         unikftypes = np.unique(facetypes)
         unikftypes = np.sort(unikftypes)
+
         nfacetypes = unikftypes.shape[0]
+
+        self.nfacetypes = nfacetypes
 
         nftypes = [0] + [sum(facetypes == i) for i in unikftypes]
         
@@ -486,12 +545,14 @@ class Overset(object):
         maxvnums = max(vnums)
         for idx, flatv in enumerate(f2v_flat):
             padv = np.array([-1]*(maxvnums-vnums[idx]))[None,...]
-            f2v_flat[idx] = np.concatenate((flatv,padv), axis = 1).astype('int32')
+            f2v_flat[idx] = np.concatenate((flatv,padv), axis = 1).astype(self.intdtype)
 
-        f2v_flat = np.concatenate(f2v_flat, axis = 1).astype('int32')
-        nface_ftypes = np.array(nftypes[1:]).astype('int32')
+        f2v_flat = np.concatenate(f2v_flat, axis = 1).astype(self.intdtype)
+
+        nface_ftypes = np.array(nftypes[1:]).astype(self.intdtype)
+        self.nface_ftypes = nface_ftypes
         # flatten f2c
-        f2c_flat = f2c[srtdfaces].reshape(-1).astype('int32')
+        f2c_flat = f2c[srtdfaces].reshape(-1).astype(self.intdtype)
 
         facetypes = facetypes[srtdfaces]
         faceposition = fposition[srtdfaces]
@@ -503,36 +564,53 @@ class Overset(object):
                 mpi_inters.append(bcint)
                 bc_inters.remove(bcint)
 
+        return (c2v_flat, c2f_flat, f2v_flat, f2c_flat, facetypes, faceposition, f2corg,
+               overnodes, wallnodes, overfaceidx, wallfaceidx, mpifaceidx, mpifaces_r,
+               mpifaces_r_rank)
+        
+
+    def _prepare_griddata(self, tol = 1e-8):
+        '''
+        Prepate grid data for tioga
+        '''
+        unikcoords, nnodes_offset, nodesmap = self._form_unique_nodes()
+        
+        # c2f is only initialized here
+        c2v, c2f, celltypes, celloffset = self._form_cell_info(nnodes_offset, nodesmap)
+        # I know this is nasty
+        (c2v_flat, c2f_flat, f2v_flat, f2c_flat, facetypes, faceposition, f2corg,
+        overnodes, wallnodes, overfaceidx, wallfaceidx, mpifaceidx, mpifaces_r,
+        mpifaces_r_rank) = self._form_face_info(c2v, c2f)
+
         griddata = defaultdict()
         
         griddata['bodytag'] = self.gid # grid id
         griddata['coords'] = unikcoords # unique coordinates 
         
-        griddata['nnodes'] = nnodes # number of nodes
-        griddata['ncells'] = ncells # number of cells
-        griddata['nfaces'] = nfaces # number of faces
+        griddata['nnodes'] = self.nnodes # number of nodes
+        griddata['ncells'] = self.ncells # number of cells
+        griddata['nfaces'] = self.nfaces # number of faces
 
-        griddata['ncelltypes'] = nspt_etypes.shape[0]
+        griddata['ncelltypes'] = self.nspt_etypes.shape[0]
         griddata['celltypes'] = celltypes
         griddata['celloffset'] = celloffset
-        griddata['nv' ] = nspt_etypes # number of nodes for each type
-        griddata['nc' ] = nele_etypes # number of cells for each type
-        griddata['ncf'] = nfcs_etypes # number of faces for each type
+        griddata['nv' ] = self.nspt_etypes # number of nodes for each type
+        griddata['nc' ] = self.nele_etypes # number of cells for each type
+        griddata['ncf'] = self.nfcs_etypes # number of faces for each type
 
-        griddata['nfacetypes'] = nfacetypes # number of face types
+        griddata['nfacetypes'] = self.nfacetypes # number of face types
         griddata['facetypes'] = facetypes
         griddata['faceposition'] = faceposition
         griddata['f2corg'] = f2corg
-        griddata['nf' ] =  nface_ftypes # number of face per face type
-        # ad hoc for testing
-        griddata['nfv'] =  np.array([9]*nfacetypes).astype('int32') # number of nodes for each face type
+        griddata['nf' ] =  self.nface_ftypes 
+        griddata['nfv'] =  np.array([9]*self.nfacetypes).astype(self.intdtype) 
 
-        griddata['nwallnodes'] = nwallnodes # number of wall nodes
-        griddata['novernodes'] = novernodes # number of overset bc nodes
+        griddata['nwallnodes'] = self.nwallnodes 
+        griddata['novernodes'] = self.novernodes 
 
-        griddata['iblank_node'] = np.zeros(unikcoords.shape[0],dtype=np.int32)
-        griddata['iblank_face'] = np.zeros(nfaces,dtype=np.int32) 
-        griddata['iblank_cell'] = np.zeros(ncells,dtype=np.int32)
+        griddata['iblank_node'] = np.zeros(unikcoords.shape[0], dtype=self.intdtype)
+        griddata['iblank_face'] = np.zeros(self.nfaces, dtype=self.intdtype) 
+        griddata['iblank_cell'] = np.zeros(self.ncells, dtype=self.intdtype)
         
         # set eles.cellblank
 
@@ -540,12 +618,13 @@ class Overset(object):
         griddata['c2f'] = c2f_flat # c2f in tioga: first dimension is ncelltypes
         griddata['f2v'] = f2v_flat # fconn in tioga: first dimension is ncelltypes
         griddata['f2c'] = f2c_flat # f2c in tioga: firts dimension is ncelltypes
+
         griddata['obcnodes'] = overnodes # overset boundary nodes
         griddata['wallnodes'] = wallnodes # wall boundary nodes
 
-        griddata['noverfaces'] = noverfaces # number of overset faces
-        griddata['nmpifaces'] = nmpifaces # number of mpi faces
-        griddata['nwallfaces'] = nwallfaces # number of wall faces
+        griddata['noverfaces'] = self.noverfaces # number of overset faces
+        griddata['nmpifaces'] = self.nmpifaces # number of mpi faces
+        griddata['nwallfaces'] = self.nwallfaces # number of wall faces
 
         griddata['oversetfaces'] = overfaceidx # face idx of overset faces
         griddata['wallfaces'] = wallfaceidx  # face idx of wall faces
