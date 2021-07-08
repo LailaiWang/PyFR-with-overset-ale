@@ -14,12 +14,6 @@ class BaseStdIntegrator(BaseCommon, BaseIntegrator):
         # Determine the amount of temp storage required by this method
         self.nregs = self._stepper_nregs
 
-        # Construct the relevant system
-        # add t and [t^n,t_i,t^(n+1)]
-        # create tstage for moving grid class
-        #kwargs['tcur'] = self.tcurr
-        #kwargs['tstage'] = self.c+[1.0]
-
         self.system = systemcls(backend, rallocs, mesh, initsoln,
                                 nregs=self.nregs, cfg=cfg, 
                                 tcur = self.tcurr, dtcur = self._dt, 

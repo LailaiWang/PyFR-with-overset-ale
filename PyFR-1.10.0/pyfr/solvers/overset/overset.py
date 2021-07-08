@@ -807,6 +807,7 @@ class Overset(object):
                 self.unblank_ids_ele[etype] = tg.tg_allocate_device_int(
                     self.MAX_UNBLANK_CELLS
                 )
+
                 self.unblank_ids_loc[etype] = tg.tg_allocate_device_int(
                     self.MAX_UNBLANK_CELLS
                 )

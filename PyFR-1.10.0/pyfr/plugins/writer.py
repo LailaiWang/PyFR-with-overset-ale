@@ -60,12 +60,23 @@ class WriterPlugin(BasePlugin):
             self(intg)
 
     def _prepare_mdata_all(self, intg):
-        # Element info and backend data type
-        einfo = zip(intg.system.ele_types, intg.system.ele_shapes)
-        fpdtype = intg.backend.fpdtype
-
-        # Output metadata
-        return [(f'soln_{etype}', shape, fpdtype) for etype, shape in einfo]
+        
+        if intg.system.overset is True:
+            # Element info and backend data type
+            einfo1  = zip(intg.system.ele_types, intg.system.ele_shapes)
+            einfo2  = zip(intg.system.ele_types, intg.system.ele_shapes)
+            fpdtype = intg.backend.fpdtype
+            # output metadata
+            mdata = [(f'soln_{etype}', shape, fpdtype) for etype, shape in einfo1]
+            # add information of cell blanking
+            mdata = mdata + [(f'soln_{etype}_blank', shape[2], np.int32) for etype, shape in einfo2]
+            return mdata
+        else:
+            # Element info and backend data type
+            einfo  = zip(intg.system.ele_types, intg.system.ele_shapes)
+            fpdtype = intg.backend.fpdtype
+            # Output metadata
+            return [(f'soln_{etype}', shape, fpdtype) for etype, shape in einfo]
 
     def _prepare_mdata_box(self, intg, x0, x1):
         eset = {}
@@ -143,7 +154,22 @@ class WriterPlugin(BasePlugin):
         return mdata
 
     def _prepare_data_all(self, intg):
-        return intg.soln
+        if intg.system.overset is True:
+            iblank_cell = intg.system.oset.griddata['iblank_cell']
+            # consider multiple type of elements here
+            etypeoff = [0]
+            neles = 0
+            for eshape in intg.system.ele_shapes:
+                neles = neles + eshape[2]
+                etypeoff.append(neles)
+            
+            data = []
+            for idx, soln in enumerate(intg.soln):
+                data.append(soln)
+                data.append(iblank_cell[etypeoff[idx]:etypeoff[idx+1]])
+            return data
+        else:
+            return intg.soln
 
     def _prepare_data_subset(self, intg):
         data = []

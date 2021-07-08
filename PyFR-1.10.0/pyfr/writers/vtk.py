@@ -137,6 +137,13 @@ class VTKWriter(BaseWriter):
     def _get_npts_ncells_nnodes(self, sk):
         etype, neles = self.soln_inf[sk][0], self.soln_inf[sk][1][2]
         
+        if 'overset' in self.cfg.sections():
+            skpre, skpost = sk.rsplit('_', 1)
+            unblanked = self.soln[f'{skpre}_blank_{skpost}']
+            idxunblanked = [idx for idx, stat in enumerate(unblanked) if stat == 1]
+
+            neles = len(idxunblanked)
+
         etype = etype.split('-')[0]
         # Get the shape and sub division classes
         shapecls = subclass_where(BaseShape, name=etype)
@@ -368,6 +375,15 @@ class VTKWriter(BaseWriter):
             if self.kte:
                 avsoln = avsoln[:,:,self.soln[f'{skpre}_idxs_{skpost}']]
 
+        # handle the case where overset blanking information is available
+        # only output unblanked cells for visualization
+        if 'overset' in self.cfg.sections():
+            skpre, skpost = sk.rsplit('_', 1)
+            unblanked = self.soln[f'{skpre}_blank_{skpost}']
+            idxunblanked = [idx for idx, stat in enumerate(unblanked) if stat == 1]
+            mesh = mesh[:, idxunblanked, :]
+            soln = soln[:, :, idxunblanked]
+            
         # Dimensions
         nspts, neles = mesh.shape[:2]
 
