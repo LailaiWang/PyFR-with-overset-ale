@@ -8,7 +8,7 @@ CPU possibly won't work fully.
 
 The current code only works for at least two CORES for overset meshes.
 To debug a PYTHON code running with MPI which calls C++ library, one can use
-mpiexec -n xterm -e "python -m pdb command to run code".
+>mpiexec -n xterm -e "python -m pdb command to run code".
 
 n xterm terminal will pop up with pdb debugging mode to allow you to check the information.
 
