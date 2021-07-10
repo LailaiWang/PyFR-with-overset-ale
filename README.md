@@ -25,4 +25,6 @@ When TIOGA is called, the code will halt on the while loop with pid being printe
 
 Here, one can open gdb
 > attach pid
+> set idebugger =0
+> b /* at some point you want to break in the c++ code*/
 Then one can use gdb debug each process normally.
