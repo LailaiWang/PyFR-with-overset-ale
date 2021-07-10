@@ -28,5 +28,6 @@ Here, one can open gdb and do the following steps
 * attach pid
 * set idebugger =0
 * b /* at some point you want to break in the c++ code*/
+* c /* continue to the break point*/
 
 Then one can use gdb debug each process normally.
