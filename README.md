@@ -6,9 +6,10 @@ Overset is accomplished by tioga. Only support HEX.
 Currently only tested for GPU.
 CPU possibly won't work fully.
 
-The current code only works for at least two CORES for overset meshes.
+The current code only works for at least two CORES for overset meshes. Here
+are some tips to debug a parallel code (MPI).
 To debug a PYTHON code running with MPI which calls C++ library, one can use
->mpiexec -n xterm -e "python -m pdb command to run code".
+> mpiexec -n xterm -e "python -m pdb command to run code".
 
 n xterm terminals will pop up with pdb debugging mode to allow you to check the information process by process.
 
