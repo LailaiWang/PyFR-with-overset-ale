@@ -15,7 +15,7 @@ n xterm terminal will pop up with pdb debugging mode to allow you to check the i
 To debug the tioga library with parallel computing, one can put some lines in the C++ code as
 
 int pid = getpid();
-prntf("current pid is %d\n",pid)
+prntf("current pid is %d\n",pid);
 int idebugger = 1;
 while(idebugger) {
 
