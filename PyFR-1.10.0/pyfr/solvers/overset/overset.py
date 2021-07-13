@@ -725,12 +725,18 @@ class Overset(object):
             grid['gridVel'] = np.array([0,0,0]).astype(fpdtype) # not actually used
             grid['rigidOffset'] = np.array([0,0,0]).astype(fpdtype) 
             grid['rigidRotMat'] = np.array([1,0,0,0,1,0,0,0,1]).astype(fpdtype) 
+            grid['rigidPivot']  = np.array([0,0,0]).astype(fpdtype)
+            #if self.gid == 0:
+            #    grid['rigidPivot']  = np.array([0,0,0]).astype(fpdtype)
+            #else:
+            #    grid['rigidPivot']  = np.array([0,-2,0]).astype(fpdtype)
 
-            gridV = addrToFloatPtr(grid['gridVel'].__array_interface__['data'][0])
+            gridV  = addrToFloatPtr(grid['gridVel'].__array_interface__['data'][0])
             offset = addrToFloatPtr(grid['rigidOffset'].__array_interface__['data'][0])
-            Rmat = addrToFloatPtr(grid['rigidRotMat'].__array_interface__['data'][0])
+            Rmat   = addrToFloatPtr(grid['rigidRotMat'].__array_interface__['data'][0])
+            pivot  = addrToFloatPtr(grid['rigidPivot'].__array_interface__['data'][0])
             
-            tg.tioga_register_moving_grid_data(gridV,offset,Rmat)
+            tg.tioga_register_moving_grid_data(gridV, offset, Rmat, pivot)
 
         if self.useGpu:
 
@@ -762,10 +768,10 @@ class Overset(object):
             self.ecoords_d_ref = backend.matrix(ecoords.shape, ecoords)
 
             # allocate fixed size memory chunk
-            self.MAX_FRINGE_FACES = 100000
+            self.MAX_FRINGE_FACES = 1000
             self.MAX_FPTS = 16
-            self.MAX_FRINGE_FPTS = 1600000
-            self.MAX_UNBLANK_CELLS = 20000
+            self.MAX_FRINGE_FPTS = 16000
+            self.MAX_UNBLANK_CELLS = 200
             self.MAX_UPTS = 64
 
             self.MAX_ORDER = 10
@@ -836,6 +842,10 @@ class Overset(object):
             self.offset_d = tg.tg_allocate_device(
                 3, 1, 1, 1, 0, itemsize
             )
+
+            self.pivot_d = tg.tg_allocate_device(
+                3, 1, 1, 1, 0, itemsize
+            )
             
             # here iblank_cell_d and iblank_face_d are exactly the same as previous??
             tg.tioga_set_device_geo_data(
@@ -861,7 +871,7 @@ class Overset(object):
 
     # For high-order codes: First part of unblank procedure (t^{n+1} blanking)
     def unblankPart1(self, motion):
-        self.update_transform(motion['Rmat'], motion['offset'])
+        self.update_transform(motion['Rmat'], motion['pivot'], motion['offset'])
         self.update_adt_transform(motion)
         self.move_flat(motion)
         self.move_nested(motion)
@@ -870,7 +880,7 @@ class Overset(object):
 
     # For high-order codes: Second part of unblank procedure (t^n blanking + union)
     def unblankPart2(self, motion):
-        self.update_transform(motion['Rmat'], motion['offset'])
+        self.update_transform(motion['Rmat'], motion['pivot'], motion['offset'])
         self.update_adt_transform(motion)
         self.move_flat(motion)
         self.move_nested(motion)
@@ -881,21 +891,26 @@ class Overset(object):
         fpdtype = self.system.backend.fpdtype
         Rmat = motion['Rmat']
         offset = motion['offset']
+        pivot = motion['pivot']
         Rmat = np.array(Rmat).astype(fpdtype)
         offset = np.array(offset).astype(fpdtype)
+        pivot = np.array(pivot).astype(fpdtype)
         self.griddata['rigidRotMat'][:] = Rmat[:]
         self.griddata['rigidOffset'][:] = offset[:]
+        self.griddata['rigidPivot'][:] = pivot[:]
         # see search.C
         tg.tioga_set_transform(
             addrToFloatPtr(self.griddata['rigidRotMat'].__array_interface__['data'][0]),
+            addrToFloatPtr(self.griddata['rigidPivot'].__array_interface__['data'][0]),
             addrToFloatPtr(self.griddata['rigidOffset'].__array_interface__['data'][0]),
             self.ndims
         )
         
-    def update_transform(self, Rmat, offset):
+    def update_transform(self, Rmat, pivot, offset):
         
         fpdtype = self.system.backend.fpdtype
         Rmat = np.atleast_2d(np.array(Rmat).astype(fpdtype)).reshape(-1,3).reshape(-1)
+        pivot  = np.atleast_2d(np.array(pivot ).astype(fpdtype))
         offset = np.atleast_2d(np.array(offset).astype(fpdtype))
 
         tg.tg_copy_to_device(
@@ -907,6 +922,13 @@ class Overset(object):
             self.offset_d, addrToFloatPtr(offset.__array_interface__['data'][0]),
             offset.nbytes
         )
+
+        tg.tg_copy_to_device(
+            self.pivot_d, addrToFloatPtr(pivot.__array_interface__['data'][0]),
+            pivot.nbytes
+        )
+
+        test=1
 
 
     def move_on_cpu(self):
@@ -925,7 +947,10 @@ class Overset(object):
             addrToFloatPtr(self.coords_d.data),
             addrToFloatPtr(self.coords_d_ref.data),
             npts, self.ndims, 1.0, 
-            addrToFloatPtr(self.Rmat_d), addrToFloatPtr(self.offset_d), 3
+            addrToFloatPtr(self.Rmat_d),
+            addrToFloatPtr(self.offset_d),
+            addrToFloatPtr(self.pivot_d),
+            3
         )
         # move nested coords on device by types
 
@@ -941,7 +966,10 @@ class Overset(object):
                 addrToFloatPtr(self.ecoords_d.data+offset),
                 addrToFloatPtr(self.ecoords_d_ref.data+offset),
                 neles, npts, ndims, 1.0,
-                addrToFloatPtr(self.Rmat_d), addrToFloatPtr(self.offset_d), 3
+                addrToFloatPtr(self.Rmat_d),
+                addrToFloatPtr(self.offset_d),
+                addrToFloatPtr(self.pivot_d),
+                3
             )
 
             offset = offset+tot_item*itemsize
@@ -986,12 +1014,14 @@ class Overset(object):
 
         of = motion['offset']
         R = motion['Rmat']
+        pivot = motion['pivot']
         q1 << kernels['eles','updateplocface'](
                t=t, 
                r00 = R[0],  r01 = R[1],  r02 = R[2],
                r10 = R[3],  r11 = R[4],  r12 = R[5],
                r20 = R[6],  r21 = R[7],  r22 = R[8],
-               ofx = of[0], ofy = of[1], ofz = of[2]
+               ofx = of[0], ofy = of[1], ofz = of[2],
+               pvx = pivot[0], pvy = pivot[1], pvz = pivot[2]
         )
 
         q1 << kernels['eles','updateploc'](
@@ -999,12 +1029,13 @@ class Overset(object):
                r00 = R[0],  r01 = R[1],  r02 = R[2],
                r10 = R[3],  r11 = R[4],  r12 = R[5],
                r20 = R[6],  r21 = R[7],  r22 = R[8],
-               ofx = of[0], ofy = of[1], ofz = of[2]
+               ofx = of[0], ofy = of[1], ofz = of[2],
+               pvx = pivot[0], pvy = pivot[1], pvz = pivot[2]
         )
                 
         runall([q1])
         
-        self.update_transform(motion['Rmat'], motion['offset'])
+        self.update_transform(motion['Rmat'], motion['pivot'], motion['offset'])
         self.update_adt_transform(motion)
         self.move_flat(motion)
         self.move_nested(motion)

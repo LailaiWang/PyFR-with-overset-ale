@@ -211,13 +211,13 @@ class tioga
       int nWallFaces, int nMpi, int* overFaces, int* wallFaces, int* mpiFaces, 
       int *procR, int *idR);
 
-  void registerMovingGridData(double *grid_vel, double* offset, double *Rmat)
+  void registerMovingGridData(double *grid_vel, double* offset, double *Rmat, double* Pivot)
   {
     mb->setGridVelocity(grid_vel);
 
     if (offset != NULL)
     {
-      mb->setTransform(Rmat, offset, 3);
+      mb->setTransform(Rmat, Pivot, offset,  3);
     }
   }
 
@@ -254,7 +254,8 @@ class tioga
   void doHoleCutting(bool unblanking = false);
   void doPointConnectivity(bool unblanking = false);
 
-  void setTransform(double *mat, double *off, int nDims) { mb->setTransform(mat,off,nDims); }
+  void setTransform(double *mat, double* pvt, double *off, int nDims) 
+                { mb->setTransform(mat,pvt,off,nDims); }
 
   /** Perform overset interpolation and data communication */
 

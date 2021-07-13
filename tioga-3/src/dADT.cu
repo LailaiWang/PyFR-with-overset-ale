@@ -34,10 +34,11 @@ void dADT::copyADT(ADT *adt)
   {
     offset.assign(adt->offset, 3);
     Rmat.assign(adt->Rmat, 9);
+    Pivot.assign(adt->Pivot,3);
   }
 }
 
-void dADT::setTransform(double *mat, double *off, int nDims)
+void dADT::setTransform(double *mat, double* pvt, double *off, int nDims)
 {
   if (nDims != ndim/2)
     FatalError("dADT:setTransform:nDims != dADT::ndim/2");
@@ -49,7 +50,10 @@ void dADT::setTransform(double *mat, double *off, int nDims)
   //  mat[6], mat[7], mat[8]
   //);
   rrot = true;
+
+  //printf("pivot cpu %lf %lf %lf\n", pvt[0], pvt[1], pvt[2]);
   Rmat.assign(mat, nDims*nDims);
+  Pivot.assign(pvt, nDims);
   offset.assign(off, nDims);
 }
 
@@ -144,19 +148,37 @@ void searchADT_kernel(dADT adt, dMeshBlock mb)
 
   if (adt.rrot) // Transform back to ADT's coordinate system
   {
-    float x2[nDims] = {0.0};
-    for (int d1 = 0; d1 < nDims; d1++)
-      for (int d2 = 0; d2 < nDims; d2++)
-        x2[d1] += adt.Rmat[d1+nDims*d2]*(xsearch[d2]-adt.offset[d2]);
+    float pivot[nDims] = {(float) adt.Pivot[0], (float) adt.Pivot[1], (float) adt.Pivot[2]};
+    //float pivot[nDims] = {0.0};
+    
+    // update pivot 
 
-    for (int d = 0; d < nDims; d++)
-      xsearch[d] = x2[d];
-    //printf("search point after transformation x %15.7e y %15.7e z %15.7e\n", xsearch[0], xsearch[1], xsearch[2]);
-    //printf("Rmat is %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e \n",
-    //adt.Rmat[0], adt.Rmat[1], adt.Rmat[2],
-    //adt.Rmat[3], adt.Rmat[4], adt.Rmat[5],
-    //adt.Rmat[6], adt.Rmat[7], adt.Rmat[8]
-    //);
+    //for(int d1=0;d1<nDims;d1++) {
+    //    pivot[d1] -= adt.offset[d1];
+    //}
+    
+    //if(pt == 1) {
+    //printf("x %f y  %f z  %f\n", xsearch[0], xsearch[1], xsearch[2]);
+    //printf("px %f py %f pz %f\n", pivot[0], pivot[1], pivot[2]);
+    //printf("pxi %lf pyi %lf pzi %lf\n",adt.Pivot[0], adt.Pivot[1], adt.Pivot[2]);
+    //}
+
+
+    float x2[nDims] = {0.0};
+    for (int d1 = 0; d1 < nDims; d1++) {
+      for (int d2 = 0; d2 < nDims; d2++) {
+        x2[d1] += adt.Rmat[d1+nDims*d2]*(xsearch[d2]-adt.offset[d2] - pivot[d2]);
+      }
+    }
+
+    for (int d = 0; d < nDims; d++) {
+      xsearch[d] = x2[d] + pivot[d];
+    }
+
+    //if(pt == 1) {
+    //printf("xr %f yr  %f zr  %f\n", xsearch[0], xsearch[1], xsearch[2]);
+    //printf("x2 %f y2  %f z2  %f\n", x2[0], x2[1], x2[2]);
+    //}
   }
 
   bool flag = true;
@@ -164,6 +186,8 @@ void searchADT_kernel(dADT adt, dMeshBlock mb)
   {
     flag = (flag && (xsearch[d] >= adt.adtBBox[2*d]-FTOL));
     flag = (flag && (xsearch[d] <= adt.adtBBox[2*d+1]+FTOL));
+    //if (!flag && pt == 1) 
+    //printf("adtbox is %lf %lf %lf %d\n", adt.adtBBox[2*d], adt.adtBBox[2*d+1], xsearch[d], d);
   }
 
   //printf("pt is %d out of total %d flag is %d\n",pt,mb.nsearch,flag);

@@ -35,7 +35,7 @@ extern "C" {
 
 struct callbackFuncs
 {
-  void (*setTransform)(double*, double*, int);
+  void (*setTransform)(double*, double*, double*, int);
 };
 
 void tioga_init_f90_(int *scomm);
@@ -115,9 +115,12 @@ void tioga_set_ab_callback_gpu_(void (*h2df)(int* ids, int nf, int grad, double 
 
 void tioga_set_soasz(unsigned int sz);
 
-void tioga_register_moving_grid_data(double* grid_vel, double* offset, double* Rmat);
+void tioga_register_moving_grid_data(double* grid_vel,
+                                     double* offset,
+                                     double* Rmat,
+                                     double* Pivot);
 
-void tioga_set_transform(double *mat, double *off, int ndim);
+void tioga_set_transform(double *mat, double* pvt, double *off, int ndim);
 
 void tioga_do_point_connectivity(void);
 

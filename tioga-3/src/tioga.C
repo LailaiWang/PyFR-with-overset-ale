@@ -99,7 +99,12 @@ void tioga::profile(void)
 
   MPI_Allreduce(&iartbnd, &iabGlobal, 1, MPI_INT, MPI_MAX, scomm);
   MPI_Allreduce(&ihigh, &ihighGlobal, 1, MPI_INT, MPI_MAX, scomm);
-    
+  
+  int rank = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  //printf("finish get ihigh %d\n",rank);
+
   if (iabGlobal)
   {
     /// TODO: find a better location for this?
@@ -109,6 +114,8 @@ void tioga::profile(void)
     MPI_Comm_size(meshcomm, &nprocMesh);
 
     gridType = mb->gridType;
+    
+    //printf("set gridtype %d\n",rank);
 
     // For the direct-cut method
     // gridType == 0: background;  gridType == 1: body grid
@@ -126,6 +133,7 @@ void tioga::profile(void)
     std::vector<int> ptags(nproc);
     MPI_Allgather(&mytag, 1, MPI_INT, ptags.data(), 1, MPI_INT, scomm);
 
+    //printf("set mytag %d\n",rank);
     // Enforcing symmetry in sends/recvs
     int nsend = 0;
     for (int i = 0; i < nproc; i++)
@@ -142,12 +150,19 @@ void tioga::profile(void)
       }
     }
 
+    //printf("set symm %d\n",rank);
+
     pc->setMap(nsend, nsend, sndMap.data(), sndMap.data());
+    //printf("finish set map %d\n",rank);
 
     mb->setupADT();
 
+    //printf("finish set adt %d\n",rank);
     mb->extraConn();
+    //printf("finish extraconn %d\n",rank);
   }
+  //printf("finish profile %d\n",rank);
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void tioga::performConnectivity(void)

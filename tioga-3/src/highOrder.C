@@ -50,6 +50,17 @@ using namespace tg_funcs;
 void MeshBlock::extraConn(void)
 {
   // Cell-to-cell connectivity
+  int rank = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  int idebugger = 0;
+  int pid = getpid();
+  printf("current pid is %d \n", pid);
+    
+  while(idebugger) {
+
+  }
+  
+
   c2c.resize(ntypes);
 
   for (int n = 0; n < ntypes; n++)
@@ -72,6 +83,9 @@ void MeshBlock::extraConn(void)
       }
     }
   }
+
+
+  //printf("finish c2c %d\n", rank);
 
   // List of all solid wall-boundary faces
   nCutHole = nWallFaces;

@@ -518,23 +518,29 @@ void move_flat(
     unsigned int ndims,
     double sgn,
     double* Rmat,
-    double* offset) {
+    double* offset,
+    double* pivot) {
   const unsigned int pt = (blockDim.x * blockIdx.x + threadIdx.x);
   if(pt>= npts)
     return;
-  //printf("Rmat is %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e\n",
-  //  Rmat[0], Rmat[1], Rmat[2], Rmat[3], Rmat[4], Rmat[5], Rmat[6], Rmat[7], Rmat[8]  
-  //);
+    
+  double pvt[3] = {pivot[0], pivot[1], pivot[2]};
+
+  //for(unsigned int d1 = 0; d1 <ndims; d1++) {
+  //  pvt[d1] += offset[d1];
+  //}
+
   double xtmp[3] = {0.0}; // fix it
   for(unsigned int d1 = 0; d1 < ndims; d1++) {
+    xtmp[d1] = offset[d1];
     for(unsigned int d2 = 0; d2 < ndims;d2++) {
-        xtmp[d1] += Rmat[d1*ndims+d2]*(flatcoords_ref[pt*ndims+d2]+offset[d2]);
+        //xtmp[d1] += Rmat[d1*ndims+d2]*(flatcoords_ref[pt*ndims+d2]+offset[d2]);
+        xtmp[d1] += Rmat[d1*ndims+d2]*(flatcoords_ref[pt*ndims+d2]-pvt[d2]);
     }
   }
 
   for(unsigned int d = 0; d<ndims; d++)
-    flatcoords[pt*ndims+d] = xtmp[d];
-  
+    flatcoords[pt*ndims+d] = xtmp[d] + pvt[d];
 }
 
 void move_grid_flat_wrapper(
@@ -545,6 +551,7 @@ void move_grid_flat_wrapper(
     double sgn,
     double* Rmat,
     double* offset,
+    double* pivot,
     int stream) {
 
   int threads = 128;
@@ -552,11 +559,11 @@ void move_grid_flat_wrapper(
 
   if(stream == -1) {
     move_flat<<<blocks,threads>>>(
-        flatcoords, flatcoords_ref, npts, ndims, sgn,Rmat,offset
+        flatcoords, flatcoords_ref, npts, ndims, sgn,Rmat,offset, pivot
     );
   } else {
     move_flat<<<blocks,threads,0,stream_handles[stream]>>>(
-        flatcoords, flatcoords_ref, npts, ndims, sgn, Rmat, offset
+        flatcoords, flatcoords_ref, npts, ndims, sgn, Rmat, offset, pivot
     );
   }
   check_error();
@@ -571,7 +578,8 @@ void move_nested(
     unsigned int ndims,
     double sgn, 
     double* Rmat,
-    double* offset) {
+    double* offset,
+    double* pivot) {
 
   const unsigned int pt = (blockDim.x * blockIdx.x + threadIdx.x);
   const unsigned int nc = pt / npts;
@@ -580,15 +588,25 @@ void move_nested(
   if(nc >= ncells)
     return;
   // for nested ecoords, coord[ele+ncells*(d+ndims*i)] (nupts, dim, eles)
+
+  double pvt[3] = {pivot[0], pivot[1], pivot[2]};
+
+  //for(unsigned int d1 = 0; d1 <ndims; d1++) {
+  //  pvt[d1] += offset[d1];
+  //}
+  //printf("pivot %lf %lf %lf\n", pivot[0], pivot[1], pivot[2]);
+
   double xtmp[3] = {0.0}; // fix it
   for(unsigned int d1 = 0; d1 < ndims;d1++) {
+    xtmp[d1] = offset[d1];
     for(unsigned int d2 = 0; d2 < ndims; d2++){
-      xtmp[d1] += Rmat[d1*ndims+d2]*(nestedcoords_ref[nc+ncells*(d2+ndims*upt)]+offset[d2]);
+      //xtmp[d1] += Rmat[d1*ndims+d2]*(nestedcoords_ref[nc+ncells*(d2+ndims*upt)]+offset[d2]);
+      xtmp[d1] += Rmat[d1*ndims+d2]*(nestedcoords_ref[nc+ncells*(d2+ndims*upt)]-pvt[d2]);
     }
   }
 
   for(unsigned int d = 0; d<ndims; d++) {
-    nestedcoords[nc+ncells*(d+ndims*upt)] = xtmp[d];
+    nestedcoords[nc+ncells*(d+ndims*upt)] = xtmp[d] + pvt[d];
   }
 }
 
@@ -602,17 +620,18 @@ void move_grid_nested_wrapper(
     double sgn,
     double* Rmat,
     double* offset,
+    double* pivot,
     int stream) { 
   int threads = 128;
   int blocks = (ncells*npts+ threads - 1)/threads;
 
   if(stream == -1) {
     move_nested<<<blocks,threads>>>(
-      nestedcoords, nestedcoords_ref, ncells, npts, ndims, sgn, Rmat, offset
+      nestedcoords, nestedcoords_ref, ncells, npts, ndims, sgn, Rmat, offset, pivot
     );
   } else {
     move_nested<<<blocks,threads,0,stream_handles[stream]>>>(
-      nestedcoords, nestedcoords_ref, ncells, npts, ndims, sgn, Rmat, offset
+      nestedcoords, nestedcoords_ref, ncells, npts, ndims, sgn, Rmat, offset, pivot
     );
   }
   check_error();

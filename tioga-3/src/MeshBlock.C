@@ -1355,24 +1355,22 @@ void MeshBlock::setResolutions(double *nres,double *cres)
   userSpecifiedCellRes=cres;
 }
 
-void MeshBlock::setTransform(double* mat, double* off, int ndim)
+void MeshBlock::setTransform(double* mat, double* pvt, double* off, int ndim)
 {
   if (ndim != nDims)
     ThrowException("MeshBlock::set_transform: input ndim != nDims");
-
+  
+  // adding pivot point
   rrot = true;
   Rmat = mat;
+  Pivot = pvt;
   offset = off;
 
-  //printf("mat %ld\n", mat);
-  //printf("mb mat is %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e \n",
-  //  mat[0], mat[1], mat[2],
-  //  mat[3], mat[4], mat[5],
-  //  mat[6], mat[7], mat[8]
-  //);
-  //printf("myid is %d adt is true %d\n", myid, adt);
+  //printf("mb pvx %lf %lf %lf\n", pvt[0], pvt[1], pvt[2]);
+  
+  // adding pivot point
   if (adt)  {
-    adt->setTransform(mat,off,ndim);
+    adt->setTransform(mat,pvt,off,ndim);
   }
 }
 

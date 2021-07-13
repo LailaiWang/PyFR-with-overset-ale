@@ -406,10 +406,16 @@ class VTKWriter(BaseWriter):
             rmat = np.array(motion['Rmat']).reshape(-1,3).astype(vpts.dtype)
             offset = np.array(motion['offset'])
             offset = np.tile(offset,(vpts.shape[0], vpts.shape[1],1))
+            
+            # moving the pivot point for rotation
+            pivot = np.array(motion['pivot'])
+            pivot = np.tile(pivot,(vpts.shape[0], vpts.shape[1],1))
+            pivot = pivot + offset
 
             vpts = vpts + offset
             vpts = vpts.swapaxes(0,2)
-            vpts = np.einsum('ij,jk...->ik...', rmat, vpts)
+            pivot = pivot.swapaxes(0,2)
+            vpts = np.einsum('ij,jk...->ik...', rmat, vpts-pivot) + pivot
             vpts = vpts.swapaxes(0,2)
 
 

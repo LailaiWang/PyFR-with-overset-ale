@@ -76,6 +76,7 @@ void move_grid_flat_wrapper(
     double sgn,
     double* Rmat,
     double* offset,
+    double* pivot,  // adding pivot to allow for arbrary pivot point
     int stream = -1); 
 
 void move_grid_nested_wrapper(
@@ -87,6 +88,7 @@ void move_grid_nested_wrapper(
     double sgn,
     double* Rmat,
     double* offset,
+    double* pivot, // adding pivot info to allow for arbitrary pivot point
     int stream = -1);
 
 /// functions for gmres etc

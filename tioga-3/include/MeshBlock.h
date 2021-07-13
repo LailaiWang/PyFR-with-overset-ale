@@ -121,6 +121,7 @@ private:
 
   bool rrot = false;
   double* Rmat = NULL;
+  double* Pivot = NULL;
   double* offset = NULL;
 
 #ifdef _GPU
@@ -410,7 +411,7 @@ private:
 
   void setGridVelocity(double *grid_vel);
 
-  void setTransform(double *mat, double* offset, int ndim);
+  void setTransform(double *mat, double* pvt, double* offset, int ndim);
 
   void calcNextGrid(double dt);
   void resetCurrentGrid(void);

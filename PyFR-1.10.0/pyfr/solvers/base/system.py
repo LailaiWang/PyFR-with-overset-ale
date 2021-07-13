@@ -240,7 +240,7 @@ class BaseSystem(object):
         # there are artificial boundaries
         cnt_overset_bc = 0
         for f in amesh:
-            m = re.match('bcon_overset_p{0}$'.format(rallocs.prank-offset), f)
+            m = re.match('bcon_overset_(.+?)_p{0}$'.format(rallocs.prank-offset), f)
             if m:
                 cnt_overset_bc = cnt_overset_bc + 1
                 # Get the interface

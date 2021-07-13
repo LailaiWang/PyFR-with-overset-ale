@@ -86,7 +86,7 @@ public:
   dvec<float> xlistf;
 
   bool rrot = false;
-  dvec<double> Rmat, offset;
+  dvec<double> Rmat, offset, Pivot; //adding pivot point
 
 
   /* ------ Direct Cut Variables ------ */
@@ -113,7 +113,7 @@ public:
 
   void setDeviceData(double* vx, double* ex, int* ibc, int* ibf);
 
-  void setTransform(double *mat, double *off, int ndim);
+  void setTransform(double *mat, double* pvt, double *off, int ndim);
 
   void updateADTData(int ncells_adt, int* eleList, double* eleBBox);
 
@@ -417,15 +417,38 @@ void dMeshBlock::checkContainment(int adtEle, int& cellID,
   int isInEle = 0;
 
   if (rrot) // Transform search point *back* to current *physical* location
-  {
-    float x2[ndim];
+  { 
+    // update pivot point
+
+    float pivot[3] = {(float) Pivot[0],(float) Pivot[1], (float) Pivot[2]};
+    //float pivot[3] = {0.0};
+    
+    //for(int d1=0;d1<ndim;d1++) {
+    //    pivot[d1] += offset[d1];
+    //}
+
+    //printf("Pivot %lf %lf %lf\n", Pivot[0],Pivot[1],Pivot[2]);
+
+    float x2[ndim] = {0.0};
     for (int d1 = 0; d1 < ndim; d1++)
-    {
+    {   
+      /*
       x2[d1] = offset[d1];
       for (int d2 = 0; d2 < ndim; d2++)
         x2[d1] += Rmat[d1*ndim+d2] * xyz[d2];
+      */
+      x2[d1] = offset[d1];
+      for (int d2 = 0; d2 < ndim; d2++)
+        x2[d1] += Rmat[d1*ndim+d2] * (xyz[d2]-pivot[d2]);
     }
+    
+    // add pivot
+    for (int d1 = 0; d1< ndim;d1++) {
+        x2[d1] += pivot[d1];
+    }
+
     isInEle = getRefLoc<nside>(ecoord,bbox,x2,rst);
+
   }
   else
   {

@@ -328,9 +328,10 @@ extern "C" {
     tg->set_ab_callback_gpu(h2df,h2dc,gqd,gdqd,gfng,gcng,gnw,dfg);
   }
 
-  void tioga_register_moving_grid_data(double* grid_vel, double* offset, double* Rmat)
+  void tioga_register_moving_grid_data(double* grid_vel, double* offset, 
+                                       double* Rmat, double* Pivot)
   {
-    tg->registerMovingGridData(grid_vel, offset, Rmat);
+    tg->registerMovingGridData(grid_vel, offset, Rmat, Pivot);
   }
 
   void tioga_set_amr_callback_(void (*f1)(int *,double *,int *,double *))
@@ -338,9 +339,9 @@ extern "C" {
     tg->set_amr_callback(f1);
   }
 
-  void tioga_set_transform(double *rmat, double *offset, int ndim)
+  void tioga_set_transform(double *rmat, double *pvt,  double *offset, int ndim)
   {
-    tg->setTransform(rmat, offset, ndim);
+    tg->setTransform(rmat, pvt, offset, ndim);
   }
   
   void tioga_do_point_connectivity(void)

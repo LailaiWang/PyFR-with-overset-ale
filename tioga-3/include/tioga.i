@@ -31,7 +31,7 @@ void tioga_dataupdate_ab_recv(int nvar, int gradFlag = 0);
 void tioga_preprocess_grids_(void);
 void tioga_performconnectivity_(void);
 void tioga_do_point_connectivity(void);
-void tioga_set_transform(double *mat, double *off, int ndim);
+void tioga_set_transform(double *mat, double* pvt, double *off, int ndim);
 void tioga_unblank_part_1(void);
 void tioga_unblank_part_2(int nvar);
 void tioga_set_soasz(unsigned int sz);
@@ -85,6 +85,7 @@ void move_grid_nested_wrapper(
     double sgn,
     double* Rmat,
     double* offset,
+    double* pivot,
     int stream = -1); 
 
 void move_grid_flat_wrapper(
@@ -95,6 +96,7 @@ void move_grid_flat_wrapper(
     double sgn,
     double* Rmat,
     double* offset,
+    double* pivot,
     int stream = -1);
 
 void initialize_stream_event();
