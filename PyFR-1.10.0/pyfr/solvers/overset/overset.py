@@ -187,6 +187,20 @@ class Overset(object):
         return c2v, c2f, celltypes, celloffset
 
     def _form_face_info(self, c2v, c2f):
+        '''
+        Form the cell to face information   
+        In PyFR, a face could be:
+            (1) interior face
+            (2) bc face
+            (3) mpi face
+        In this subroutine, we deal with bc face first.
+        Overset face is technically created as mpi_inters object in PyFR
+        with rhsrank as None
+
+        One special face is the interior face which was periodic faces.
+        '''
+        self.int_periodic = 0 # this one is causing problem
+
         elemap = self.system.ele_map
         elesbasis = self.elesbasis
         
@@ -203,7 +217,7 @@ class Overset(object):
         bc_inters  = self.system._bc_inters
         mpi_inters = self.system._mpi_inters
         
-        # treat overset mpiinters as bc here
+        # Treat overset mpiinters as bc here
         # need to move overset inters from mpi_inters into bc_inters
         for mpiint in mpi_inters:
             if mpiint._rhsrank == None:
@@ -265,6 +279,9 @@ class Overset(object):
             if np.any(np.sort(pd_f2v_l) == np.sort(pd_f2v_r)) == True:
                 raise RuntimeError('f2v periodic shared same, not possible')
             
+            # deal with periodic faces
+            # periodic face are merged to be interior faces
+            # but to feed into tioga, we need to restore them
             pd_f2c_l = np.array([ [i[1], -1] for i in a.lhs if i[3] != 0])
             pd_f2c_r = np.array([ [i[1], -1] for i in a.rhs if i[3] != 0])
             
@@ -273,6 +290,9 @@ class Overset(object):
             
             # here exists periodic bcs
             if pd_ftypes_l.shape[0] != 0:
+
+                self.int_periodic = pd_ftypes_l.shape[0]
+
                 pdfacetypes = np.concatenate([pd_ftypes_l, pd_ftypes_r], axis = 0)
                 pdf2v = np.concatenate([pd_f2v_l,pd_f2v_r], axis = 0)
                 pdf2c = np.concatenate([pd_f2c_l,pd_f2c_r], axis = 0)
@@ -370,7 +390,6 @@ class Overset(object):
         itf2c = np.concatenate(itf2c, axis = 0)
         itfposition = np.concatenate(itfposition, axis = 0)
         
-        
         if   mf2v != [] and bf2v != []:
             f2v = np.concatenate((bf2v,mf2v,itf2v), axis = 0) 
             f2c = np.concatenate((bf2c,mf2c,itf2c), axis = 0) 
@@ -400,14 +419,18 @@ class Overset(object):
         srtdfaces = sorted(range(facetypes.shape[0]), key = facetypes.__getitem__)
 
         # generate c2f from f2c
-        #for idx, (cidxs, fp) in enumerate(zip(f2c[srtdfaces], fposition[srtdfaces])):
-        for idx, (cidxs, fp) in enumerate(zip(f2c, fposition)):
+        for idx, (cidxs, fp) in enumerate(zip(f2c[srtdfaces], fposition[srtdfaces])):
+            #for idx, (cidxs, fp) in enumerate(zip(f2c, fposition)):
             lc, rc = cidxs
             lcfpos, rcfpos = fp
             c2f[lc][lcfpos] = idx
             if rc != -1:
                 c2f[rc][rcfpos] = idx 
-
+        
+        # this is causing the problem do sanity check
+        if np.any(c2f == -1):
+            raise RuntimeError(f'c2f has -1 entry on Grid {self.gid}')
+        
         # query wall nodes and overset nodes
         wallnodes   = np.array([], dtype = self.intdtype)
         overnodes   = np.array([], dtype = self.intdtype)
