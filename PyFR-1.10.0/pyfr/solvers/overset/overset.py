@@ -316,6 +316,7 @@ class Overset(object):
                 # mpi_idx for later use
                 rrank = 0
                 mpi_idx = np.arange(mpi_f2v.shape[0]) + mpioffset[idx]
+                mpioffset.append(mpioffset[idx]+mpi_f2v.shape[0])
                 mpi_faceidx.append([a._rhsrank,mpi_idx])
 
             mfacetypes = np.concatenate(mfacetypes, axis = 0)
@@ -399,7 +400,8 @@ class Overset(object):
         srtdfaces = sorted(range(facetypes.shape[0]), key = facetypes.__getitem__)
 
         # generate c2f from f2c
-        for idx, (cidxs, fp) in enumerate(zip(f2c[srtdfaces], fposition[srtdfaces])):
+        #for idx, (cidxs, fp) in enumerate(zip(f2c[srtdfaces], fposition[srtdfaces])):
+        for idx, (cidxs, fp) in enumerate(zip(f2c, fposition)):
             lc, rc = cidxs
             lcfpos, rcfpos = fp
             c2f[lc][lcfpos] = idx
@@ -467,12 +469,15 @@ class Overset(object):
                 # do a datatype check won't hurt
                 dtype = MPI.LONG if idxinfo.dtype.name == 'int64' else MPI.INT
                 comm.Isend([idxinfo, dtype], destination, MPI_TAG)
-
-            for idx in range(len(mpi_inters)):
-                comm.Irecv(recvbuf[idx], source = nbproc[idx], tag = MPI_TAG)
-
-            comm.Barrier()
             
+            status = []
+            for idx in range(len(mpi_inters)):
+                req = comm.Irecv(recvbuf[idx], source = nbproc[idx], tag = MPI_TAG)
+                status.append(req)
+
+            for ireq in status:
+                ireq.wait()
+
             mpifaceidx = np.concatenate(mpifidxinfo, axis = 0).astype(self.intdtype)
             mpinodes = np.concatenate(mnodes, axis = 0).astype(self.intdtype)
             mpifaces_r = np.concatenate(recvbuf, axis = 0).astype(self.intdtype)
@@ -768,13 +773,13 @@ class Overset(object):
             self.ecoords_d_ref = backend.matrix(ecoords.shape, ecoords)
 
             # allocate fixed size memory chunk
-            self.MAX_FRINGE_FACES = 1000
-            self.MAX_FPTS = 16
-            self.MAX_FRINGE_FPTS = 16000
-            self.MAX_UNBLANK_CELLS = 200
+            self.MAX_FRINGE_FACES = 10000
+            self.MAX_FPTS = 25
+            self.MAX_FRINGE_FPTS = 250000
+            self.MAX_UNBLANK_CELLS = 2000
             self.MAX_UPTS = 64
 
-            self.MAX_ORDER = 10
+            self.MAX_ORDER = 6
             
             itemsize = np.dtype(self.system.backend.fpdtype).itemsize
             
