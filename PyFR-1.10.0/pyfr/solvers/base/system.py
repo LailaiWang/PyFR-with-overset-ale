@@ -103,7 +103,7 @@ class BaseSystem(object):
 
         if self.overset is True:
             self.oset = Overset(self,rallocs) 
-    
+
     def _compute_int_offsets(self, rallocs, mesh, gid, offset):
         lhsprank = rallocs.prank
         intoffs = defaultdict(lambda: 0)
@@ -306,7 +306,6 @@ class BaseSystem(object):
             for kn, kgetter in it.chain(*pobj.kernels.items()):
                 if not kn.startswith('_'):
                     kernels[pn, kn].append(kgetter())
-        test = 1
 
     def rhs(self, t, uinbank, foutbank):
         pass
