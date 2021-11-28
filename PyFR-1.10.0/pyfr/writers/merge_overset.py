@@ -532,7 +532,8 @@ class PostOverset(object):
 
     def _exact_soln_isentropic_vortex(self, mesh, soln):
         '''
-        An 
+        This is the script to process isentropic vortex propagation
+        for overset
         '''
         exactsoln = np.zeros(soln.shape)
         for eidx in range(mesh.shape[2]):

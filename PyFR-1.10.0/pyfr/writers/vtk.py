@@ -37,14 +37,9 @@ class VTKWriter(BaseWriter):
             self._post_proc_fields = self._post_proc_fields_scal
             self._soln_fields = self.stats.get('data', 'fields').split(',')
             self._vtk_vars = [(k, [k]) for k in self._soln_fields]
-        
-        # only works when the first solnf supplied is instantaneous field
-        self.kte = args.kte 
-        if args.kte and self.dataprefix == 'soln':
-            # rebuild the variables lists
-            fluc = [(a+'_prime',b) for a,b in self._vtk_vars]
-            self._vtk_vars = fluc
 
+        self.blanking = args.blanking
+        
         # See if we are computing gradients
         if args.gradients:
             self._pre_proc_fields_ref = self._pre_proc_fields
@@ -138,11 +133,13 @@ class VTKWriter(BaseWriter):
         etype, neles = self.soln_inf[sk][0], self.soln_inf[sk][1][2]
         
         if 'overset' in self.cfg.sections():
-            skpre, skpost = sk.rsplit('_', 1)
-            unblanked = self.soln[f'{skpre}_blank_{skpost}']
-            idxunblanked = [idx for idx, stat in enumerate(unblanked) if stat == 1]
+            # check if I need to blank the blanked elements
+            if self.blanking is True:
+                skpre, skpost = sk.rsplit('_', 1)
+                unblanked = self.soln[f'{skpre}_blank_{skpost}']
+                idxunblanked = [idx for idx, stat in enumerate(unblanked) if stat == 1]
 
-            neles = len(idxunblanked)
+                neles = len(idxunblanked)
 
         etype = etype.split('-')[0]
         # Get the shape and sub division classes
@@ -363,17 +360,12 @@ class VTKWriter(BaseWriter):
         mesh = mesh[mk].astype(self.dtype)
         soln = self.soln[sk].swapaxes(0, 1).astype(self.dtype)
 
-        if self.kte:
-            avsoln = self.avsoln[sk.replace('soln','tavg')]
         # Handle the case of partial solution files
         if soln.shape[2] != mesh.shape[1]:
             skpre, skpost = sk.rsplit('_', 1)
 
             mesh = mesh[:, self.soln[f'{skpre}_idxs_{skpost}'], :]
 
-            # averaged solution includes the whole flow field
-            if self.kte:
-                avsoln = avsoln[:,:,self.soln[f'{skpre}_idxs_{skpost}']]
 
         # handle the case where overset blanking information is available
         # only output unblanked cells for visualization
@@ -381,8 +373,12 @@ class VTKWriter(BaseWriter):
             skpre, skpost = sk.rsplit('_', 1)
             unblanked = self.soln[f'{skpre}_blank_{skpost}']
             idxunblanked = [idx for idx, stat in enumerate(unblanked) if stat == 1]
-            mesh = mesh[:, idxunblanked, :]
-            soln = soln[:, :, idxunblanked]
+            # testing overset output
+            if gid == 0 and self.blanking is False:
+                soln = self.postoverset.bksoln[sk].swapaxes(0,1)
+            else:
+                mesh = mesh[:, idxunblanked, :]
+                soln = soln[:, :, idxunblanked]
             
         # Dimensions
         nspts, neles = mesh.shape[:2]
@@ -421,10 +417,6 @@ class VTKWriter(BaseWriter):
 
         # Pre-process the solution
         soln = self._pre_proc_fields(name, mesh, soln).swapaxes(0, 1)
-        # If fluctuations are to be calculated
-        if self.kte:
-            # calculate the fluctuations
-            soln = soln - avsoln
 
         # Interpolate the solution to the vis points
         vsoln = soln_vtu_op @ soln.reshape(len(soln), -1)
