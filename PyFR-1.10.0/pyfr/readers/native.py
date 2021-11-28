@@ -15,8 +15,6 @@ class NativeReader(Mapping):
         self.fname = os.path.abspath(fname)
         self._file = h5py.File(fname, 'r')
 
-        test = 1
-
     def __contains__(self, aname):
         return aname in self._file
 
