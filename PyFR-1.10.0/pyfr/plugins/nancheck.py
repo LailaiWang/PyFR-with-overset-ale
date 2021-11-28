@@ -18,5 +18,10 @@ class NaNCheckPlugin(BasePlugin):
     def __call__(self, intg):
         if intg.nacptsteps % self.nsteps == 0:
             if any(np.isnan(np.sum(s)) for s in intg.soln):
-                raise RuntimeError('NaNs detected at t = {0}'
+                if intg.system.overset is True:
+                    raise RuntimeError('NaNs detected at t = {0} on grid {1}'
+                                   .format(intg.tcurr, intg.system.oset.gid))
+                else:
+                    raise RuntimeError('NaNs detected at t = {0}'
                                    .format(intg.tcurr))
+
