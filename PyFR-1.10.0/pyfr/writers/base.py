@@ -56,8 +56,9 @@ class BaseWriter(object):
         self.systemscls = subclass_where(
             BaseSystem, name=self.cfg.get('solver', 'system')
         )
+
         self.elementscls = self.systemscls.elementscls
-        
+
         self.postoverset = PostOverset(
             self.elementscls, self.mesh, self.soln, self.mesh_inf, self.soln_inf,
             self.cfg, self.stats

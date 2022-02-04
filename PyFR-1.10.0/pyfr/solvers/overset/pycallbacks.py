@@ -61,7 +61,11 @@ def face_vidx_incell():
 
 
 def gmsh_to_structured_quad(nNodes):
+    '''
+    function to convert from gmsh to stuctured notation
+    '''
     gmsh_to_ijk = [0]*nNodes
+
     if nNodes != 8:
         nNodes1D = int(np.sqrt(nNodes))
         assert nNodes1D*nNodes1D != nNodes, 'nNodes must be a square number'
@@ -634,19 +638,6 @@ class Py_callbacks(tg.callbacks):
         if faceinfo != []:
             self._scal_fpts_u = self._scal_view_fpts_u(
                 faceinfo, 'get_scal_unsrted_fpts_for_inter')
-            # test 
-            #datatest = np.array(
-            #    [ptrAt(data,i) for i in range(tot_nfpts*5)]
-            #).astype(self.backend.fpdtype)
-            #datatest = datatest.reshape(-1,5)
-            
-            #datatest = datatest.reshape(-1)
-
-            #tg.tg_copy_to_device(
-            #    self.fringe_u_fpts_d,
-            #    addrToFloatPtr(datatest.__array_interface__['data'][0]),
-            #    datatest.nbytes
-            #)
             # copy data to device
             nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
             nbytes = nbytes*self.system.nvars

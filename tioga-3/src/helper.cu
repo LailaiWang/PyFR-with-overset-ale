@@ -2,7 +2,7 @@
 
 void initialize_stream_event() {
   stream_handles[0] = cudaStreamPerThread;
-  for(int i=1;i<N_STREAMS;i++) {
+  for(int i=1;i<N_STREAMS-1;i++) {
     cudaStreamCreate(&stream_handles[i]);
   }
 
@@ -22,6 +22,13 @@ cudaStream_t get_stream_handle() {
 
 cudaEvent_t get_event_handle() {
     return event_handles[0];
+}
+
+/* Convert the pycuda stream handle to c++ syntax
+ * and store it in pre-existing storage
+ */
+void addrToCudaStream(unsigned long long int addr) {
+    stream_handles[N_STREAMS] = reinterpret_cast<cudaStream_t> (addr);
 }
 
 void sync_device() {

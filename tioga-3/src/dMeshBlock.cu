@@ -2196,9 +2196,9 @@ void dMeshBlock::directCut(double* cutFaces_h, int nCut, int nvertf, double *cut
 
     sortFaces0<<<BlocksS0, ThreadsS0>>>(filt_faces, nfiltC, nfiltF, cfDist, checkFaces);
     check_error();
-
+    
     // Have each filtered element calculate a rough distance to the reduced face list
-
+    
     dim3 Threads1(32,4);
     dim3 Blocks1( (nfiltC + Threads1.x - 1) / Threads1.x,
                   (nCheck1 + Threads1.y - 1) / Threads1.y );
@@ -2249,7 +2249,7 @@ void dMeshBlock::directCut(double* cutFaces_h, int nCut, int nvertf, double *cut
         nfiltC, nvertf, nTri, cutFlag_d, cfDist, cfVec, cutType);
     check_error();
   }
-
+    
   cuda_copy_d2h(cutFlag_d.data(), cutFlag, ncells);
 
   ///////////////// for debugging purpose ////////////////////

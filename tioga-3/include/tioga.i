@@ -104,6 +104,7 @@ void destroy_stream_event();
 cudaStream_t get_stream_handle();
 cudaEvent_t get_event_handle();
 void sync_device();
+void addrToCudaStream(unsigned long long int);
 %nopythoncallback;
 
 %ignore tioga_dataupdate_ab;
@@ -130,6 +131,7 @@ void sync_device();
 %ignore move_grid_flat_wrapper;
 %ignore move_grid_nested_wrapper;
 %ignore sync_device;
+%ignore addrToCudaStream;
 %include "tiogaInterface.h"
 %include "helper.h"
 
@@ -403,9 +405,6 @@ void tioga_set_gmres_pmg_ptr () {
 }
 
 %}
-
-
-
 
 // some simple helper functions
 %inline %{

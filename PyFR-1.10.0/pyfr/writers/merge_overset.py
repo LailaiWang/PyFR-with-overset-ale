@@ -46,6 +46,21 @@ class PostOverset(object):
 
         self.bksoln = self._merge_overset()
 
+        # starting from here process for different problems
+
+    def _process_quant(self):
+        description = self.cfg.get('overset', 'description')
+
+        if description == 'vortexpropagation':
+            self._exact_soln_isentropic_vortex(self.mesh, self.soln)
+        elif description == 'taylorgreen':
+            pass
+        else:
+            # no subroutines defined for quantatitive analysis 
+            # of this problem
+            pass
+
+
     def _merge_overset(self):
         ngparts = [0]
         
@@ -259,7 +274,7 @@ class PostOverset(object):
         for pfn, misil in parts.items(): # different element types
             for mk, sk in misil:
                 name = mesh_inf[mk][0]
-                mesh = mesh[mk]
+                imesh = mesh[mk]
                 soln = self.soln[sk].swapaxes(0, 1)
             
                 skpre, skpost = sk.rsplit('_', 1)
@@ -268,7 +283,7 @@ class PostOverset(object):
                 idxblanked = [idx for idx, stat in enumerate(unblanked) if stat == 0]
 
                 # first instantiate the element class
-                eles = self._prepare_eles(mesh, name, gid)
+                eles = self._prepare_eles(imesh, name, gid)
                 # build the coordinates of upts of the elements
                 elesupts = eles.ploc_at_np('upts')
                 eles_blanked = elesupts[:,:,idxblanked]
@@ -393,32 +408,39 @@ class PostOverset(object):
 
     def _integrate_background(self, soln, mesh, eles):
         
-        errorpart = []
-        volpart = []
-        kinepart = []
+        errorpart = [] # error per part
+        volpart   = [] # volume per part
+        kinepart  = [] # kinetic dissipation etc per part
         for part in soln.keys():
+            # grap soln mesh and eles for the currenct name
             isoln, imesh, ieles = soln[part], mesh[part], eles[part]
             # need to get the quadrature rule
-            
+
             #r = get_quadrule()
             rname = self.cfg.get('solver-elements-' + ieles.basis.name, 'soln-pts')
-
+            
+            # inverse of det
             rcpdjac = ieles.rcpdjac_at_np('upts')
+            
+            # det
             jac = 1.0/rcpdjac
+
+            # cofactor matrix
             smat = ieles.smat_at_np('upts').transpose(2, 0, 1, 3)
             gradop = ieles.basis.m4
-
+            
+            # quadrature rule
             r = get_quadrule(ieles.basis.name, rname, ieles.basis.nupts)
-
+            
+            # convert the solution from convervative vars to primitive vars
             ipsoln = np.array(self.elementscls.con_to_pri(isoln.swapaxes(0,1), self.cfg))
             
             # testing
-            #ipsoln = self._test_grad(imesh, ipsoln.swapaxes(0,1))
-            #gradsoln = gradop @ ipsoln.reshape(ieles.basis.nupts, -1)
+            # ipsoln = self._test_grad(imesh, ipsoln.swapaxes(0,1))
+            # gradsoln = gradop @ ipsoln.reshape(ieles.basis.nupts, -1)
             gradsoln = gradop @ ipsoln.swapaxes(0,1).reshape(ieles.basis.nupts, -1)
-
             gradsoln = gradsoln.reshape(3, ieles.basis.nupts, 5, -1)
-
+            # gradients in physical coordinates
             gradsoln = np.einsum('ijkl,jkml->mikl', smat*rcpdjac, gradsoln)
 
             kinetic = self._eval_kinetic(gradsoln, ipsoln)
@@ -428,8 +450,10 @@ class PostOverset(object):
             # evaluate the expression to be integrated
             errorsoln = self._exact_soln(imesh, ipsoln.swapaxes(0,1))
             e2soln = errorsoln*errorsoln
-
+            
+            # volume integration
             vol = np.einsum('i,ik->ik', r.wts,jac)
+            # total volume
             volt = np.sum(vol)
 
             kvol = np.einsum('ik,ijk->ijk', vol, kinetic)

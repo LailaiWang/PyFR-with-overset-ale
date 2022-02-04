@@ -13,13 +13,15 @@
 
 
 static cudaStream_t stream_handles[N_STREAMS];
-static cudaEvent_t event_handles[N_EVENTS];
+static cudaEvent_t  event_handles[N_EVENTS];
 
 void initialize_stream_event();
 void destroy_stream_event();
 
 cudaStream_t get_stream_handle();
-cudaEvent_t get_event_handle();
+cudaEvent_t  get_event_handle();
+
+void addrToCudaStream(unsigned long long int); 
 
 void sync_device();
 
