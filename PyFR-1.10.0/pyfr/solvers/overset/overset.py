@@ -667,15 +667,11 @@ class Overset(object):
         return griddata
 
     def _init_overset(self):
-        '''
-        Convert numpy arrarys into pointers
-        '''
-
-
-        grid = self.griddata
         
+        grid = self.griddata
 
-
+        # Get pointers to grid data (Intended to be accessed on a per-grid basis)
+        # old implementation is problematic for 2D arrays
         btag = grid['bodytag']
         xyz = arrayToDblPtr(grid['coords'])
         nnodes = grid['nnodes']
@@ -716,7 +712,7 @@ class Overset(object):
         # need to change
         f2c = arrayToIntPtr(grid['f2c'])
 
-        iblank      = addrToIntPtr(grid['iblank_node'].__array_interface__['data'][0])
+        iblank = addrToIntPtr(grid['iblank_node'].__array_interface__['data'][0])
         iblank_face = addrToIntPtr(grid['iblank_face'].__array_interface__['data'][0])
         iblank_cell = addrToIntPtr(grid['iblank_cell'].__array_interface__['data'][0])
         
