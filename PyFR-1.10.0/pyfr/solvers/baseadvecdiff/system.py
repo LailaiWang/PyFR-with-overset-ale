@@ -111,15 +111,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                 
                 self.oset.performPointConnectivity()
 
-        # here update the solution on artbnd
-        # test
-        #    self.oset.exchangeSolution()
-        # run moving grid related kernels first
         if self.mvgrid is True:
-            #if istage == 0:
-            #    dt = 0.0
-            #else:
-            #    dt = tstage[istage] - tstage[istage-1]
             motion = self._calc_motion(t, t, self.motioninfo, fpdtype)
             
             of = motion['offset']
@@ -135,7 +127,6 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                     ofx = of[0], ofy = of[1], ofz = of[2],
                     pvx = pivot[0], pvy = pivot[1], pvz = pivot[2]
                 )
-                #runall([q1])
 
                 q1 << kernels['eles','updateploc'](
                     t=t, 
@@ -146,8 +137,6 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                     pvx = pivot[0], pvy = pivot[1], pvz = pivot[2]
                 )
 
-                #runall([q1])
-                
             omg = motion['omega']
             tvel = motion['tvel']
 
@@ -158,7 +147,6 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
               tvelx = tvel[0],   tvely = tvel[1],   tvelz = tvel[2]
             )
             
-            #runall([q1])
             # directly calculate
             q1 << kernels['eles','updatemvelface'](
               t=t,
@@ -166,42 +154,48 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
               pivotx = pivot[0]+of[0], pivoty = pivot[1]+of[1], pivotz = pivot[2]+of[2],
               tvelx = tvel[0],   tvely = tvel[1],   tvelz = tvel[2]
             )
-            #runall([q1])
 
             q1 << kernels['eles','updatejacobimatrix']()
             q1 << kernels['eles','updatejaco']()
-
-            #runall([q1])
-
-            # interpolate to interfaces
-            #q1 << kernels['eles','mvel_fpts_int']()
             q1 << kernels['eles','smat_fpts_int']()
-            #q1 << kernels['eles','mvel_fpts_ext']()
             q1 << kernels['eles','smat_fpts_ext']()
-            #runall([q1])
-            # 
             q1 << kernels['iint','updatepnorm']()
             q1 << kernels['mpiint','updatepnorm']()
             q1 << kernels['bcint','updatepnorm']()
-            #runall([q1])
         
+        # Discontinuous u at interior and exterior interfaces
         q1 << kernels['eles', 'disu_ext']()
-
-        # in case there is overset boudary
-        if ('mpiint','scal_fpts_pack') in kernels:
-            q1 << kernels['mpiint', 'scal_fpts_pack']()
-        #if self.mvgrid is True:
-        if ('mpiint','vect_fpts_mvel_pack') in kernels:
-            #q1 << kernels['eles','mvel_fpts_ext']()
-            q1 << kernels['mpiint','vect_fpts_mvel_pack']()
-        runall([q1])
-
-
         q1 << kernels['eles', 'disu_int']()
         runall([q1])
+
+        # Pack MPI related terms
+        # In case there is overset boudary
+        if ('mpiint','scal_fpts_pack') in kernels:
+            q1 << kernels['mpiint', 'scal_fpts_pack']()
+            runall([q2])
         
-        # here update the solution on artbnd
+        # Pack MPI related terms
+        # In case there is overset boundary
+        if ('mpiint','scal_fpts_send') in kernels:
+            q1 << kernels['mpiint', 'scal_fpts_send']()
+            q1 << kernels['mpiint', 'scal_fpts_recv']()
+            q1 << kernels['mpiint', 'scal_fpts_unpack']()
+            runall([q2])
+
+        if ('mpiint','vect_fpts_mvel_pack') in kernels:
+            q1 << kernels['mpiint','vect_fpts_mvel_pack']()
+            runall([q2])
+
+        # Send, recv and unpack state and mvel
+        if ('mpiint','vect_fpts_mvel_send') in kernels:
+            q1 << kernels['mpiint', 'vect_fpts_mvel_send']()
+            q1 << kernels['mpiint', 'vect_fpts_mvel_recv']()
+            q1 << kernels['mpiint', 'vect_fpts_mvel_unpack']()
+            runall([q2])
+        
+        # Here update the solution on artbnd
         if self.mvgrid and self.overset:
+            self.oset.sync_device()
             self.oset.exchangeSolution()
             self.oset.sync_device()
 
@@ -209,52 +203,22 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
             q1 << kernels['eles', 'copy_soln']()
         if ('iint', 'copy_fpts') in kernels:
             q1 << kernels['iint', 'copy_fpts']()
-
+    
+        # Calculate the continuous u
         q1 << kernels['iint', 'con_u']()
         q1 << kernels['bcint', 'con_u'](t=t)
-        if ('eles', 'shocksensor') in kernels:
-            q1 << kernels['eles', 'shocksensor']()
-            q1 << kernels['mpiint', 'artvisc_fpts_pack']()
-
-        # gradient
-        q1 << kernels['eles', 'tgradpcoru_upts']()
-        
-        # in case there is overset boundary
-        if ('mpiint','scal_fpts_send') in kernels:
-            q2 << kernels['mpiint', 'scal_fpts_send']()
-            q2 << kernels['mpiint', 'scal_fpts_recv']()
-            q2 << kernels['mpiint', 'scal_fpts_unpack']()
-
-        # send, recv and unpack state and mvel
-        #if self.mvgrid is True:
-        if ('mpiint','vect_fpts_mvel_send') in kernels:
-            q2 << kernels['mpiint', 'vect_fpts_mvel_send']()
-            q2 << kernels['mpiint', 'vect_fpts_mvel_recv']()
-            q2 << kernels['mpiint', 'vect_fpts_mvel_unpack']()
-
-        runall([q1, q2])
-
-
         q1 << kernels['mpiint', 'con_u']()
+        runall([q1])
+
+        q1 << kernels['eles', 'tgradpcoru_upts']()
+        runall([q1])
+
         q1 << kernels['eles', 'tgradcoru_upts_ext']()
         q1 << kernels['eles', 'gradcoru_upts_ext']()
         q1 << kernels['eles', 'gradcoru_fpts_ext']()
-        
-        if ('mpiint','vect_fpts_pack') in kernels:
-            q1 << kernels['mpiint', 'vect_fpts_pack']()
-
-        if ('eles', 'shockvar') in kernels:
-            if('mpiint','artvisc_fpts_send') in kernels:
-                q2 << kernels['mpiint', 'artvisc_fpts_send']()
-                q2 << kernels['mpiint', 'artvisc_fpts_recv']()
-                q2 << kernels['mpiint', 'artvisc_fpts_unpack']()
-
-        runall([q1, q2])
-
-        q1 << kernels['eles', 'tgradcoru_upts_int']()
         runall([q1])
-
-
+        
+        q1 << kernels['eles', 'tgradcoru_upts_int']()
         q1 << kernels['eles', 'gradcoru_upts_int']()
         q1 << kernels['eles', 'gradcoru_fpts_int']()
         if ('eles', 'gradcoru_qpts') in kernels:
@@ -264,28 +228,34 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         
         q1 << kernels['eles', 'tdisf']()
         runall([q1])
-        # first correction kernel
+        # First correction kernel
         q1 << kernels['eles', 'tdivtpcorf']()
 
         runall([q1])
 
-        # avoid overwrite
+        if ('mpiint','vect_fpts_pack') in kernels:
+            q1 << kernels['mpiint', 'vect_fpts_pack']()
+            runall([q2])
+
+        if ('mpiint','vect_fpts_send') in kernels:
+            q1 << kernels['mpiint', 'vect_fpts_send']()
+            q1 << kernels['mpiint', 'vect_fpts_recv']()
+            q1 << kernels['mpiint', 'vect_fpts_unpack']()
+            runall([q2])
+
+        # It is crucial important to overwrite the garbage info in mpi-artbnd faces
         if self.mvgrid and self.overset:
+            self.oset.sync_device()
             self.oset.exchangeGradient()
             self.oset.sync_device()
 
         q1 << kernels['iint', 'comm_flux']()
         q1 << kernels['bcint', 'comm_flux'](t=t)
-        
-        if ('mpiint','vect_fpts_send') in kernels:
-            q2 << kernels['mpiint', 'vect_fpts_send']()
-            q2 << kernels['mpiint', 'vect_fpts_recv']()
-            q2 << kernels['mpiint', 'vect_fpts_unpack']()
-
-        runall([q1, q2])
-
         q1 << kernels['mpiint', 'comm_flux']()
-        # second correction kernel
+        
+        runall([q1])
+
+        # Second correction kernel
         q1 << kernels['eles', 'tdivtconf']()
         
         runall([q1])

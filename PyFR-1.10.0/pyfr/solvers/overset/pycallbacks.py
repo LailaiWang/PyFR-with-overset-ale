@@ -335,7 +335,7 @@ class Py_callbacks(tg.callbacks):
         cidx1, cidx2  = self.griddata['f2corg'][fidx]
         fpos1, fpos2  = self.griddata['faceposition'][fidx] 
         etyp1  = self.griddata['celltypes'][cidx1]
-        etyp2  = self.griddata['celltypes'][cidx2] if cidx2 != -1 else etyp1
+        etyp2  = self.griddata['celltypes'][cidx2] if cidx2 >= 0 else etyp1
         n1 = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
         n2 = self.system.ele_map[etyp2].basis.nfacefpts[fpos2]
         if n1 != n2: raise RuntimeError('callback: nodes_per_face inconsistency')
@@ -368,7 +368,7 @@ class Py_callbacks(tg.callbacks):
         cidx1, cidx2 = self.griddata['f2corg'][fidx]
         fpos1, fpos2 = self.griddata['faceposition'][fidx]
         etyp1  = self.griddata['celltypes'][cidx1]
-        etyp2  = self.griddata['celltypes'][cidx2] if cidx2 != -1 else etyp1
+        etyp2  = self.griddata['celltypes'][cidx2] if cidx2 >= 0 else etyp1
         if etyp1 != etyp2: raise RuntimeError('get_face_nodes: face type inconsistency')
         eles = self.system.ele_map[etyp1]
         fptsid = eles.basis.facefpts[fpos1]
@@ -600,19 +600,23 @@ class Py_callbacks(tg.callbacks):
     def fringe_u_device(self, fringeids, nfringe, data):
         if nfringe == 0: return 0
 
-        # first deal with  inner artbnd
+        # First deal with  inner artbnd
         tot_nfpts = 0
         faceinfo = []
         side_int = []
         side_idx = [0]
         faceinfo_test = []
+        
+        facedata = []
+        facefringeid = []
+        facenfpts = []
         for i in range(nfringe):
             fid = ptrAt(fringeids,i)
             cidx1, cidx2 = self.griddata['f2corg'][fid]
             fpos1, fpos2 = self.griddata['faceposition'][fid]
             etyp1 = self.griddata['celltypes'][cidx1]
             etyp2 = self.griddata['celltypes'][cidx2] 
-            if cidx2>0:
+            if cidx2 > 0:
                 side = 1 if self.griddata['iblank_cell'][cidx1] == 1 else 0
                 # for multiple element types in one partition
                 if self.griddata['iblank_cell'][cidx1] == self.griddata['iblank_cell'][cidx2] :
@@ -622,26 +626,43 @@ class Py_callbacks(tg.callbacks):
                     if side == 0 else 
                     (etyp2, cidx2 - self.griddata['celloffset'][cidx2], fpos2, 0)
                 )
+
+                facefringeid.append(i)
+
                 faceinfo.append(perface)
                 side_int.append(side)
-            
+                
                 # always use left face
                 nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
                 tot_nfpts = tot_nfpts + nfpts
                 side_idx.append(tot_nfpts)
+                
+                # Grab the data
+                facedata = facedata + [ptrAt(data,i*self.system.nvars*nfpts+j) 
+                                       for j in range(self.system.nvars*nfpts)]
+                facenfpts.append(nfpts)
         
         # save for later use
         self.fringe_u_fpts_d = self.griddata['fringe_u_fpts_d']
         self.fringe_faceinfo = faceinfo
         self.tot_nfpts = tot_nfpts
+        self.facefringeid = facefringeid
+        self.facenfpts = facenfpts
 
         if faceinfo != []:
             self._scal_fpts_u = self._scal_view_fpts_u(
                 faceinfo, 'get_scal_unsrted_fpts_for_inter')
-            # copy data to device
+            
             nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
             nbytes = nbytes*self.system.nvars
-            tg.tg_copy_to_device( self.fringe_u_fpts_d, data, int(nbytes))
+
+            facedata = np.array(facedata).astype(self.backend.fpdtype)
+
+            tg.tg_copy_to_device( 
+                self.fringe_u_fpts_d, 
+                addrToFloatPtr(facedata.__array_interface__['data'][0]), 
+                int(nbytes)
+            )
             
             # datashape of eles._scal_fpts is [nfpts, neled2, nvars, soasz]
             tg.unpack_fringe_u_wrapper (
@@ -650,11 +671,15 @@ class Py_callbacks(tg.callbacks):
                 addrToUintPtr(self._scal_fpts_u.mapping.data),
                 nfringe, tot_nfpts, self.system.nvars, self.backend.soasz, 3
             )
-
-        # then deal with overset artbnd
+        
+        # Then deal with overset artbnd
         tot_nfpts_ov = 0
         faceinfo_ov = []
         facefpts_ov_range = [0]
+
+        facedata_ov = []
+        facefringeid_ov = []
+        facenfpts_ov = []
         for i in range(nfringe):
             fid = ptrAt(fringeids,i)
             cidx1, cidx2 = self.griddata['f2corg'][fid]
@@ -662,33 +687,36 @@ class Py_callbacks(tg.callbacks):
             etyp1 = self.griddata['celltypes'][cidx1]
             etyp2 = self.griddata['celltypes'][cidx2] 
             
-            if cidx2 < 0:
+            if cidx2 < 0 and cidx2 != -2:
+                #if cidx2 == -2: print(f'{cidx2} for {fid}')
                 # always use left info here
                 perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
                 faceinfo_ov.append(perface)
-            
+
+                facefringeid_ov.append(i)
                 # always use left face
                 nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
                 tot_nfpts_ov = tot_nfpts_ov + nfpts
                 facefpts_ov_range.append(tot_nfpts_ov)
-
+                # Grab the data
+                facedata_ov = facedata_ov + [ptrAt(data,i*self.system.nvars*nfpts+j) 
+                                             for j in range(self.system.nvars*nfpts)]
+                facenfpts_ov.append(nfpts)
         # save for later use
         self.fringe_faceinfo_ov = faceinfo_ov
         # save for later use
         self.tot_nfpts_ov = tot_nfpts_ov
+
+        self.facefringeid_ov = facefringeid_ov
+        self.facenfpts_ov = facenfpts_ov
+
         if faceinfo_ov != []:
-            offset = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
-            offset = offset*self.system.nvars
+
             nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts_ov
             nbytes = nbytes*self.system.nvars
             
-            # a reordering is necessary here as the date layout in here is 
-            # different
-            datatest = np.array(
-                [ptrAt(data,i) for i in range(tot_nfpts_ov*5)]
-            ).astype(self.backend.fpdtype)
-
-            datatest = datatest.reshape(-1,5)
+            facedata_ov = np.array(facedata_ov).astype(self.backend.fpdtype)
+            facedata_ov = facedata_ov.reshape(-1,self.system.nvars)
 
             for idx, face in enumerate(faceinfo_ov):
                 etype, typecidx, fpos, _ = face
@@ -698,30 +726,123 @@ class Py_callbacks(tg.callbacks):
                 nodesmap = []
                 for n in srted_ord:
                     nodesmap.append(unsrted_ord.index(n))
-                # swap data 
-                a = datatest[facefpts_ov_range[idx]:facefpts_ov_range[idx+1]]
-                datatest[facefpts_ov_range[idx]:facefpts_ov_range[idx+1]] = a[nodesmap]
 
-            cc = datatest.swapaxes(0,1).reshape(-1)
-            # overset-mpi is the last one
+                # swap data 
+                a = facedata_ov[facefpts_ov_range[idx]:facefpts_ov_range[idx+1]]
+                facedata_ov[facefpts_ov_range[idx]:facefpts_ov_range[idx+1]] = a[nodesmap]
+
+            cc = facedata_ov.swapaxes(0,1).reshape(-1)
             matrix_entry = self.system._mpi_inters[-1]._scal_rhs
-            #tg.tg_copy_to_device(matrix_entry.data,data,int(nbytes))
+
             tg.tg_copy_to_device(
                 matrix_entry.data,
-                addrToFloatPtr(cc.__array_interface__['data'][0]),
+                addrToFloatPtr(cc.ctypes.data),
                 int(nbytes)
             )
+              
+        for midx, mpiinters in enumerate(self.system._mpi_inters):
+            # then deal with overset artbnd
+            tot_nfpts_mpi = 0
+            faceinfo_mpi = []
+            facefpts_mpi_range = [0]
+            facefringeid_mpi = []
+            facedata_mpi = []
+            facenfpts_mpi = []
+            for i in range(nfringe):
+                fid = ptrAt(fringeids,i)
+                cidx1, cidx2 = self.griddata['f2corg'][fid]
+                fpos1, fpos2 = self.griddata['faceposition'][fid]
+                etyp1 = self.griddata['celltypes'][cidx1]
+                etyp2 = self.griddata['celltypes'][cidx2] 
+            
+                if cidx2 == -2 and self.griddata['face_inters_idx'][fid] == midx:
+                    # always use left info here
+                    perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
+                    faceinfo_mpi.append(perface)
+                    facefringeid_mpi.append(i)
 
+                    # always use left face
+                    nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
+                    tot_nfpts_mpi = tot_nfpts_mpi + nfpts
+                    facefpts_mpi_range.append(tot_nfpts_mpi)
+                    # grab data
+                    facedata_mpi = facedata_mpi + [ptrAt(data,i*self.system.nvars*nfpts+j) 
+                                             for j in range(self.system.nvars*nfpts)]
+
+                    facenfpts_mpi.append(nfpts)
+
+            # save for later use
+            self.fringe_faceinfo_mpi = faceinfo_mpi
+            # save for later use
+            self.tot_nfpts_mpi = tot_nfpts_mpi
+            self.facenfpts_mpi = facenfpts_mpi
+               
+            if faceinfo_mpi != []:
+                
+                facedata_mpi = np.array(facedata_mpi).astype(self.backend.fpdtype)
+                facedata_mpi = facedata_mpi.reshape(-1,self.system.nvars)
+
+                for idx, face in enumerate(faceinfo_mpi):
+                    etype, typecidx, fpos, _ = face
+                    srted_ord = self.system.ele_map[etype]._srtd_face_fpts[fpos][typecidx]
+                    unsrted_ord = self.system.ele_map[etype].basis.facefpts[fpos]
+                    # swap data according to the node ordering
+                    nodesmap = []
+                    for n in srted_ord:
+                        nodesmap.append(unsrted_ord.index(n))
+                    # swap data 
+                    a = facedata_mpi[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]]
+                    facedata_mpi[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]] = a[nodesmap]
+                    # Find the index of the face in all mpi faces
+                    startIdx = mpiinters.lhs.index(face)
+
+                    dataperface = a[nodesmap]
+                    # Do the copy face by face instead of together
+
+                    cc = dataperface.swapaxes(0,1).reshape(-1)
+
+                    # overset-mpi is the last one
+                    matrix_entry = mpiinters._scal_rhs
+                
+                    # Need to figure out the locations of these faces in the matrix entry
+                    nfpts = facenfpts_mpi[idx]
+                    nbytes = np.dtype(self.backend.fpdtype).itemsize*nfpts
+                    nbytes = nbytes*self.system.nvars
+                    # calculate the offset of this face in the matrix entry
+                    offset = startIdx*nbytes
+
+                    #tg.tg_copy_to_device(matrix_entry.data,data,int(nbytes))
+                    tg.tg_copy_to_device(
+                        matrix_entry.data+offset,
+                        addrToFloatPtr(cc.ctypes.data),
+                        int(nbytes)
+                    )
+               
     def fringe_du_device(self, fringeids, nfringe, data):
-        # known from previous step fringe_u_device
         tot_nfpts = self.tot_nfpts
         if tot_nfpts == 0: return
+
+        # Deal with interior artificial boundary conditions
         faceinfo = self.fringe_faceinfo
         # copy data to device
         self.fringe_du_fpts_d = self.griddata['fringe_du_fpts_d']
         nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
         nbytes = nbytes*self.system.nvars*self.system.ndims
-        tg.tg_copy_to_device(self.fringe_du_fpts_d, data, int(nbytes))
+        
+        facedata = []
+
+        for i, nfpts in zip(self.facefringeid, self.facenfpts):
+            facedata = facedata + [ptrAt(data,i*self.system.nvars*self.system.ndims*nfpts+j) 
+                            for j in range(self.system.nvars*self.system.ndims*nfpts)]
+            
+        facedata = np.array(facedata).astype(self.backend.fpdtype)
+        
+        tg.tg_copy_to_device(
+            self.fringe_du_fpts_d, 
+            addrToFloatPtr(facedata.__array_interface__['data'][0]),
+            int(nbytes)
+        )
+
         self._vect_fpts_du = self._vect_view_fpts_du(
                 faceinfo, 'get_vect_unsrted_fpts_for_inter')
         # copy to the place
@@ -738,6 +859,83 @@ class Py_callbacks(tg.callbacks):
             self.backend.soasz, 3
         )
 
+        for midx, mpiinters in enumerate(self.system._mpi_inters):
+            # then deal with overset artbnd
+            tot_nfpts_mpi = 0
+            faceinfo_mpi = []
+            facefpts_mpi_range = [0]
+            facefringeid_mpi = []
+            facedata_mpi = []
+            facenfpts_mpi = []
+            for i in range(nfringe):
+                fid = ptrAt(fringeids,i)
+                cidx1, cidx2 = self.griddata['f2corg'][fid]
+                fpos1, fpos2 = self.griddata['faceposition'][fid]
+                etyp1 = self.griddata['celltypes'][cidx1]
+                etyp2 = self.griddata['celltypes'][cidx2] 
+            
+                if cidx2 == -2 and self.griddata['face_inters_idx'][fid] == midx:
+                    # always use left info here
+                    perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
+                    faceinfo_mpi.append(perface)
+                    facefringeid_mpi.append(i)
+
+                    # always use left face
+                    nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
+                    tot_nfpts_mpi = tot_nfpts_mpi + nfpts
+                    facefpts_mpi_range.append(tot_nfpts_mpi)
+
+                    # Grab data for gradient
+                    facedata_mpi = facedata_mpi + [ptrAt(data,i*self.system.nvars*self.system.ndims*nfpts+j) 
+                           for j in range(self.system.nvars*self.system.ndims*nfpts)]
+
+                    facenfpts_mpi.append(nfpts)
+
+            if faceinfo_mpi != []:
+                
+                facedata_mpi = np.array(facedata_mpi).astype(self.backend.fpdtype)
+                facedata_mpi = facedata_mpi.reshape(-1, self.system.ndims, self.system.nvars)
+                
+                for idx, face in enumerate(faceinfo_mpi):
+                    etype, typecidx, fpos, _ = face
+                    srted_ord = self.system.ele_map[etype]._srtd_face_fpts[fpos][typecidx]
+                    unsrted_ord = self.system.ele_map[etype].basis.facefpts[fpos]
+                    # swap data according to the node ordering
+                    nodesmap = []
+                    for n in srted_ord:
+                        nodesmap.append(unsrted_ord.index(n))
+                    # swap data 
+                    a = facedata_mpi[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]]
+                    facedata_mpi[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]] = a[nodesmap]
+                    # Find the index of the face in all mpi faces
+                    startIdx = mpiinters.lhs.index(face)
+
+                    dataperface = a[nodesmap]
+                    # Do the copy face by face instead of together
+                    cc = dataperface.swapaxes(0,1)
+                    # do the copy dimension by dimension
+                    
+                    for idim in range(self.system.ndims):
+                        # overset-mpi is the last one
+                        matrix_entry = mpiinters._vect_rhs
+
+                        datashape = matrix_entry.datashape
+                        
+                        # Need to figure out the locations of these faces in the matrix entry
+                        nfpts = facenfpts_mpi[idx]
+                        nbytes = np.dtype(self.backend.fpdtype).itemsize*nfpts
+                        nbytes = nbytes*self.system.nvars
+                        # calculate the offset of this face in the matrix entry
+                        offset = (startIdx)*nbytes + datashape[1]*np.dtype(self.backend.fpdtype).itemsize
+
+                        ccf = cc[idim].swapaxes(0,1).reshape(-1)
+                        
+                        tg.tg_copy_to_device(
+                            matrix_entry.data+offset,
+                            addrToFloatPtr(ccf.ctypes.data),
+                            int(nbytes)
+                        )
+                
     def get_face_nodes_gpu(self, faceids, nfaces, nptsface, xyz):
         # these faces are 
         if nfaces == 0: return

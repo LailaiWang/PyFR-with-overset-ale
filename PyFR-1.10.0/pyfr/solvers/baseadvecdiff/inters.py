@@ -50,7 +50,7 @@ class BaseAdvectionDiffusionMPIInters(BaseAdvectionMPIInters):
 
         # Additional kernel constants
         self._tpl_c.update(cfg.items_as('solver-interfaces', float))
-
+        
         # We require cflux(l,r,n_l) = -cflux(r,l,n_r) and
         # conu(l,r) = conu(r,l) and where l and r are left and right
         # solutions at an interface and n_[l,r] are physical normals.
@@ -67,12 +67,12 @@ class BaseAdvectionDiffusionMPIInters(BaseAdvectionMPIInters):
             # treat as artifical boundaries
             beta = self.cfg.getfloat('solver-interfaces', 'ldg-beta')
             self._tpl_c['ldg-beta'] = beta
-            self._tpl_c['ldg-beta'] = 0.5 # force a positive value
-
+            self._tpl_c['ldg-beta'] = 0.5 # hard code this value 
+        
         # Null kernel generators
         null_mpi_kern = lambda: NullMPIKernel()
         null_comp_kern = lambda: NullComputeKernel()
-
+        
         # If we need to send our gradients to the RHS
         if rhsprank == None:
             pass
@@ -99,7 +99,6 @@ class BaseAdvectionDiffusionMPIInters(BaseAdvectionMPIInters):
             else:
                 self.kernels['vect_fpts_recv'] = null_mpi_kern
                 self.kernels['vect_fpts_unpack'] = null_comp_kern
-
         # Generate the additional kernels/views for artificial viscosity
         if cfg.get('solver', 'shock-capturing') == 'artificial-viscosity':
             self._artvisc_lhs = self._xchg_view(lhs,
