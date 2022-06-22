@@ -39,7 +39,7 @@ class VTKWriter(BaseWriter):
             self._vtk_vars = [(k, [k]) for k in self._soln_fields]
 
         self.blanking = args.blanking
-        
+        self.gid0pn=0
         # See if we are computing gradients
         if args.gradients:
             self._pre_proc_fields_ref = self._pre_proc_fields
@@ -161,9 +161,9 @@ class VTKWriter(BaseWriter):
 
         vvars = self._vtk_vars
 
-        names = ['', 'connectivity', 'offsets', 'types']
-        types = [dtype, 'Int32', 'Int32', 'UInt8']
-        comps = ['3', '', '', '']
+        names = ['', 'connectivity', 'offsets', 'types','partition']
+        types = [dtype, 'Int32', 'Int32', 'UInt8', 'Int32']
+        comps = ['3', '', '', '', '1']
 
         for fname, varnames in vvars:
             names.append(fname.title())
@@ -175,7 +175,7 @@ class VTKWriter(BaseWriter):
             npts, ncells, nnodes = self._get_npts_ncells_nnodes(sk)
             nb = npts*dsize
 
-            sizes = [3*nb, 4*nnodes, 4*ncells, ncells]
+            sizes = [3*nb, 4*nnodes, 4*ncells, ncells,4*ncells]
             sizes.extend(len(varnames)*nb for fname, varnames in vvars)
 
             return names, types, comps, sizes
@@ -236,14 +236,16 @@ class VTKWriter(BaseWriter):
 
         parts = defaultdict(list)
         for sk, (etype, shape) in soln_inf.items():
-            part = sk.split('_')[-1]
-            pname = f'{name}_{part}.vtu' if parallel else outf
+            #part = sk.split('_')[-1]
+            part = sk.split('_p')[-1]
+            pname = f'{name}_p{part}.vtu' if parallel else outf
             
             # mesh part name does not include g
-            partoff = 'p{}'.format(int(part[1:])-goffset)
+            #partoff = 'p{}'.format(int(part[1:])-goffset)
             etypem = etype.split('-g{}'.format(gid))[0]
-            parts[pname].append((f'spt_{etypem}_{partoff}', sk))
+            parts[pname].append((part,f'spt_{etypem}_p{part}', sk))
 
+        if gid==0: self.gid0pn=int(part)+1     
         write_s_to_fh = lambda s: fh.write(s.encode())
 
         for pfn, misil in parts.items():
@@ -257,16 +259,17 @@ class VTKWriter(BaseWriter):
                 off = 0
 
                 # Header
-                for mk, sk in misil:
+                for pn, mk, sk in misil:
                     off = self._write_serial_header(fh, sk, off)
 
                 write_s_to_fh('</UnstructuredGrid>\n'
                               '<AppendedData encoding="raw">\n_')
 
                 # Data
-                for mk, sk in misil:
+                for pn, mk, sk in misil:
+                    print('\pn',pn,mk,sk)
                     self._write_data(
-                        fh, mk, sk, gid, goffset, mesh, mesh_inf, soln_inf
+                        fh, mk, sk, pn, gid, goffset, mesh, mesh_inf, soln_inf
                     )
 
                 write_s_to_fh('\n</AppendedData>\n</VTKFile>')
@@ -304,23 +307,31 @@ class VTKWriter(BaseWriter):
         npts, ncells = self._get_npts_ncells_nnodes(sk)[:2]
 
         write_s = lambda s: vtuf.write(s.encode())
-        write_s(f'<Piece NumberOfPoints="{npts}" NumberOfCells="{ncells}">\n')
-        write_s('<Points>\n')
-
+        #write_s(f'<Piece NumberOfPoints="{npts}" NumberOfCells="{ncells}">\n')
+        write_s(f'<Piece NumberOfPoints="{npts}" NumberOfCells="{ncells}">\n'
+                '<Points>\n')
         # Write vtk DaraArray headers
+        '''
         for i, (n, t, c, s) in enumerate(zip(names, types, comps, sizes)):
             write_s('<DataArray Name="{0}" type="{1}" '
                     'NumberOfComponents="{2}" '
                     'format="appended" offset="{3}"/>\n'
                     .format(self._process_name(n), t, c, off))
-
+        '''
+        for i, (n, t, c, s) in enumerate(zip(names, types, comps, sizes)):
+            write_s(f'<DataArray Name="{self._process_name(n)}" type="{t}" '
+                    f'NumberOfComponents="{c}" '
+                    f'format="appended" offset="{off}"/>\n')
+       
             off += 4 + s
 
             # Write ends/starts of vtk file objects
             if i == 0:
                 write_s('</Points>\n<Cells>\n')
             elif i == 3:
-                write_s('</Cells>\n<PointData>\n')
+                write_s('</Cells>\n<CellData>\n')
+            elif i == 4:
+                write_s('</CellData>\n<PointData>\n')
 
         # Write end of vtk element data
         write_s('</PointData>\n</Piece>\n')
@@ -355,9 +366,17 @@ class VTKWriter(BaseWriter):
     def _write_bc_data(self):
         pass
 
-    def _write_data(self, vtuf, mk, sk, gid, goffset, mesh, mesh_inf, soln_inf ):
-        name = mesh_inf[mk][0]
-        mesh = mesh[mk].astype(self.dtype)
+    def _write_data(self, vtuf, mk, sk, pn, gid, goffset, mesh, mesh_inf, soln_inf ):
+        mk_g=mk
+        if gid == 0:
+            pass
+        else:
+            pn_g=int(pn)-self.gid0pn
+            mk_g=mk.split('_p')[-1]
+            print('\n', mk_g, mk.split('_p')[0])
+            mk_g=mk.split('_p')[0]+"_p"+str(pn_g)
+        name = mesh_inf[mk_g][0]
+        mesh = mesh[mk_g].astype(self.dtype)
         soln = self.soln[sk].swapaxes(0, 1).astype(self.dtype)
 
         # Handle the case of partial solution files
@@ -444,11 +463,15 @@ class VTKWriter(BaseWriter):
         # Tile VTU cell type numbers
         vtu_typ = np.tile(subdvcls.subcelltypes(self.divisor), neles)
 
+        # VTU cell partition numbers
+        vtu_part = np.full_like(vtu_typ, pn)
+        
         # Write VTU node connectivity, connectivity offsets and cell types
         self._write_darray(vtu_con, vtuf, np.int32)
         self._write_darray(vtu_off, vtuf, np.int32)
         self._write_darray(vtu_typ, vtuf, np.uint8)
 
+        self._write_darray(vtu_part, vtuf, np.int32)
         # Process and write out the various fields
         for arr in self._post_proc_fields(vsoln):
             self._write_darray(arr.T, vtuf, self.dtype)

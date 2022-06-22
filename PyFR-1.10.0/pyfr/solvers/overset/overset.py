@@ -29,13 +29,14 @@ class Overset(object):
         self.gridcomm = comm.Split(self.gid,rank)
         self.gridrank = self.gridcomm.Get_rank()
         self.gridsize = self.gridcomm.Get_size()
-
+        
         llrank= self.gridrank 
         lrank=np.array(llrank,dtype=np.int)
         grank=np.zeros((nproc), dtype=np.int)
         comm.Allgather([lrank, MPI.INT], [grank, MPI.INT])
         self.grrank=grank
-	# initialize the MPI communicator
+
+        # initialize the MPI communicator
         tg.tioga_init_(comm)
     
         # initialize some basic information
@@ -234,10 +235,12 @@ class Overset(object):
         bf2v = []
         bf2c = []
         bfposition = []
+        binstanceid = []
         bcoffset = [0]
-        # for parallel computing partitions could possibly have no bc inters
+
+        # For parallel computing partitions could possibly have no bc inters
         if bc_inters != []:
-            for a in bc_inters:
+            for idx, a in enumerate(bc_inters):
                 bc_facetypes = np.array(
                     [fetype(b[0].split('-g')[0], b[2]) for b in a.lhs])
 
@@ -249,6 +252,11 @@ class Overset(object):
                 # as it is for now
 
                 bc_fpos = np.array([[b[2],b[2]] for b in a.lhs])
+                if 'MPI' in type(a).__name__: # overset bc face
+                    bc_instance_idx = np.array([ -1]*bc_fpos.shape[0])
+                else:
+                    # Instance id of a face with global idx
+                    bc_instance_idx = np.array([idx]*bc_fpos.shape[0])
 
                 bfacetypes.append(bc_facetypes)
                 bf2v.append(bc_f2v)
@@ -256,13 +264,15 @@ class Overset(object):
                 bfposition.append(bc_fpos)
                 # record the face numbers
                 bcoffset.append(bc_facetypes.shape[0])
+                binstanceid.append(bc_instance_idx)
         
             bfacetypes = np.concatenate(bfacetypes, axis = 0)
             bf2v = np.concatenate(bf2v, axis = 0)
             bf2c = np.concatenate(bf2c, axis = 0)
             bfposition = np.concatenate(bfposition, axis = 0)
+            binstanceid = np.concatenate(binstanceid, axis = 0)
 
-        for a in int_inters:
+        for idx, a in enumerate(int_inters):
             # deal with interior inters
             pd_ftypes_l = np.array(
                 [fetype(i[0].split('-g')[0],i[2]) for i in a.lhs if i[3] != 0]
@@ -284,9 +294,9 @@ class Overset(object):
             if np.any(np.sort(pd_f2v_l) == np.sort(pd_f2v_r)) == True:
                 raise RuntimeError('f2v periodic shared same, not possible')
             
-            # deal with periodic faces
-            # periodic face are merged to be interior faces
-            # but to feed into tioga, we need to restore them
+            # Deal with periodic faces
+            # Periodic face are merged to be interior faces
+            # To feed into tioga, we need to restore them
             pd_f2c_l = np.array([ [i[1], -1] for i in a.lhs if i[3] != 0])
             pd_f2c_r = np.array([ [i[1], -1] for i in a.rhs if i[3] != 0])
             
@@ -302,23 +312,30 @@ class Overset(object):
                 pdf2v = np.concatenate([pd_f2v_l,pd_f2v_r], axis = 0)
                 pdf2c = np.concatenate([pd_f2c_l,pd_f2c_r], axis = 0)
                 pdfposition = np.concatenate([pd_fpos_l,pd_fpos_r], axis=0)
+                
+                # Instance id of face with global face idx
+                pdinstanceid = np.array([idx]*pdfposition.shape[0])
+
                 # exists bfacetypes
                 if list(bfacetypes) != []: 
                     bfacetypes = np.concatenate((bfacetypes,pdfacetypes),axis=0)
                     bf2v = np.concatenate((bf2v,pdf2v), axis=0)
                     bf2c = np.concatenate((bf2c,pdf2c), axis=0)
                     bfposition = np.concatenate((bfposition,pdfposition), axis=0)
+                    bcinstanceid = np.concatenate((bcinstanceid,pdinstanceid), axis=0)
                 else:
                     bfacetypes = pdfacetypes
                     bf2v = pdf2v
                     bf2c = pdf2c
-                    bfposition = pdfposition 
+                    bfposition = pdfposition
+                    bcinstanceid = pdinstanceid
 
         # mpi interfaces
         mfacetypes = []
         mf2v = [] 
         mf2c = []
         mfposition = []
+        minstanceid = []
         if mpi_inters != []:
             
             mpi_faceidx = []
@@ -330,13 +347,17 @@ class Overset(object):
                 mpi_f2v = np.array(
                     [fnodes(m[0].split('-g')[0],m[1],m[2]) for m in a.lhs]
                 ) 
-                mpi_f2c  = np.array([ [m[1],  -1] for m in a.lhs]) 
+                mpi_f2c  = np.array([ [m[1],  -2] for m in a.lhs]) 
                 mpi_fpos = np.array([ [m[2],m[2]] for m in a.lhs])
+                
+                # Instance id of mpi face with global face idx
+                mpi_instance_idx = np.array([idx]*mpi_fpos.shape[0])
 
                 mfacetypes.append(mpi_facetypes)
                 mf2v.append(mpi_f2v)
                 mf2c.append(mpi_f2c)
                 mfposition.append(mpi_fpos)
+                minstanceid.append(mpi_instance_idx)
                 
                 # mpi_idx for later use
                 rrank = 0
@@ -344,18 +365,21 @@ class Overset(object):
                 mpioffset.append(mpioffset[idx]+mpi_f2v.shape[0])
                 mpi_faceidx.append([a._rhsrank,mpi_idx])
 
+
             mfacetypes = np.concatenate(mfacetypes, axis = 0)
             mf2v = np.concatenate(mf2v, axis = 0)
             mf2c = np.concatenate(mf2c, axis = 0)
             mfposition = np.concatenate(mfposition, axis = 0)
+            minstanceid = np.concatenate(minstanceid, axis = 0)
         # interior interfaces
         itfacetypes = [] 
         itf2v = []
         itf2c = []
         itfinfo = []
         itfposition = []
+        itfinstanceid = []
         # no way int_inters is an empty list
-        for a in int_inters:
+        for idx, a in enumerate(int_inters):
             # then deal with interior inters
             int_ftypes_l = np.array(
                 [fetype(i[0].split('-g')[0],i[2]) for i in a.lhs if i[3] == 0]
@@ -384,37 +408,45 @@ class Overset(object):
             int_f2c = np.array([[il[1], ir[1]] for il,ir in zip(a.lhs,a.rhs)])
 
             int_fposition = np.array([[il[2], ir[2]] for il,ir in zip(a.lhs,a.rhs)])
+            
+            int_instance_idx = np.array([idx]*int_fposition.shape[0])
 
             itfacetypes.append(int_facetypes)
             itf2v.append(int_f2v)
             itf2c.append(int_f2c)
             itfposition.append(int_fposition)
+            itfinstanceid.append(int_instance_idx)
 
         itfacetypes = np.concatenate(itfacetypes, axis = 0)
         itf2v = np.concatenate(itf2v, axis = 0)
         itf2c = np.concatenate(itf2c, axis = 0)
         itfposition = np.concatenate(itfposition, axis = 0)
+        itfinstanceid = np.concatenate(itfinstanceid, axis = 0)
         
         if   mf2v != [] and bf2v != []:
             f2v = np.concatenate((bf2v,mf2v,itf2v), axis = 0) 
             f2c = np.concatenate((bf2c,mf2c,itf2c), axis = 0) 
             facetypes = np.concatenate((bfacetypes, mfacetypes, itfacetypes), axis = 0)
             fposition = np.concatenate((bfposition, mfposition, itfposition), axis = 0)
+            finstanceid = np.concatenate((binstanceid, minstanceid, itfinstanceid), axis = 0)
         elif mf2v == [] and bf2v != []:
             f2v = np.concatenate((bf2v,itf2v), axis = 0) 
             f2c = np.concatenate((bf2c,itf2c), axis = 0) 
             facetypes = np.concatenate((bfacetypes, itfacetypes), axis = 0)
             fposition = np.concatenate((bfposition, itfposition), axis = 0)
+            finstanceid = np.concatenate((binstanceid, itfinstanceid), axis = 0)
         elif mf2v != [] and bf2v == []:
             f2v = np.concatenate((mf2v,itf2v), axis = 0) 
             f2c = np.concatenate((mf2c,itf2c), axis = 0) 
             facetypes = np.concatenate((mfacetypes, itfacetypes), axis = 0)
             fposition = np.concatenate((mfposition, itfposition), axis = 0)
+            finstanceid = np.concatenate((minstanceid,itfinstanceid), axis = 0)
         else:
             f2v = np.concatenate((itf2v), axis = 0) 
             f2c = np.concatenate((itf2c), axis = 0) 
             facetypes = np.concatenate((itfacetypes), axis = 0)
             fposition = np.concatenate((itfposition), axis = 0)
+            finstanceid = np.concatenate((itfinstanceid), axis = 0)
 
         nfaces = f2v.shape[0]
         # keep track of nfaces
@@ -465,7 +497,7 @@ class Overset(object):
         self.nwallfaces = nwallfaces
         self.noverfaces = noverfaces
 
-        # for mpi faces get the information from corresponding cores
+        # For mpi faces get the information from corresponding cores
         # communicate within the grid communicator
         mpinodes   = np.array([], dtype = self.intdtype)
         mpifaceidx = np.array([], dtype = self.intdtype)
@@ -510,7 +542,7 @@ class Overset(object):
             mpinodes = np.concatenate(mnodes, axis = 0).astype(self.intdtype)
             mpifaces_r = np.concatenate(recvbuf, axis = 0).astype(self.intdtype)
             mpifaces_r_rank = np.concatenate(rranks, axis= 0).astype(self.intdtype)
-
+            
             cc=np.zeros(mpifaces_r_rank.shape[0], dtype=self.intdtype)
             for i in range(mpifaces_r_rank.shape[0]):
                 d=mpifaces_r_rank[i]                
@@ -596,6 +628,8 @@ class Overset(object):
         facetypes = facetypes[srtdfaces]
         faceposition = fposition[srtdfaces]
         f2corg = f2c[srtdfaces]
+
+        finstanceidx = finstanceid[srtdfaces]
         
         # recover overset interfaces are pushed into last 
         for bcint in bc_inters:
@@ -605,7 +639,7 @@ class Overset(object):
 
         return (c2v_flat, c2f_flat, f2v_flat, f2c_flat, facetypes, faceposition, f2corg,
                overnodes, wallnodes, overfaceidx, wallfaceidx, mpifaceidx, mpifaces_r,
-               mpifaces_r_rank)
+               mpifaces_r_rank, finstanceidx)
         
 
     def _prepare_griddata(self, tol = 1e-8):
@@ -619,7 +653,7 @@ class Overset(object):
         # I know this is nasty
         (c2v_flat, c2f_flat, f2v_flat, f2c_flat, facetypes, faceposition, f2corg,
         overnodes, wallnodes, overfaceidx, wallfaceidx, mpifaceidx, mpifaces_r,
-        mpifaces_r_rank) = self._form_face_info(c2v, c2f)
+        mpifaces_r_rank, finstanceidx) = self._form_face_info(c2v, c2f)
 
         griddata = defaultdict()
         
@@ -672,17 +706,18 @@ class Overset(object):
         griddata['mpifaces_r'] =  mpifaces_r # face idx of mpi faces on rrank
         griddata['mpifaces_r_rank'] = mpifaces_r_rank # id of rrank of mpi faces
         
+        griddata['face_inters_idx'] = finstanceidx
         # first grid always as background grid
         griddata['cuttype'] = 1 if self.gid != 0 else 0
 
         return griddata
 
     def _init_overset(self):
-        
+        '''
+        Convert numpy arrarys into pointers
+        '''
         grid = self.griddata
 
-        # Get pointers to grid data (Intended to be accessed on a per-grid basis)
-        # old implementation is problematic for 2D arrays
         btag = grid['bodytag']
         xyz = arrayToDblPtr(grid['coords'])
         nnodes = grid['nnodes']
@@ -723,7 +758,7 @@ class Overset(object):
         # need to change
         f2c = arrayToIntPtr(grid['f2c'])
 
-        iblank = addrToIntPtr(grid['iblank_node'].__array_interface__['data'][0])
+        iblank      = addrToIntPtr(grid['iblank_node'].__array_interface__['data'][0])
         iblank_face = addrToIntPtr(grid['iblank_face'].__array_interface__['data'][0])
         iblank_cell = addrToIntPtr(grid['iblank_cell'].__array_interface__['data'][0])
         
@@ -765,10 +800,6 @@ class Overset(object):
             grid['rigidOffset'] = np.array([0,0,0]).astype(fpdtype) 
             grid['rigidRotMat'] = np.array([1,0,0,0,1,0,0,0,1]).astype(fpdtype) 
             grid['rigidPivot']  = np.array([0,0,0]).astype(fpdtype)
-            #if self.gid == 0:
-            #    grid['rigidPivot']  = np.array([0,0,0]).astype(fpdtype)
-            #else:
-            #    grid['rigidPivot']  = np.array([0,-2,0]).astype(fpdtype)
 
             gridV  = addrToFloatPtr(grid['gridVel'].__array_interface__['data'][0])
             offset = addrToFloatPtr(grid['rigidOffset'].__array_interface__['data'][0])
@@ -967,9 +998,6 @@ class Overset(object):
             pivot.nbytes
         )
 
-        test=1
-
-
     def move_on_cpu(self):
         tg.tg_copy_to_host(
             int(self.coords_d.data),
@@ -1080,4 +1108,7 @@ class Overset(object):
         self.move_nested(motion)
         self.move_on_cpu()
         self.sync_device()
+
+    def test_u(self):
+        self.callbacks.ff()
 
