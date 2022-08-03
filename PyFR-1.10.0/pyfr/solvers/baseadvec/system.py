@@ -15,7 +15,7 @@ class BaseAdvectionSystem(BaseSystem):
 
         self.eles_scal_upts_inb.active = uinbank
         self.eles_scal_upts_outb.active = foutbank
-
+        
         # run moving grid related kernels first
         if self.mvgrid is True:
             q1 << kernels['eles','updateploc'](t=t)
@@ -73,3 +73,4 @@ class BaseAdvectionSystem(BaseSystem):
         else:
             q1 << kernels['eles', 'negdivconf'](t=t)
         runall([q1])
+        

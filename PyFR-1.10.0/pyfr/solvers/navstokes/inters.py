@@ -23,7 +23,7 @@ class NavierStokesIntInters(BaseAdvectionDiffusionIntInters):
 
         be.pointwise.register('pyfr.solvers.navstokes.kernels.intconu')
         be.pointwise.register('pyfr.solvers.navstokes.kernels.intcflux')
-
+        print('self._tpl_c[ldg-beta]',self._tpl_c['ldg-beta'])
         if abs(self._tpl_c['ldg-beta']) == 0.5:
             self.kernels['copy_fpts'] = lambda: ComputeMetaKernel(
                 [ele.kernels['_copy_fpts']() for ele in elemap.values()]

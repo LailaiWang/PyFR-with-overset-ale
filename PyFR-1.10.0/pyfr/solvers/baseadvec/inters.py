@@ -18,11 +18,12 @@ class BaseAdvectionIntInters(BaseInters):
         ncons_mat = self._non_const_mat
         # Compute the `optimal' permutation for our interface
         self._gen_perm(lhs, rhs)
-
+        #print([a for a in rhs])
+        
         # Generate the left and right hand side view matrices
         self._scal_lhs = self._scal_view(lhs, 'get_scal_fpts_for_inter')
         self._scal_rhs = self._scal_view(rhs, 'get_scal_fpts_for_inter')
-        
+        print(self._scal_lhs)
         # Generate LHS and RHS view matrices for coordinates related
         # i.e. mvel and smat
         self._vect_lhs_mvel = self._vect_rhs_mvel = None
@@ -69,7 +70,6 @@ class BaseAdvectionMPIInters(BaseInters):
         self._rallocs = rallocs
         
         self.lhs = lhs
-
         const_mat = self._const_mat
         ncons_mat = self._non_const_mat
 
@@ -98,6 +98,7 @@ class BaseAdvectionMPIInters(BaseInters):
             self._norm_pnorm_lhs = const_mat( lhs, 'get_norm_pnorms_for_inter')
 
         # Kernels
+        
         if self._rhsrank == None:
             # overset face does not need this
             if self.mvgrid is True:

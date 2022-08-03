@@ -102,6 +102,7 @@ class BaseElements(object):
         self._scal_upts = interp @ solnmat.reshape(solnb.nupts, -1)
         self._scal_upts = self._scal_upts.reshape(nupts, nvars, neles)
 
+
     @lazyprop
     def plocfpts(self):
         # Construct the physical location operator matrix
@@ -116,9 +117,9 @@ class BaseElements(object):
     @lazyprop
     def _srtd_face_fpts(self):
         plocfpts = self.plocfpts.transpose(1, 2, 0)
-
         return [[np.array(fuzzysort(pts.tolist(), ffpts)) for pts in plocfpts]
                 for ffpts in self.basis.facefpts]
+        
 
     def _scratch_bufs(self):
         pass
@@ -479,7 +480,6 @@ class BaseElements(object):
         #rmap = self._srtd_face_fpts[fidx][eidx]
         rmap = self.basis.facefpts[fidx]
         cmap = (eidx,)*nfp
-
         return (self._scal_fpts.mid,)*nfp, rmap, cmap
     
     # get the coordinates on the backend for overset 

@@ -60,6 +60,6 @@ class BaseWriter(object):
         
         self.postoverset = PostOverset(
             self.elementscls, self.mesh, self.soln, self.mesh_inf, self.soln_inf,
-            self.cfg, self.stats
+            self.cfg, self.stats,args.blanking
         )
 

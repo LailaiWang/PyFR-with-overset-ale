@@ -52,7 +52,7 @@ INCS += -I$(strip $(CUDA_INC_DIR))/
 INCS += -I$(strip $(MPI_INC_DIR))/
 
 ifeq ($(strip $(DEBUG_LEVEL)),0)
-	CFLAGS += -Ofast #-D_NVTX
+	CFLAGS += -Ofast -pg #-D_NVTX
 	CUFLAGS += -O3 -use_fast_math #-D_NVTX
 ifeq ($(strip $(INTEL)),YES)
 	CFLAGS += -fp-model fast=2 -fp-model source

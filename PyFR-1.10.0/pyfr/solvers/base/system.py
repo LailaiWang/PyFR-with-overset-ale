@@ -26,16 +26,17 @@ class BaseSystem(object):
         self.backend = backend
         self.mesh = mesh
         self.cfg = cfg
-
+        self.pstart=self.poverset=self.pcalc=self.pgradoverset=self.pfinal=self.counter=0
         # get the information of t
         self.tcurr  = kwargs['tcur']
         self.dtcurr = kwargs['dtcur']
         self.tstage = kwargs['tstage']
-
+        self.tstep=0
         self.gid, self.goffset, self.ngrids = self._query_grid_id(rallocs)
 
         self.mvgrid, self.overset  = False, False
-
+        self.gridtype='background'
+        
         if 'overset' in cfg.sections(): self.overset = True
         if 'moving-object' in cfg.sections():
             self.mvgrid = True
@@ -103,7 +104,7 @@ class BaseSystem(object):
 
         if self.overset is True:
             self.oset = Overset(self,rallocs) 
-    
+
     def _compute_int_offsets(self, rallocs, mesh, gid, offset):
         lhsprank = rallocs.prank
         intoffs = defaultdict(lambda: 0)
@@ -306,7 +307,6 @@ class BaseSystem(object):
             for kn, kgetter in it.chain(*pobj.kernels.items()):
                 if not kn.startswith('_'):
                     kernels[pn, kn].append(kgetter())
-        test = 1
 
     def rhs(self, t, uinbank, foutbank):
         pass

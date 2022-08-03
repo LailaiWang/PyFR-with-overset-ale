@@ -25,7 +25,7 @@ case 3: Turbulence Decaying
 
 
 class PostOverset(object):
-    def __init__(self, elementscls, mesh, soln, mesh_inf, soln_inf, cfg, stats):
+    def __init__(self, elementscls, mesh, soln, mesh_inf, soln_inf, cfg, stats,blanking):
         self.elementscls = elementscls
         self.mesh = mesh
         self.soln = soln
@@ -43,8 +43,9 @@ class PostOverset(object):
         for gid in range(len(self.mesh)):
             motioninfo = motion_exprs(self.cfg,gid)
             self.motion[f'grid_{gid}'] = calc_motion(self.t, self.t, motioninfo, self.fpdtype)
-
-        self.bksoln = self._merge_overset()
+        print('\n blanking',blanking)
+        if not blanking:
+            self.bksoln = self._merge_overset()
 
     def _merge_overset(self):
         ngparts = [0]
@@ -255,12 +256,13 @@ class PostOverset(object):
         blanked_eid = defaultdict(list)
         background_mesh = defaultdict(list)
         background_eles = defaultdict(list)
-
+        
         for pfn, misil in parts.items(): # different element types
             for mk, sk in misil:
+                print(mk,sk,mesh[mk])
                 name = mesh_inf[mk][0]
-                mesh = mesh[mk]
-                soln = self.soln[sk].swapaxes(0, 1)
+                mesh_0 = mesh[mk]
+              #  soln = self.soln[sk].swapaxes(0, 1)
             
                 skpre, skpost = sk.rsplit('_', 1)
                 unblanked = self.soln[f'{skpre}_blank_{skpost}']
@@ -268,7 +270,7 @@ class PostOverset(object):
                 idxblanked = [idx for idx, stat in enumerate(unblanked) if stat == 0]
 
                 # first instantiate the element class
-                eles = self._prepare_eles(mesh, name, gid)
+                eles = self._prepare_eles(mesh_0, name, gid)
                 # build the coordinates of upts of the elements
                 elesupts = eles.ploc_at_np('upts')
                 eles_blanked = elesupts[:,:,idxblanked]
@@ -298,8 +300,8 @@ class PostOverset(object):
         for pfn, misil in parts.items():
             for mk, sk in misil:
                 name = mesh_inf[mk][0]
-                mesh = mesh[mk]
-                soln = self.soln[sk].swapaxes(0, 1)
+                mesh_0 = mesh[mk]
+                #soln = self.soln[sk].swapaxes(0, 1)
             
                 skpre, skpost = sk.rsplit('_', 1)
                 unblanked = self.soln[f'{skpre}_blank_{skpost}']
@@ -307,7 +309,7 @@ class PostOverset(object):
                 idxunblanked = [idx for idx, stat in enumerate(unblanked) if stat == 1]
 
                 # first instantiate the element class
-                eles = self._prepare_eles(mesh, name, gid)
+                eles = self._prepare_eles(mesh_0, name, gid)
                 # build the coordinates of upts of the elements
                 elesupts = eles.ploc_at_np('upts')
                 eles_unblanked = elesupts[:,:,idxunblanked]
