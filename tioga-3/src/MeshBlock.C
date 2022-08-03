@@ -74,8 +74,8 @@ void MeshBlock::setFaceData(int _gtype, int _nftype, int *_nf, int *_nfv,
   mpiFaces = mFaces;
   mpiProcR = procR;
   mpiFidR = idR;
-
   nfaces = 0;
+
   for (int i = 0; i < nftype; i++)
     nfaces += nf[i];
 }
@@ -107,8 +107,9 @@ void MeshBlock::updateOBB(void)
 {
   free(obb);
   obb = (OBB *) malloc(sizeof(OBB));
-
+  
   findOBB(x,obb->xc,obb->dxc,obb->vec,nnodes);
+
 }
 
 /** Calculate 'cellRes' / 'nodeRes' (cell volume) for each cell / node
@@ -722,7 +723,11 @@ void MeshBlock::writeCellFile(int bid, int* flag)
   fclose(fp);
   return;
 }
+void MeshBlock::writeData(void)
+{
+  printf("\n nOverFaces %d \n ",nOverFaces);
 
+}
 void MeshBlock::writeFlowFile(int bid,double *q,int nvar,int type)
 {
   char fname[80];

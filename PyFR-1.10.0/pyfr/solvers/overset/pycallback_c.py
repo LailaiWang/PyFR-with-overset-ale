@@ -681,12 +681,11 @@ class Py_callbacks(tg.callbacks):
         if (self.system.tstep<2 and self.system.gridtype=='overset'):
             self.faceov_prep(fringeids,nfringe, faceids, mpifringeid, nfringeface)
         if (self.system.istage==0 and self.system.gridtype=='background'):
-
             self.faceov_prep(fringeids,nfringe, faceids, mpifringeid, nfringeface)
-
         if gradflag == 0: # passing u
             self.fringe_u_device(fringeids, nfringe, data)
-
+            p1=time.time()
+            print('PPPPPPPPPPPPPPPPP',p1-p0)
         else: # passing du
             self.fringe_du_device(fringeids, nfringe, data)
 
@@ -711,7 +710,7 @@ class Py_callbacks(tg.callbacks):
         tot_nfpts_ov = 0
         faceinfo_ov = []
         facefpts_ov_range = [0]
-        self.fid_mpi=0
+        self.fid_mpi=[]
         self.fringe_faceinfo = []
         self.tot_nfpts_fringe = 0
         self.nfringe=nfringe
@@ -724,10 +723,11 @@ class Py_callbacks(tg.callbacks):
         facenfpts_ov = []
         
         if self.system.gridtype =='background':
-            
-            
+
+            self.fringe_faceinfo=[]
             p0=time.time()
-            '''
+            
+            
             for i in range(nfringe):
 
                 fid = ptrAt(fringeids,i)
@@ -756,8 +756,7 @@ class Py_callbacks(tg.callbacks):
                     cidx_fringe.append(cidx)
                     faceinfo.append(perface)
                     side_int.append(side)
-
-                            
+                    
                     # always use left face
                     nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
                     tot_nfpts = tot_nfpts + nfpts
@@ -768,7 +767,8 @@ class Py_callbacks(tg.callbacks):
                     facenfpts.append(nfpts)
                     #fid_fringe_num.append(i)
                 else:
-                    fid_mpi.append((i,fid))                    
+                    fid_mpi.append((i,fid))
+                    
                     nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
                 #tot_nfpts_all=nfringe*nfpts
             # save for later use
@@ -776,7 +776,8 @@ class Py_callbacks(tg.callbacks):
             
             
             
-            print('nfringeface=',self.rank,self.system.istage,nfringeface)
+            
+            print('nfringeface=',self.rank,nfringeface)
             
 
             self.fringe_faceinfo = faceinfo
@@ -784,62 +785,51 @@ class Py_callbacks(tg.callbacks):
             self.facefringeid = facefringeid
             self.facenfpts = facenfpts
             self.fid_mpi = fid_mpi
-            '''
             nfidmpi=nfringe-nfringeface
             for etype,ele in self.system.ele_map.items():
                 if 'hex' in etype:
                     nfpts = self.system.ele_map[etype].basis.nfacefpts[0]
             self.nfpts = nfpts
-            
-            #exit()
-            
-            fid_mpi=[]
-            
+            '''
             if nfidmpi>0:
-                #print(self.rank,f'{nfidmpi=}')
-                fg=ptrToArray(mpifringeid,2*nfidmpi).reshape(2,-1) 
-                pg=fg
+                ff=ptrToArray(mpifringeid,2*nfidmpi).reshape(2,-1) 
                 for i in range(nfidmpi):
-                    fid_mpi.append((int(pg[0][i]),int(pg[1][i])))
-                
-            self.fid_mpi=fid_mpi
-              
-            #exit()
-            fff=ptrToArray(faceids,3*nfringeface).reshape(3,-1)
-            #ff=ptrToArray(fringeids,nfringe)
-            #print(self.rank,self.system.istage,f'{ff=}')
-            #print(self.rank,f'{fff=}',cidx_fringe,fpos_fringe)
-            #exit()
-            p1=time.time()
-            self.facefringeid=fff[0]
-            cidx_fringe=fff[1]
-            fpos_fringe=fff[2]
-
-            #fpos_fringe = np.array(fpos_fringe)
-            #cidx_fringe = np.array(cidx_fringe)
-            fpos_eidx = {'fpos':fpos_fringe,'cidx':cidx_fringe}
-            if fpos_fringe.shape[0]>1:
-                self.scal_fpts_u = self._scal_view_fpts_u_n(fpos_eidx, 'scal_fpts')
-                self.vect_fpts_du = self._vect_view_fpts_du_n(fpos_eidx, 'vect_fpts')
+                    print(ff[0][i])
+                    fid_mpi.append((ff[0][i],ff[1][i]))
+                self.fid_mpi=fid_mpi
+                print(fid_mpi)
             
-                #self.scal_fpts_u = self._scal_view_fpts_u(faceinfo, 'get_scal_unsrted_fpts_for_inter')
-                #self.vect_fpts_du = self._vect_view_fpts_du(faceinfo, 'get_vect_unsrted_fpts_for_inter')
-            #print(self.vect_fpts_du.mapping.data)
-            #self.vect_fpts_du = self._vect_view_fpts_du_n(
-            #    fpos_eidx, 'vect_fpts')
+            ff=ptrToArray(faceids,3*nfringeface).reshape(3,-1)
+            #print(ff.shape)
+            fff=ptrToArray(fringeids,nfringe)
+            #print(f'{ff[0]=}',fff)
+            '''
+            p1=time.time()
+            #self.facefringeid=ff[0]
+            #cidx_fringe=ff[1]
+            #fpos_fringe=ff[2]
+            
+            fpos_fringe = np.array(fpos_fringe)
+            cidx_fringe = np.array(cidx_fringe)
+
+            fpos_eidx = {'fpos':fpos_fringe,'cidx':cidx_fringe}
+            
+            self.scal_fpts_u = self._scal_view_fpts_u_n(fpos_eidx, 'scal_fpts')
+            #self._scal_fpts_u = self._scal_view_fpts_u(
+            #    faceinfo, 'get_scal_unsrted_fpts_for_inter')
+            self.vect_fpts_du = self._vect_view_fpts_du_n(
+                fpos_eidx, 'vect_fpts')
             p2=time.time()
-            print(self.rank,'data_prep',p1-p0,p2-p1,'\n')
+            print('data_prep',p1-p0,p2-p1,'\n')
             #exit()            
             
-            self.fpos_eidx = fpos_eidx
+            #self.fpos_eidx = fpos_eidx
         # mpi fringe artbnd
-            #self.fringe_faceinfo = faceinfo
-            self.tot_nfpts_fringe = fff[0].shape[0]*nfpts
-            #self.facenfpts = facenfpts
-            #self.fid_mpi = fid_mpi
+            
    
 
 
+        print('nn',self.rank,nfringe,nfringeface)
         #exit()
 
 
@@ -1005,12 +995,12 @@ class Py_callbacks(tg.callbacks):
             self.fid_mpi=fid_mpi
             '''
             p0=time.time()
-            if self.facefringeid.shape[0]>0:
+            if self.fringe_faceinfo != []:
 
                 #########
                 self.fringe_u_fpts_d = self.griddata['fringe_u_fpts_d']
                 faceinfo=self.fringe_faceinfo
-                nfpts=self.nfpts
+                nfpts=self.facenfpts[0]
                 tot_nfpts=self.tot_nfpts_fringe
                 tot_nfpts_all=nfringe*nfpts
 
@@ -1020,7 +1010,7 @@ class Py_callbacks(tg.callbacks):
                 #facedata = np.array(facedata).astype(self.backend.fpdtype)
 
                #############test for optimizing    get_scal_unsrted_fpts_for_inter  
-                #self._scal_fpts_u=self._scal_view_fpts_u(faceinfo, 'get_scal_unsrted_fpts_for_inter')
+                #self._scal_view_fpts_u_nn(faceinfo, 'get_scal_unsrted_fpts_for_inter')
                 self._scal_fpts_u=self.scal_fpts_u
                 ########
                 
@@ -1050,8 +1040,10 @@ class Py_callbacks(tg.callbacks):
                     addrToUintPtr(self._scal_fpts_u.mapping.data),
                     nfringe, tot_nfpts, nvars, self.backend.soasz, 3
                 )
+            #print('\n HHHHHHHHH',self.rank,facedata_tot-facedata)
             p1=time.time()
             print(f'fringe_time{(p1-p0)=}')
+            #print('\n HHHHHHHHH',self.rank,facedata_tot-facedata)
 
             #Now take care of mpi-fringe points
         
@@ -1265,7 +1257,7 @@ class Py_callbacks(tg.callbacks):
             matrix_entry = self.system._mpi_inters[-1]._scal_rhs
             self.matrix_entry=matrix_entry
             self.cc=cc
-            '''
+            
             tg.tg_copy_to_device(
                 matrix_entry.data,
                 addrToFloatPtr(cc.ctypes.data),
@@ -1278,7 +1270,7 @@ class Py_callbacks(tg.callbacks):
                 addrToFloatPtr(cc.ctypes.data),
                 int(nbytes)
             )            
-            
+            '''
         
 
 
@@ -1309,7 +1301,7 @@ class Py_callbacks(tg.callbacks):
         if self.tot_nfpts_fringe>0:
             tot_nfpts=self.tot_nfpts_fringe
             # Deal with interior artificial boundary conditions
-            #faceinfo = self.fringe_faceinfo
+            faceinfo = self.fringe_faceinfo
             # copy data to device
             self.fringe_du_fpts_d = self.griddata['fringe_du_fpts_d']
             nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
@@ -1336,8 +1328,6 @@ class Py_callbacks(tg.callbacks):
                 addrToFloatPtr(facedata.__array_interface__['data'][0]),
                 int(nbytes)
             )
-
-            
 
             #self._vect_fpts_du = self._vect_view_fpts_du(
             #        faceinfo, 'get_vect_unsrted_fpts_for_inter')
@@ -1453,65 +1443,65 @@ class Py_callbacks(tg.callbacks):
 
 
 
-    def get_face_nodes_gpu(self, faceids, nfaces, nptsface, xyz, fdata):
+    def get_face_nodes_gpu(self, faceids, nfaces, nptsface, xyz):
         # these faces are
-        if nfaces == 0: return
+        
         fpos_fringe=[]
         cidx_fringe=[]
-        faceinfo = []    
-        tot_nfpts = 0
-        p0=time.time()
-        '''
-        for i in range(nfaces):
-            tot_nfpts = tot_nfpts + ptrAt(nptsface, i)
-            self.tot_nfpts=tot_nfpts
-        # first build up the interface information
-        
-        
-        
-        for i in range(nfaces):
-            fid = ptrAt(faceids,i)
-            # using faceid to get the nfpts
-            cidx1, cidx2 = self.griddata['f2corg'][fid]
-            if cidx2 <0: cidx2 = cidx1
-            fpos1, fpos2 = self.griddata['faceposition'][fid]
-            etyp1    = self.griddata['celltypes'][cidx1]
-            etyp2    = self.griddata['celltypes'][cidx2] 
-            
-            perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0)
-            faceinfo.append(perface)
-            fpos_fringe.append(fpos1)
-            cidx_fringe.append(cidx1)
-        '''
-        tot_nfpts=int(np.sum(ptrToArray(nptsface,nfaces)))
-        ff=ptrToArray(fdata,nfaces*2).reshape(2,-1)
-        fpos_fringe=ff[0]
-        cidx_fringe=ff[1]
-        #fpos_fringe = np.array(fpos_fringe)
-        #cidx_fringe =  np.array(cidx_fringe)
-        fpos_eidx = {'fpos':fpos_fringe,'cidx':cidx_fringe}
-        p1=time.time()
-        print('get_nodes_gpu for loop',f'{(p1-p0)=}')
-        # note there need to use unsorted face idx
-        # check base/element.py
+        calc=TRUE
+        if self.system.tstep>1:
+            if self.system.istage==0:
+                calc=TRUE
+            else:
+                calc=FALSE
+        if calc==TRUE: 
+             
+            if nfaces == 0: return
+            tot_nfpts = 0
+            for i in range(nfaces):
+                tot_nfpts = tot_nfpts + ptrAt(nptsface, i)
+                self.tot_nfpts=tot_nfpts
+            # first build up the interface information
+            faceinfo = []
+            p0=time.time()
+            for i in range(nfaces):
+                fid = ptrAt(faceids,i)
+                # using faceid to get the nfpts
+                cidx1, cidx2 = self.griddata['f2corg'][fid]
+                if cidx2 <0: cidx2 = cidx1
+                fpos1, fpos2 = self.griddata['faceposition'][fid]
+                etyp1    = self.griddata['celltypes'][cidx1]
+                etyp2    = self.griddata['celltypes'][cidx2] 
+                
+                perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0)
+                faceinfo.append(perface)
+                fpos_fringe.append(fpos1)
+                cidx_fringe.append(cidx1)
+            fpos_fringe = np.array(fpos_fringe)
+            cidx_fringe =  np.array(cidx_fringe)
+            fpos_eidx = {'fpos':fpos_fringe,'cidx':cidx_fringe}
+            p1=time.time()
+            print('get_nodes_gpu for loop',f'{(p1-p0)=}')
+            # note there need to use unsorted face idx
+            # check base/element.py
 
-        #self._scal_fpts_ploc = self._scal_view_fpts_ploc(
-        #    faceinfo, 'get_scal_unsrted_fpts_ploc_for_inter')
-        
-        ########new implementation by Amir
-        self._scal_fpts_ploc = self._scal_view_fpts_ploc_n( fpos_eidx,'ploc')
-        #    exit()
-        self.fringe_coords_d = self.griddata['fringe_coords_d']
-        # datashape of ploc_at_ncon('fpts') is [nfpts, neled2, dim, soasz]
-        # pointwise operation
-        tg.pack_fringe_coords_wrapper(
-            addrToUintPtr(self._scal_fpts_ploc.mapping.data), # offset PyFR martix
-            addrToFloatPtr(self.fringe_coords_d), # a flat matrx 
-            addrToFloatPtr(int(self._scal_fpts_ploc._mats[0].basedata)),# starting addrs
-            tot_nfpts, self.system.ndims, self.backend.soasz, 3
-        )
+            #self._scal_fpts_ploc = self._scal_view_fpts_ploc(
+            #    faceinfo, 'get_scal_unsrted_fpts_ploc_for_inter')
             
-        nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
+            ########new implementation by Amir
+            self._scal_fpts_ploc = self._scal_view_fpts_ploc_n( fpos_eidx,'ploc')
+            #    exit()
+            self.fringe_coords_d = self.griddata['fringe_coords_d']
+            # datashape of ploc_at_ncon('fpts') is [nfpts, neled2, dim, soasz]
+            # pointwise operation
+            tg.pack_fringe_coords_wrapper(
+                addrToUintPtr(self._scal_fpts_ploc.mapping.data), # offset PyFR martix
+                addrToFloatPtr(self.fringe_coords_d), # a flat matrx 
+                addrToFloatPtr(int(self._scal_fpts_ploc._mats[0].basedata)),# starting addrs
+                tot_nfpts, self.system.ndims, self.backend.soasz, 3
+            )
+            
+        nbytes = np.dtype(self.backend.fpdtype).itemsize*self.tot_nfpts
         nbytes = nbytes*self.system.ndims
         tg.tg_copy_to_host(self.fringe_coords_d, xyz, nbytes)
         
@@ -1665,6 +1655,7 @@ class Py_callbacks(tg.callbacks):
         self._perm = Ellipsis
         vm = _get_inter_objs(inter, meth, self.system.ele_map)
         vm = [np.concatenate(m)[self._perm] for m in zip(*vm)]
+
         return self.system.backend.view(*vm, vshape=vshape)
     
     def _scal_view_fpts_ploc(self, inter, meth):
@@ -1673,9 +1664,7 @@ class Py_callbacks(tg.callbacks):
     def _scal_view_fpts_u(self, inter, meth):
         return self._view(inter, meth, (self.system.nvars, ))
 
-    def _vect_view_fpts_du(self, inter, meth):
-        return self._view(inter, meth, (self.system.ndims, self.system.nvars))
-
+        
     
     ### Should be developed in TIOGA for optimization purpose 
 
@@ -1714,6 +1703,7 @@ class Py_callbacks(tg.callbacks):
                 if meth == 'vect_fpts':
                     rstri_arr=np.full((cidx_arr.shape[0]),self.system.ele_map[etype].nfpts)
                     vm.append(rstri_arr)
+                        
                 return(vm)
 
     def _view_n(self, inter, meth, vshape=tuple()):
@@ -1726,7 +1716,7 @@ class Py_callbacks(tg.callbacks):
         return self._view_n(inter, meth, (self.system.nvars, ))
 
     def _vect_view_fpts_du_n(self, inter,meth):
-        return self._view_n(inter, meth, (self.system.ndims, self.system.nvars))
+        return self._view_n(inter, meth, (self.system.nvars, self.system.ndims))
 
     def _scal_view_fpts_ploc_n(self, inter, meth):
         return self._view_n(inter, meth, (self.system.ndims,))
@@ -1744,6 +1734,27 @@ class Py_callbacks(tg.callbacks):
     
 
     
-   
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+
+            
+    ###
+    def _vect_view_fpts_du(self, inter, meth):
+        return self._view(inter, meth, (self.system.ndims, self.system.nvars))
+
 
 

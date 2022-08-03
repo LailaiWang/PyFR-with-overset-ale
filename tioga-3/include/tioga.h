@@ -41,6 +41,7 @@
 #include <iomanip>
 #include <string>
 #include <unistd.h> 
+
 class Timer
 {
 private:
@@ -64,8 +65,8 @@ public:
   void stopTimer(void)
   {
     tStop = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>( tStop - tStart ).count();
-    duration += (double)elapsed/1000.;
+    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>( tStop - tStart ).count();
+    duration = (double)elapsed/1000000000.0;
   }
 
   void resetTimer(void)
@@ -79,7 +80,7 @@ public:
     return duration;
   }
 
-  void showTime(int precision = 2)
+  void showTime(int precision = 16, std::string option1="a")
   {
     int rank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -94,10 +95,13 @@ public:
     else
     {
       std::cout << "Rank " << rank << ": " << prefix;
-      std::cout << std::setprecision(precision) << duration << "s" << std::endl;
+      std::cout << std::setprecision(precision) << duration << "s" << option1 << std::endl;
     }
   }
 };
+
+
+
 
 class tioga
 {
@@ -163,12 +167,12 @@ class tioga
   int ihighGlobal;  /// Flag for whether high-order grids exist on any rank
   int iamrGlobal;   /// Flag for whether AMR cartesian grids exist on any rank
   int iabGlobal;    /// Flag for whether high-order A.B.'s being used on any rank
-
+  int *faceposition;
   bool gpu = false; /// Flag for whether GPUs are being used on the high-order code
 
   Timer waitTime;
   Timer interpTime;
-
+  Timer searchTime;
   /** basic constuctor */
   tioga()
   {
@@ -225,6 +229,7 @@ class tioga
 
   void exchangeBoxes(void);
 
+  void pass_data(int nfpos, int* fpos, int *celloffset);
 
   void exchangeSearchData(void);
 
@@ -332,11 +337,11 @@ class tioga
     iartbnd = 1;
   }
 
-  void set_ab_callback_gpu(void (*h2df)(int* ids, int nf, int grad, double* data),
+  void set_ab_callback_gpu(void (*h2df)(int* ids, int nf, int grad, double* data, int *faceids, int* mpifringe, int nfringeface),
                            void (*h2dc)(int* ids, int nc, int grad, double* data),
                            double* (*gqd)(int& es, int& ss, int& vs, int etype),
                            double* (*gdqd)(int& es, int& ss, int& vs, int& ds, int etype),
-                           void (*gfng)(int*,int,int*,double*),
+                           void (*gfng)(int*,int,int*,double*, int*),
                            void (*gcng)(int*, int, int*, double*),
                            int (*gnw)(int),
                            void (*dfg)(int*, int, double*, double*))
@@ -362,6 +367,7 @@ class tioga
     cg->setcallback(f1);
   }
 
+  
   void register_amr_global_data(int, int, double *, int *,double *, int, int);
   void set_amr_patch_count(int);
   void register_amr_local_data(int, int ,int *, double *);  

@@ -62,6 +62,8 @@ int tioga_get_n_igbps(void);
 
 void tioga_preprocess_grids_(void);
 
+void tioga_pass_data(int nfpos, int *fpos, int *celloffset);
+
 void tioga_performconnectivity_(void);
 
 void tioga_performconnectivity_highorder_(void);
@@ -104,11 +106,11 @@ void tioga_set_ab_callback_(void (*gnf)(int* id, int* npf),
                             double* (*gqss)(int& es, int& ss, int& vs, int etype),
                             double* (*gdqs)(int& es, int& ss, int& vs, int& ds, int etype));
 
-void tioga_set_ab_callback_gpu_(void (*h2df)(int* ids, int nf, int grad, double *data),
+void tioga_set_ab_callback_gpu_(void (*h2df)(int* ids, int nf, int grad, double *data, int *faceids, int* mpifringe, int nfringeface),
                                 void (*h2dc)(int* ids, int nc, int grad, double *data),
                                 double* (*gqd)(int& es, int& ss, int& vs, int etype),
                                 double* (*gdqd)(int& es, int& ss, int& vs, int& ds, int etype),
-                                void (*gfng)(int* ids, int nf, int* nptf, double* xyz),
+                                void (*gfng)(int* ids, int nf, int* nptf, double* xyz, int* fdata),
                                 void (*gcng)(int* ids, int nf, int* nptf, double* xyz),
                                 int (*gnw)(int),
                                 void (*dfg)(int*, int, double*, double*));

@@ -77,11 +77,21 @@ void tioga::registerGridData(int btag,int nnodes,double *xyz,int *ibl, int nwbc,
   mytag=btag;
 }
 
+void tioga::pass_data(int nfpos, int *fpos, int *celloffset)
+{
+mb->fpos=(int *) malloc(sizeof(int)*nfpos);
+mb->celloffset= (int *) malloc(sizeof(int)*nfpos);
+  for (int i=0;i<nfpos;i++){
+    mb->fpos[i]=fpos[i];
+  }
+}
+
 void tioga::registerFaceConnectivity(int gtype, int nftype, int *nf, int *nfv,
     int **fconn, int *f2c, int **c2f, int *iblank_face, int nOverFaces,
     int nWallFaces, int nMpiFaces, int *overFaces, int *wallFaces, int *mpiFaces, 
     int *mpiProcR, int *mpiFidR)
 {
+
   mb->setFaceData(gtype, nftype, nf, nfv, fconn, f2c, c2f, iblank_face, nOverFaces,
                   nWallFaces, nMpiFaces, overFaces, wallFaces, mpiFaces, mpiProcR, mpiFidR);
 }
@@ -165,6 +175,7 @@ void tioga::profile(void)
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
+
 void tioga::performConnectivity(void)
 {
   //printf("before hole cutting\n");
@@ -183,17 +194,21 @@ void tioga::unblankPart1(void)
   mb->swapPointers();
   //printf("unblank 1 Done swapPointers\n");
   mb->updateOBB();
-  //printf("unblank 1 Done updateOBB\n");
+  searchTime.startTimer();
   doHoleCutting(true);
-  //printf("unblank 1 unblankPart1\n");
+  searchTime.stopTimer();
+  searchTime.showTime(16,"Holecutting");
+  printf("unblank 1 unblankPart1\n");
 }
 
 void tioga::unblankPart2(int nvar)
 {
+  //printf("unblank 2 done resetCurrentGrid nOverface\n");
+  searchTime.startTimer();
   // Swap iblank_cell pointer back
   mb->resetCurrentGrid();
   
-  //printf("unblank 2 done resetCurrentGrid\n");
+  printf("unblank 2 done resetCurrentGrid\n");
 
   mb->updateOBB();
 
@@ -203,18 +218,24 @@ void tioga::unblankPart2(int nvar)
   
   // Determine final blanking status to use over time step
   int nunblank = mb->getIterIblanks();
-
   mb->calcFaceIblanks(meshcomm);
-
+  mb->writeData();
   MPI_Allreduce(MPI_IN_PLACE, &nunblank, 1, MPI_INT, MPI_SUM, scomm);
-  //printf("nunblank is %d\n",nunblank);
+  printf("nunblank is %d\n",nunblank);
+  searchTime.stopTimer();
+  searchTime.showTime(16,"unblank_part2");
   if (nunblank > 0)
   { 
     //printf("update artifical boundaries send and recv\n");
     doPointConnectivity(true); /// TODO: just do unblank cells only, no faces
+    
+    
 
     dataUpdate_artBnd(nvar, 0);
-
+    
+    
+    
+    
     mb->clearUnblanks();
   }
   //printf("Done unblankpart2\n");
@@ -243,11 +264,11 @@ void tioga::doHoleCutting(bool unblanking)
 #ifdef TG_NORMAL
   // Generate structured map of solid boundary (hole) locations
   getHoleMap();
-  //printf("done getHole map %d\n",unblanking);
+  printf("done getHole map %d\n",unblanking);
 
   // Send/Recv oriented bounding boxes to/from all ranks and setup sndMap / rcvMap
   exchangeBoxes();
-  //printf("done exchangeBoxes %d\n",unblanking);
+  printf("done exchangeBoxes %d\n",unblanking);
 
   // Find a list of all potential receptor points and send to all possible
   // donor ranks
@@ -272,31 +293,47 @@ void tioga::doHoleCutting(bool unblanking)
 #ifdef TG_DIRECTCUT
   getHoleMap();
   getOversetMap();
-  //outputHoleMap();
+//  outputHoleMap();
   if (!unblanking)
     exchangeBoxes();
 
+  
   directCut();
+  
 #endif
 }
 
 void tioga::doPointConnectivity(bool unblanking)
 {
   if (!ihighGlobal) return;
-
+  searchTime.startTimer();
+  
+  
   //printf("done doPointConnectivity %d\n",unblanking);
   // Get all fringe point locations (high-order face/cell points + low-order vertices)
+  
   mb->getFringeNodes(unblanking);
   //printf("done getFringeNodes %d\n",unblanking);
-
+  searchTime.stopTimer();
+  searchTime.showTime(16,"getfringenodes");  
   // Exchange new list of points, including high-order Artificial Boundary
   // face points or internal points (or fringe nodes for non-high order)
+  //MPI_Barrier(MPI_COMM_WORLD);
+  searchTime.startTimer();
   exchangePointSearchData();
-  
-  //printf("done exchangePointSearchData\n");
+  searchTime.stopTimer();
+  searchTime.showTime(16,"exchange time");
+  //printf("done exchangePointSearhData\n");
   // Search for donor cells for all given points
+    searchTime.startTimer();
+
   mb->search();
 
+  searchTime.stopTimer();
+  searchTime.showTime(16,"search time");
+
+  
+    
   //printf("done search\n");
   
   // Setup interpolation weights and such for final interp-point list
@@ -1035,6 +1072,7 @@ void tioga::dataUpdate_artBnd_send(int nvar, int dataFlag)
   // initialize send and recv packets
   int nsend,nrecv;
   int *sndMap,*rcvMap;
+  interpTime.startTimer();
 
   pc->getMap(&nsend,&nrecv,&sndMap,&rcvMap);
 
@@ -1054,7 +1092,7 @@ void tioga::dataUpdate_artBnd_send(int nvar, int dataFlag)
 //    sndPack2[k].nreals = sndPack2[k].nints * stride; /// newer method
   }
 
-  interpTime.startTimer();
+  
 
   //printf("finish interpolation GPU ubuf_d.size() is %d\n",ubuf_d.size());
   if (dataFlag == 0)
@@ -1063,18 +1101,19 @@ void tioga::dataUpdate_artBnd_send(int nvar, int dataFlag)
     mb->interpGradient_gpu(ubuf_d.data(), nvar);
     
   int world_rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  //MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   
   //printf("current rank is %d and pid is %d nsend is %d and nrecv is %d sendMap is %d recvMap is %d interp2 is %d strides is %d\n",
-  //          world_rank, getpid(), nsend , nrecv, sndMap[0], rcvMap[0], mb->ninterp2, stride );
-  //int idbg = 0;
-  //while(idbg) {
+           // world_rank, getpid(), nsend , nrecv, sndMap[0], rcvMap[0], mb->ninterp2, stride );
+  volatile int idbg = 0;
+  while(idbg) {
+    
+  }
 
-  //}
+  
 
   ubuf_h.assign(ubuf_d.data(), ubuf_d.size(), &mb->stream_handle);
 
-  interpTime.stopTimer();
 
   //printf("finish interpolation GPU 1 %d\n",mb->stream_handle);
   // Wait for D2H transfer to complete and pack separate buffer
@@ -1087,7 +1126,12 @@ void tioga::dataUpdate_artBnd_send(int nvar, int dataFlag)
       for (int j = 0; j < stride; j++)
         sndVPack[p].realData[i*stride+j] = ubuf_h[(mb->buf_disp[p]+i)*stride+j];
   }
+  interpTime.stopTimer();
+  //interpTime.showTime(16,"interp");
+  //MPI_Barrier(MPI_COMM_WORLD);
+  waitTime.startTimer();
   pc->sendPacketsV(sndVPack,rcvVPack);
+
   //printf("finish sending gpu\n");
 }
 
@@ -1107,6 +1151,8 @@ void tioga::dataUpdate_artBnd_recv(int nvar, int dataFlag)
 
   // Wait on all of the sends/recvs for the interpolated data
   pc->recvPacketsV();
+  waitTime.stopTimer();
+  //waitTime.showTime(16,"recv");
 
   // Decode the packets and update the values in the solver's data array
   if (ihigh)
@@ -1161,13 +1207,14 @@ void tioga::dataUpdate_artBnd_recv(int nvar, int dataFlag)
 
     if (iartbnd)
     {
-      interpTime.startTimer();
       if (dataFlag == 0) {
         mb->updateFringePointData(fringebuf_h.data(),nvar);
+        cudaStreamSynchronize(mb->stream_handle);
+
       } else {
-        mb->updateFringePointGradient(fringebuf_h.data(),nvar);
+         mb->updateFringePointGradient(fringebuf_h.data(),nvar);
       }
-      interpTime.stopTimer();
+
     }
     else
       ThrowException("Not written for non-artificial boundary codes right now");
@@ -1327,12 +1374,10 @@ void tioga::dataUpdate_artBnd_recv(int nvar, int dataFlag)
 
     if (iartbnd)
     {
-      interpTime.startTimer();
       if (dataFlag == 0)
         mb->updateFringePointData(qtmp.data(),nvar);
       else
         mb->updateFringePointGradient(qtmp.data(),nvar);
-      interpTime.startTimer();
     }
     else
       mb->updatePointData(q_spts,qtmp.data(),nvar,dataFlag);

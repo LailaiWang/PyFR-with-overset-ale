@@ -34,3 +34,5 @@ int *nv = NULL;      /// Number of vertices per cell (per cell type)
 int **fconn = NULL;  /// face-to-vertex connectivity
 int *nf = NULL;      /// Number of faces (per face type)
 int *nfv = NULL;     /// Number of vertices per face (per face type)
+int *a;
+//int *celloffset=NULL;

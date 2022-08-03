@@ -6,7 +6,7 @@ void initialize_stream_event() {
     cudaStreamCreate(&stream_handles[i]);
   }
 
-  for(int i=0;i<N_EVENTS;i++) {
+  for(int i=1;i<N_EVENTS;i++) {
     cudaEventCreateWithFlags(&event_handles[i], cudaEventDisableTiming);
   }
 

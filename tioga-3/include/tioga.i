@@ -36,6 +36,7 @@ void tioga_unblank_part_1(void);
 void tioga_unblank_part_2(int nvar);
 void tioga_set_soasz(unsigned int sz);
 
+void tioga_pass_data(int nfpos, int *fpos, int *celloffset);
 void tg_print_data(unsigned long long int datastart, unsigned long long int offset,
                    unsigned int nums, int dtype);
 void get_nodal_basis_wrapper(int* cellIDs, double* rst, double* weights,
@@ -106,6 +107,7 @@ cudaEvent_t get_event_handle();
 void sync_device();
 %nopythoncallback;
 
+%ignore tioga_pass_data;
 %ignore tioga_dataupdate_ab;
 %ignore tioga_dataupdate_ab_send;
 %ignore tioga_dataupdate_ab_recv;
@@ -166,9 +168,9 @@ struct callbacks {
   // for GPU 
   virtual void donor_frac_gpu(int* cellid, int, double*, double*)=0;
   virtual int get_nweights_gpu(int)=0;
-  virtual void get_face_nodes_gpu(int* ids, int nf, int* nptf, double* xyz)=0;
+  virtual void get_face_nodes_gpu(int* ids, int nf, int* nptf, double* xyz, int* fdata)=0;
   virtual void get_cell_nodes_gpu(int* ids, int nf, int* nptf, double* xyz)=0;
-  virtual void fringe_data_to_device(int* ids, int nf, int grad, double* data)=0;
+  virtual void fringe_data_to_device(int* ids, int nf, int grad, double* data, int *faceids, int *mpifringe, int nfringeface)=0;
   virtual void cell_data_to_device(int* ids, int nc, int grad, double* data)=0;
 
   virtual unsigned  long long int get_q_spts_gpu(int& es, int& ss, int&vs, int etype)=0;
@@ -227,16 +229,16 @@ static int helper_get_nweights_gpu(int cellid) {
   return cb_ptr->get_nweights_gpu(cellid);
 }
 
-static void helper_get_face_nodes_gpu(int* ids, int nf, int* nptf, double* xyz) {
-  return cb_ptr->get_face_nodes_gpu(ids,nf,nptf,xyz);
+static void helper_get_face_nodes_gpu(int* ids, int nf, int* nptf, double* xyz, int* fdata) {
+  return cb_ptr->get_face_nodes_gpu(ids,nf,nptf,xyz,fdata);
 }
 
 static void helper_get_cell_nodes_gpu(int* ids, int nf, int* nptf, double* xyz) {
   return cb_ptr->get_cell_nodes_gpu(ids,nf,nptf,xyz);
 }
 
-static void helper_fringe_data_to_device(int* ids, int nf, int grad, double* data) {
-  return cb_ptr->fringe_data_to_device(ids,nf,grad,data);
+static void helper_fringe_data_to_device(int* ids, int nf, int grad, double* data, int *faceids, int *mpifringe, int nfringeface) {
+  return cb_ptr->fringe_data_to_device(ids,nf,grad,data,faceids, mpifringe, nfringeface);
 }
 
 static void helper_cell_data_to_device(int* ids, int nc, int grad, double* data) {
@@ -424,6 +426,22 @@ unsigned long long int tg_allocate_device(int maxcells, int maxupts,
     }
 }
 
+unsigned long long int tg_allocate_host(int maxcells, int maxupts,
+                          int dim, int nvar, int vect, int itemsize) {
+    long int nbytes = vect==1? dim*dim:dim;
+    nbytes *= maxcells*nvar*maxupts*itemsize;
+    if(itemsize == 4) {
+        float* d;
+        cudaMallocHost((void **) &d,nbytes);
+        return reinterpret_cast<unsigned long long int> (d);
+    } else {
+        double* d;
+        cudaMallocHost((void **) &d, nbytes);
+        return reinterpret_cast<unsigned long long int> (d);
+    }
+}
+
+
 unsigned long long int tg_allocate_device_int(int maxfaces) {
     int nbytes = maxfaces*sizeof(int);
     int* d;
@@ -456,12 +474,24 @@ void tg_free_device(unsigned long long int d, int itemsize) {
 void tg_copy_to_device(unsigned long long int a, double *data, int nbytes) {
     // cast a to pointer
     double* a_d = reinterpret_cast<double* > (a);
+    printf("\n GGGGGG\n");
     cudaMemcpy(a_d, data, nbytes, cudaMemcpyHostToDevice);
+}
+//Amir test optimization
+void tg_copy_to_device_h(unsigned long long int a, double *b, double *data, int nbytes ) {
+    // cast a to pointer
+    double* a_d = reinterpret_cast<double* > (a);
+    //double* b_d = reinterpret_cast<double* > (b);
+    cudaStream_t stream;
+    memcpy(b,data,nbytes);
+    cudaMemcpyAsync(a_d, b, nbytes, cudaMemcpyHostToDevice,stream );
 }
 
 void tg_copy_to_device(unsigned long long int a, int *data, int nbytes) {
     // cast a to pointer
     int* a_d = reinterpret_cast<int* > (a);
+        printf("\n IIIII\n");
+
     cudaMemcpy(a_d, data, nbytes, cudaMemcpyHostToDevice);
 }
 
@@ -469,17 +499,20 @@ void tg_copy_to_device(unsigned long long int a, int *data, int nbytes) {
 void tg_copy_to_device(unsigned long long int a, float *data, int nbytes) {
     float* a_d = reinterpret_cast<float* > (a);
     cudaMemcpy(a_d, data, nbytes, cudaMemcpyHostToDevice);
+    printf("\n IIIII\n");
 }
 
 // copy data from device to host for double
 void tg_copy_to_host(unsigned long long int a, double *data, int nbytes) {
    double* a_d = reinterpret_cast<double*> (a);
    cudaMemcpy(data, a_d, nbytes, cudaMemcpyDeviceToHost);
+   printf("\n IIIII\n");
 }
 // copy data from device to host for float
 void tg_copy_to_host(unsigned long long int a, float *data, int nbytes) {
    float* a_d = reinterpret_cast<float*> (a);
    cudaMemcpy(data, a_d, nbytes, cudaMemcpyDeviceToHost);
+   printf("\n IIIII\n");
 }
 
 %}

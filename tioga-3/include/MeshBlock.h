@@ -94,6 +94,8 @@ private:
   int **c2f;         /** < Cell to face connectivity */
   int *wbcnode;     /** < wall boundary node indices */
   int *obcnode;     /** < overset boundary node indices */
+  
+
   //
   std::vector<double> nodeRes;  /** < node resolution  */
   std::vector<double> obcRes;  /** < ref. mesh length at overset bndry nodes */
@@ -111,7 +113,6 @@ private:
   int *mpiFaces;  /** < List of MPI face IDs on rank */
   int *mpiFidR;   /** < Matching MPI face IDs on opposite rank */
   int *mpiProcR;  /** < Opposite rank for MPI face */
-
   std::vector<double> igbpdata; /** < List of x,y,z,ds for inter-grid bndry pts */
 
   std::vector<std::vector<int>> c2c;
@@ -190,14 +191,14 @@ private:
   double* (*get_q_spts_d)(int& ele_stride, int& spt_stride, int& var_stride, int etype);
   double* (*get_dq_spts_d)(int& ele_stride, int& spt_stride, int& var_stride, int& dim_stride, int etype);
 
-  void (*get_face_nodes_gpu)(int* fringeIDs, int nFringe, int* nptPerFace, double* xyz);
+  void (*get_face_nodes_gpu)(int* fringeIDs, int nFringe, int* nptPerFace, double* xyz, int* fdata);
   void (*get_cell_nodes_gpu)(int* cellIDs, int nCells, int* nptPerCell, double* xyz);
 
   int (*get_n_weights)(int cellID);
   void (*donor_frac_gpu)(int* donorIDs, int nFringe, double* rst, double* weights);
 
   /*! Copy updated solution/gradient for fringe faces from host to device */
-  void (*face_data_to_device)(int* fringeIDs, int nFringe, int gradFlag, double *data);
+  void (*face_data_to_device)(int* fringeIDs, int nFringe, int gradFlag, double *data, int *facefringeid, int *mpifringe, int nfringeface );
 
   /*! Copy updated solution/gradient for fringe cells from host to device */
   void (*cell_data_to_device)(int* cellIDs, int nCells, int gradFlag, double *data);
@@ -244,19 +245,27 @@ private:
   int *ftag;               /** Indices of artificial boundary faces */
   int *pointsPerFace;      /** number of receptor points per face */
   int maxPointsPerFace;    /** max of pointsPerFace vector */
-
   int nFacePoints;
   int nCellPoints;
-
+  int nfpos;
   std::vector<double> rxyz;            /**  point coordinates */
   int ipoint; 
   int *picked;             /** < flag specifying if a node has been selected for high-order interpolation */
-
   int nreceptorCellsCart;
   int *ctag_cart;
   int *pickedCart;
- 	
+ 	int *facefringeid=NULL;
+  int *facefringeid_=NULL;
+  int *mpi_face_=NULL;
+  int *mpi_id_=NULL;
+  int *mpifringeid =NULL;
+  int *fdata;
+  int nfringeid=0, nmpifringe=0;
  public :
+  int *fpos;
+  int *celloffset;
+  int *fpos_fringe=NULL;
+  int *cidx_fringe=NULL;
   int ntotalPointsCart;
   double *rxyzCart;
   int *donorIdCart;
@@ -361,6 +370,7 @@ private:
     ninterp=ninterp2=interpListSize=interp2ListSize=0;
     ctag=NULL;
     ftag=NULL;
+    fdata=NULL;
     pointsPerCell=NULL;
     pointsPerFace=NULL;
     maxPointsPerCell=0;
@@ -382,7 +392,8 @@ private:
 
   /** basic destructor */
   ~MeshBlock();
-      
+  
+  void writeData(void);  
   void preprocess(void);
 
   void updateOBB(void);
@@ -569,11 +580,11 @@ private:
     iartbnd = 1;
   }
 
-  void setCallbackArtBndGpu(void (*h2df)(int* ids, int nf, int grad, double *data),
+  void setCallbackArtBndGpu(void (*h2df)(int* ids, int nf, int grad, double *data, int *faceids, int* mpifringe, int nfringeface),
                             void (*h2dc)(int* ids, int nf, int grad, double *data),
                             double* (*gqd)(int& es, int& ss, int& vs, int etype),
                             double* (*gdqd)(int& es, int& ss, int& vs, int& ds, int etype),
-                            void (*gfng)(int*, int, int*, double*),
+                            void (*gfng)(int*, int, int*, double*, int*),
                             void (*gcng)(int*, int, int*, double*),
                             int (*gnw)(int),
                             void (*dfg)(int*, int, double*, double*))

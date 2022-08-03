@@ -68,6 +68,7 @@ extern "C" {
     nc=NULL;
     nv=NULL;
     vconn=NULL;
+    //aa=NULL;
   }
   
   void tioga_registergrid_data_(int btag, int nnodes, double *xyz, int *ibl,
@@ -84,7 +85,7 @@ extern "C" {
     nc    = (int *) malloc(sizeof(int)*ntypes);
     ncf    = (int *) malloc(sizeof(int)*ntypes);
     vconn = (int **)malloc(sizeof(int *)*ntypes);
-
+    
     for (int i = 0; i < ntypes; i++)
     {
       nv[i] = _nv[i];
@@ -103,7 +104,6 @@ extern "C" {
     free(nfv);
     free(nf);
     free(fconn);
-
     nfv   = (int *) malloc(sizeof(int)*nftype);
     nf    = (int *) malloc(sizeof(int)*nftype);
     fconn = (int **)malloc(sizeof(int *)*nftype);
@@ -114,7 +114,8 @@ extern "C" {
       nf[i] = _nf[i];
       fconn[i] = _fconn[i];
     }
-
+     
+     
     tg->registerFaceConnectivity(gtype, nftype, nf, nfv, fconn, f2c, c2f, fibl,
         nOverFaces, nWallFaces, nMpiFaces, overFaces, wallFaces, mpiFaces,
         mpiProcR, mpiFidR);
@@ -144,6 +145,12 @@ extern "C" {
   void tioga_register_amr_local_data_(int ipatch,int global_id,int *iblank,double *q)
   {
     tg->register_amr_local_data(ipatch,global_id,iblank,q);
+  }
+
+  void tioga_pass_data(int nfpos, int *fpos, int *celloffset)
+  {
+    //printf("HHHHHHHHHHHHHHH %d %d %d %d\n",a[0],a[1],a[2],a[3]);
+    tg->pass_data(nfpos, fpos, celloffset);
   }
 
   double* tioga_get_igbp_list(void)
@@ -316,11 +323,11 @@ extern "C" {
     tg->set_ab_callback(gnf, gfn, gqs, gqf, ggs, ggf, gqss, gdqs);
   }
 
-  void tioga_set_ab_callback_gpu_(void (*h2df)(int* ids, int nf, int grad, double *data),
+  void tioga_set_ab_callback_gpu_(void (*h2df)(int* ids, int nf, int grad, double *data, int *facedata,  int* mpifringe, int nfringeface),
                                   void (*h2dc)(int* ids, int nc, int grad, double *data),
                                   double* (*gqd)(int& es, int& ss, int& vs, int etype),
                                   double* (*gdqd)(int& es, int& ss, int& vs, int& ds, int etype),
-                                  void (*gfng)(int*, int, int*, double*),
+                                  void (*gfng)(int*, int, int*, double*, int*),
                                   void (*gcng)(int*, int, int*, double*),
                                   int (*gnw)(int),
                                   void (*dfg)(int*, int, double*, double*))

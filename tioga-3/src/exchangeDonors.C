@@ -127,7 +127,7 @@ void tioga::exchangeDonors(void)
 
   mb->set_ninterp(npoints);
 
-  //printf("process %d has (%d,%d) points to interpolate out %d donors\n",myid,ninterp,m,mb->donorCount);
+  printf("process %d has (%d,%d) points to interpolate out %d donors\n",myid,ninterp,npoints,mb->donorCount);
 
   pc->clearPackets(sndPack,rcvPack);
   free(donorRecords);

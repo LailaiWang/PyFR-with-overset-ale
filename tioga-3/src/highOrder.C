@@ -29,6 +29,7 @@
 #ifdef _GPU
 #include "cuda_funcs.h"
 #include "highOrder_kernels.h"
+#include "tioga.h"
 #endif
 
 #include "math_funcs.h"
@@ -127,7 +128,6 @@ void MeshBlock::swapPointers(void)
 {
   xtmp = x;
 //  x = x2.data();
-
   ibc_0.assign(iblank_cell,iblank_cell+ncells);
 
   ibc_tmp = iblank_cell;
@@ -619,9 +619,10 @@ void MeshBlock::directCut_gpu(std::vector<double> &cutFaces, int nCut, int nvert
     std::vector<double> &cutBbox, HOLEMAP &holeMap, CutMap &cutMap, int cutType)
 {
 #ifdef _GPU
-  //printf("ncells for directCut_gpu is %d\n",ncells);
-  cutMap.flag.resize(ncells);
+//  printf("ncells for directCut_gpu is %d  nOverFaces is %d\n",ncells,nOverFaces);
 
+  cutMap.flag.resize(ncells);
+  
   // Call out to the device to perform the cutting
   mb_d.assignHoleMap(holeMap.existWall, holeMap.nx, holeMap.sam, holeMap.extents);
   mb_d.directCut(cutFaces.data(), nCut, nvertf, cutBbox.data(), cutMap.flag.data(), cutType);
@@ -744,15 +745,20 @@ void MeshBlock::getCellIblanks(const MPI_Comm meshComm)
 
 void MeshBlock::calcFaceIblanks(const MPI_Comm &meshComm)
 {
+  int grank;
+  char filen[90];
+  MPI_Comm_rank(MPI_COMM_WORLD, &grank);
+  //sprintf(filen,"rankmpiblank%d.dat",grank);
+  //FILE *fp=fopen(filen,"w");
   nreceptorFaces = 0;
-
+  int counter=0;
   for (int ff = 0; ff < nfaces; ff++)
   {
     iblank_face[ff] = NORMAL;
 
     int ic1 = f2c[2*ff];   // By convention, always >= 0
     int ic2 = f2c[2*ff+1]; // By convention, == -1 if a boundary/MPI face
-
+    //fprintf(fp,"%d  %d   %d   %d   %d\n",ff,ic1,ic2,iblank_cell[ic1],iblank_cell[ic2]);
     if (ic2 < 0)
     {
       // Boundary or MPI face
@@ -763,7 +769,8 @@ void MeshBlock::calcFaceIblanks(const MPI_Comm &meshComm)
       // Internal face
       int isum = abs(iblank_cell[ic1]) + abs(iblank_cell[ic2]);
       if (isum == HOLE+NORMAL)  // Artificial Boundary
-      {
+      {      counter++;
+
         iblank_face[ff] = FRINGE;
       }
       else if (isum == HOLE+HOLE)  // Blanked face
@@ -778,7 +785,6 @@ void MeshBlock::calcFaceIblanks(const MPI_Comm &meshComm)
   int meshRank, nProcMesh;
   MPI_Comm_rank(meshComm, &meshRank);
   MPI_Comm_size(meshComm, &nProcMesh);
-
   // Get the number of mpiFaces on each processor (for later communication)
   std::vector<int> nMpiFaces_proc(nProcMesh);
   MPI_Allgather(&nMpiFaces,1,MPI_INT,nMpiFaces_proc.data(),1,MPI_INT,meshComm);
@@ -793,21 +799,27 @@ void MeshBlock::calcFaceIblanks(const MPI_Comm &meshComm)
   for (int i=0; i<nProcMesh; i++) {
     recvCnts[i] = nMpiFaces_proc[i];
     recvDisp[i] = i*maxNMpi;
+    //printf("%d  %d   %d   %d   \n",grank,nMpiFaces,recvDisp[i],recvCnts[i]);
   }
+  
+  
 
-  for (int i = 0; i < nMpiFaces; i++)
+  for (int i = 0; i < nMpiFaces; i++){
     mpiIblank[i] = iblank_face[mpiFaces[i]];
-
+    //fprintf(fp, " i %d  %d \n",mpiIblank[i],maxNMpi);
+  }
   // Get iblank data for all mpi faces
   MPI_Allgatherv(mpiFaces, nMpiFaces, MPI_INT, mpiFid_proc.data(), recvCnts.data(), recvDisp.data(), MPI_INT, meshComm);
   MPI_Allgatherv(mpiIblank.data(), nMpiFaces, MPI_INT, mpiIblank_proc.data(), recvCnts.data(), recvDisp.data(), MPI_INT, meshComm);
-
+  //MPI_Barrier(MPI_COMM_WORLD);
   for (int F = 0; F < nMpiFaces; F++) {
     int ff = mpiFaces[F];
     int p = mpiProcR[F];
     for (int i = 0; i < nMpiFaces_proc[p]; i++) {
+      
       if (mpiFid_proc[p*maxNMpi+i] == mpiFidR[F]) {
         int isum = mpiIblank[F] + mpiIblank_proc[p*maxNMpi+i];
+        //fprintf(fp,"grank %d isum %d mpiIblank[%d] %d p %d   %d\n",grank,isum,F,mpiIblank[F],p,nMpiFaces_proc[p]);
         if (isum != NORMAL+NORMAL) {
           // Not a normal face; figure out if hole or fringe
           if (isum == HOLE+HOLE || iblank_cell[f2c[2*ff]] == HOLE)
@@ -842,7 +854,14 @@ void MeshBlock::calcFaceIblanks(const MPI_Comm &meshComm)
   // Setup final Artificial Boundary face list
   free(ftag);
   ftag = (int*)malloc(sizeof(int)*nreceptorFaces);
+  //if (meshRank==1){
+  //FILE *fp = fopen("fringe_nodes.dat","w");
+  //fprintf(fp,"nfaces %d  nreceptorFaces %d nOverfaces %d counter %d nmpifaces %d\n"
+  //,nfaces,nreceptorFaces,nOverFaces,counter,nMpiFaces);
+  //fclose(fp);
+ // MPI_Finalize();
 
+  //}
   nreceptorFaces = 0;
   for (int ff = 0; ff < nfaces; ff++)
     if (iblank_face[ff] == FRINGE)
@@ -1023,39 +1042,94 @@ void MeshBlock::getFringeNodes(bool unblanking)
 
     // Get total number of face nodes (flux points) for our AB faces
     maxPointsPerFace = 0;
-
+    
+    Timer sst("get nodes per face ");
+    sst.startTimer();
     for (int i = 0; i < nreceptorFaces; i++)
     {
       get_nodes_per_face(&(ftag[i]),&(pointsPerFace[i]));
+      //if (i==0){
+      //  get_nodes_per_face(&(ftag[i]),&(pointsPerFace[i]));      
+     // }
+      //else{
+      //  pointsPerFace[i]=pointsPerFace[i-1];
+     // }
+
       nFacePoints += pointsPerFace[i];
       maxPointsPerFace = max(maxPointsPerFace,pointsPerFace[i]);
+      //printf("pointperface %d\n",pointsPerFace[i]);
     }
-
+     
+    sst.stopTimer();
+    
+    sst.showTime(16,"nodesperface");
     rxyz.resize(nFacePoints*3);
     ntotalPoints = nFacePoints;
 
 #ifdef _GPU
+
+    //arrange data then pass to PYFR
+    /*
+    for i in range(nfaces):
+    fid = ptrAt(faceids,i)
+    # using faceid to get the nfpts
+    cidx1, cidx2 = self.griddata['f2corg'][fid]
+    if cidx2 <0: cidx2 = cidx1
+    fpos1, fpos2 = self.griddata['faceposition'][fid]
+    etyp1    = self.griddata['celltypes'][cidx1]
+    etyp2    = self.griddata['celltypes'][cidx2] 
+    
+    perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0)
+    faceinfo.append(perface)
+    fpos_fringe.append(fpos1)
+    cidx_fringe.append(cidx1)
+    */
+    free (fdata);
+    fdata=(int *)malloc(sizeof(int)*nreceptorFaces*2);
+
+    int nt1,nt2,fp1,fp2,cid1,cid2;
+    for(int i=0;i<nreceptorFaces;i++)
+    {
+        nt1=ftag[i]*2;
+        nt2=ftag[i]*2+1;
+        fp1=fpos[nt1];
+        fp2=fpos[nt2];
+        cid1=f2c[nt1];
+        cid2=f2c[nt2];
+        if (cid2<0)
+          cid2=cid1;
+        fdata[i]=fp1; 
+        fdata[i+nreceptorFaces]=cid1;
+    }
+
+
+
+    
+
     //printf("before get_face_nodes_gpu ntotalPoints is %d\n",ntotalPoints);
-    get_face_nodes_gpu(ftag,nreceptorFaces,pointsPerFace,rxyz.data());
+    get_face_nodes_gpu(ftag,nreceptorFaces,pointsPerFace,rxyz.data(),fdata);
+    
     ////// for testing purpose //////////////////////////
     // validated
-    /*
-    int world_rank; 
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    if(world_rank == 0) {
-        FILE *fp = fopen("fringe_nodes.dat","w");
-        for(int i=0;i<nreceptorFaces;i++) {
-            for(int j=0;j<pointsPerFace[i];j++) {
-                fprintf(fp, "%lf %lf %lf\n",
-                            rxyz[i*16*3+j*3+0],
-                            rxyz[i*16*3+j*3+1],
-                            rxyz[i*16*3+j*3+2]
+      char filen[90];
+      int world_rank;
+      MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+      /*
+      sprintf(filen,"fringe_nodes%d.dat",world_rank);
+      FILE *fp=fopen(filen,"w");
+      for(int i=0;i<nreceptorFaces;i++) {
+        for(int j=0;j<pointsPerFace[i];j++) {
+          fprintf(fp, "%d   %d %lf %lf %lf\n",i,ftag[i],
+                            rxyz[i*pointsPerFace[i]*3+j*3+0],
+                            rxyz[i*pointsPerFace[i]*3+j*3+1],
+                            rxyz[i*pointsPerFace[i]*3+j*3+2]
                             );
-            }
         }
-        fclose(fp);
-    }
-    */
+      }
+      fclose(fp);
+      */
+    
+
     ////////////////////////////////////////////////////////////
 #else
     // Find the position of each flux point using callback function
@@ -1128,7 +1202,6 @@ void MeshBlock::getFringeNodes(bool unblanking)
       nCellPoints += pointsPerCell[i];
       maxPointsPerCell = max(maxPointsPerCell,pointsPerCell[i]);
     }
-
     ntotalPoints = nCellPoints + nFacePoints;
     rxyz.resize(ntotalPoints*3);
 #ifdef _GPU
@@ -1239,7 +1312,7 @@ void MeshBlock::processPointDonorsGPU(void)
       interp2ListSize++;
   }
     
-  //printf("inter2ListSize is %d\n", interp2ListSize);
+  //printf("inter2ListSize is %d  n search is %d\n", interp2ListSize,nsearch);
 
   interpList2.resize(interp2ListSize);
 
@@ -1291,16 +1364,24 @@ void MeshBlock::processPointDonorsGPU(void)
   }
   
   // Get the interpolation weights for each of the interpolation points
+  //Amir
   donors_d.assign(donorId.data(), donorId.size(), &stream_handle);
-  mb_d.rst.assign(rst.data(), rst.size(), &stream_handle); /// <-- Pretty sure redundant...?  (7/17/19): Nope, seems to be needed.
-  donorsBT_d.assign(donorsBT_h.data(), donorsBT_h.size());
-  etypes_d.assign(etypes_h.data(), etypes_h.size());
+  //donors_d.assign(donorId.data(), donorId.size());
+  //mb_d.rst.assign(rst.data(), rst.size(), &stream_handle); /// <-- Pretty sure redundant...?  (7/17/19): Nope, seems to be needed.
+  
+  mb_d.rst.assign(rst.data(), rst.size(), &stream_handle); 
+  
+  donorsBT_d.assign(donorsBT_h.data(), donorsBT_h.size(), &stream_handle);
+  etypes_d.assign(etypes_h.data(), etypes_h.size(), &stream_handle);
 
-  nweights_d.assign(nweights_h.data(), nweights_h.size());
-  winds_d.assign(winds_h.data(), winds_h.size());
+  nweights_d.assign(nweights_h.data(), nweights_h.size(), &stream_handle);
+  winds_d.assign(winds_h.data(), winds_h.size(), &stream_handle);
+  cudaStreamSynchronize(stream_handle);
+
 
   if (ntypes == 1)
   {
+    printf("ntypes %d\n",ntypes);
     // Only one cell type - no need to map/unmap data by cell type
     weights_d.resize(nWeightsTotal);
     donor_frac_gpu(donors_d.data(), ninterp2, mb_d.rst.data(), weights_d.data());
@@ -1327,7 +1408,8 @@ void MeshBlock::processPointDonors(void)
 
   interp2ListSize = ninterp2;
   interpList2.resize(interp2ListSize);
-
+  //Amir
+  //printf("ninterp2 %d\n", ninterp2);
   int m = 0;
   for (int i = 0; i < nsearch; i++)
   {
@@ -1757,17 +1839,136 @@ void MeshBlock::updatePointData(double *q,double *qtmp,int nvar,int interptype)
 	}
     }
 }
-
+//void MeshBlock::updateFringePointData(double *qtmp, int nvar)
 void MeshBlock::updateFringePointData(double *qtmp, int nvar)
 {
   if (!ihigh) FatalError("updateFringePointData not applicable to non-high order solvers");
 
 #ifdef _GPU
   
-  //printf("gpu updatefringePointData nreceptorFaces %d nreceptorCells %d\n", nreceptorFaces, nreceptorCells);
+  ////Update for PyFR
 
+
+  printf("calc fpos fringe");
+    
+  
+
+  Timer tloop ("loop Time:");
+  tloop.startTimer();
+  printf("gpu updatefringePointData nreceptorFaces %d nreceptorCells %d\n", nreceptorFaces, nreceptorCells);
+  int i,j,k;
+  int world_rank;
+  char filen[90];
+
+  mpifringeid=(int *)malloc(sizeof(int)*1);
+  mpifringeid[0]=0;
+  facefringeid=(int *)malloc(sizeof(int)*1);
+  facefringeid[0]=0;
+  nfringeid=0;
+  nmpifringe=0;
+  
+
+  fpos_fringe=(int *)malloc(sizeof(int)*nreceptorFaces);
+  cidx_fringe=(int *)malloc(sizeof(int)*nreceptorFaces);
+  facefringeid_=(int *)malloc(sizeof(int)*nreceptorFaces);
+  mpi_id_ = (int *)malloc(sizeof(int)*nreceptorFaces);
+  mpi_face_ = (int *)malloc(sizeof(int)*nreceptorFaces);
+  //mpifringeid = (int *)malloc(sizeof(int)*nreceptorFaces);
+  printf("faceposition %d\n",fpos[0]);
+  int nt1,nt2,fp1,fp2,eid1,eid2;
+                      
+
+  for (i=0;i<nreceptorFaces;i++)
+  { 
+    nt1=ftag[i]*2;
+    nt2=ftag[i]*2+1;
+    fp1=fpos[nt1];
+    fp2=fpos[nt2];
+    eid1=f2c[nt1];
+    eid2=f2c[nt2];
+    //side = 1 if self.griddata['iblank_cell'][cidx1] == 1 else 0
+    if (eid2>=0){
+
+      facefringeid_[nfringeid]=i;
+      
+      
+      if (iblank_cell[eid1]==1){
+        
+        fpos_fringe[nfringeid]=fp2;
+        cidx_fringe[nfringeid] = eid2;//-celloffset[eid1];
+      }else{
+        fpos_fringe[nfringeid]=fp1;
+        cidx_fringe[nfringeid] = eid1;//-celloffset[eid2];
+      }
+      nfringeid++;
+
+    }if (eid2==-2){
+
+      //mpi-fringe faces
+      mpi_face_[nmpifringe]=ftag[i];
+      printf("ftag[i],%d\n\n\n",ftag[i]);
+      mpi_id_[nmpifringe]=i;
+      nmpifringe++;
+
+    }
+  }
+  if (nfringeid>0) {
+    free(facefringeid);
+  
+    facefringeid=(int *)malloc(sizeof(int)*nfringeid*3);
+  }
+  if (nmpifringe>0){
+    free(mpifringeid);
+    mpifringeid=(int *)malloc(sizeof(int)*nmpifringe*2);
+  }
+  if (nfringeid>0)
+  {
+    for (i=0;i<nfringeid;i++)
+    { 
+      facefringeid[i]=facefringeid_[i];
+      facefringeid[i+nfringeid]=cidx_fringe[i];
+      facefringeid[i+2*nfringeid]=fpos_fringe[i];
+    }
+  }
+  if (nmpifringe>0){
+    for (i=0;i<nmpifringe;i++)
+    { 
+      
+      mpifringeid[i] = mpi_id_[i];
+      mpifringeid[i+nmpifringe] = mpi_face_[i];
+    }
+  }
+  tloop.stopTimer();
+  tloop.showTime();
+  
+  free(fpos_fringe);
+  free(cidx_fringe);
+  free(facefringeid_);
+  ///fringe-mpi faces
+  free(mpi_face_);
+  free(mpi_id_);
+  printf("free dataaaaaaaaaaaaaaaaaa\n");
+  
+  /*MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  sprintf(filen,"qtmp%d.dat",world_rank);
+  FILE *fp=fopen(filen,"w");
+  for (i=0;i<nreceptorFaces;i++)
+    {
+      for (j=0;j<pointsPerFace[i];j++)
+      {
+        k=pointsPerFace[i];
+      fprintf(fp,"%d %d %d %le %le %le %le %le %le %le %le\n"
+      , i*k+j, world_rank, ftag[int(i)], qtmp[i*k*nvar+j*nvar], qtmp[i*k*nvar+j*nvar+1],
+        qtmp[i*k*nvar+j*nvar+2], qtmp[i*k*nvar+j*nvar+3], 
+        qtmp[i*k*nvar+j*nvar+4],rxyz[i*k*3+j*3+0],rxyz[i*9*3+j*3+1],rxyz[i*9*3+j*3+2]);
+
+       }
+  }
+  
+  fclose(fp);
+  */
   if (nreceptorFaces > 0)
-    face_data_to_device(ftag, nreceptorFaces, 0, qtmp);
+    face_data_to_device(ftag, nreceptorFaces, 0, qtmp, facefringeid, mpifringeid, nfringeid);
 
   if (nreceptorCells > 0)
     cell_data_to_device(ctag, nreceptorCells, 0, qtmp+nvar*nFacePoints);
@@ -1797,8 +1998,11 @@ void MeshBlock::updateFringePointGradient(double *dqtmp, int nvar)
   if (!ihigh) FatalError("updateFringePointGradient not applicable to non-high order solvers");
 
 #ifdef _GPU
-  if (nreceptorFaces > 0)
-    face_data_to_device(ftag, nreceptorFaces, 1, dqtmp);
+  if (nreceptorFaces > 0){
+    //printf("gpu updatefringePointData nreceptorFaces %d \n", nreceptorFaces);
+
+    face_data_to_device(ftag, nreceptorFaces, 1, dqtmp, facefringeid, mpifringeid, nfringeid);
+  }
 #else
 
   int fpt_start = 0;
@@ -1819,5 +2023,5 @@ void MeshBlock::updateFringePointGradient(double *dqtmp, int nvar)
 
 void MeshBlock::sendFringeDataGPU(int gradFlag)
 {
-  face_data_to_device(ftag, nreceptorFaces, gradFlag, NULL);
+  face_data_to_device(ftag, nreceptorFaces, gradFlag, NULL,NULL, mpifringeid, nfringeid);
 }
