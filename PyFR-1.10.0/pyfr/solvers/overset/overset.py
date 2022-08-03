@@ -1109,3 +1109,6 @@ class Overset(object):
         self.move_on_cpu()
         self.sync_device()
 
+    def test_u(self):
+        self.callbacks.ff()
+

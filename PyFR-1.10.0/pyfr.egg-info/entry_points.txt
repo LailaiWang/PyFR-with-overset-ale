@@ -1,0 +1,3 @@
+[console_scripts]
+pyfr = pyfr.__main__:main
+

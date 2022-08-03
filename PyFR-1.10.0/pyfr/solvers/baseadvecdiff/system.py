@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from pyfr.solvers.baseadvec import BaseAdvectionSystem
 import numpy as np
+from mpi4py import MPI
+
 
 # for debugging purpose
 from convert import *
@@ -10,7 +12,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         runall = self.backend.runall
         q1, q2 = self._queues
         kernels = self._kernels
-
+        comm = MPI.COMM_WORLD
         self._bc_inters.prepare(t)
 
         self.eles_scal_upts_inb.active = uinbank
@@ -172,7 +174,9 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         # In case there is overset boudary
         if ('mpiint','scal_fpts_pack') in kernels:
             q1 << kernels['mpiint', 'scal_fpts_pack']()
-            runall([q2])
+
+            runall([q1])
+
         
         # Pack MPI related terms
         # In case there is overset boundary
@@ -180,35 +184,44 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
             q1 << kernels['mpiint', 'scal_fpts_send']()
             q1 << kernels['mpiint', 'scal_fpts_recv']()
             q1 << kernels['mpiint', 'scal_fpts_unpack']()
-            runall([q2])
 
+            runall([q1])
+        #comm.Barrier()
+        #self.oset.test_u()
         if ('mpiint','vect_fpts_mvel_pack') in kernels:
             q1 << kernels['mpiint','vect_fpts_mvel_pack']()
-            runall([q2])
+
 
         # Send, recv and unpack state and mvel
         if ('mpiint','vect_fpts_mvel_send') in kernels:
             q1 << kernels['mpiint', 'vect_fpts_mvel_send']()
             q1 << kernels['mpiint', 'vect_fpts_mvel_recv']()
             q1 << kernels['mpiint', 'vect_fpts_mvel_unpack']()
-            runall([q2])
+
+            runall([q1])
         
+        #comm.Barrier
+
         # Here update the solution on artbnd
         if self.mvgrid and self.overset:
             self.oset.sync_device()
             self.oset.exchangeSolution()
             self.oset.sync_device()
+        #self.oset.test_u()
+        
+        
 
         if ('eles', 'copy_soln') in kernels:
             q1 << kernels['eles', 'copy_soln']()
         if ('iint', 'copy_fpts') in kernels:
             q1 << kernels['iint', 'copy_fpts']()
-    
+
         # Calculate the continuous u
         q1 << kernels['iint', 'con_u']()
         q1 << kernels['bcint', 'con_u'](t=t)
         q1 << kernels['mpiint', 'con_u']()
         runall([q1])
+
 
         q1 << kernels['eles', 'tgradpcoru_upts']()
         runall([q1])
@@ -233,21 +246,38 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
 
         runall([q1])
 
+
+        
+        
+        
+        
+
         if ('mpiint','vect_fpts_pack') in kernels:
             q1 << kernels['mpiint', 'vect_fpts_pack']()
-            runall([q2])
+            runall([q1])
+
 
         if ('mpiint','vect_fpts_send') in kernels:
             q1 << kernels['mpiint', 'vect_fpts_send']()
             q1 << kernels['mpiint', 'vect_fpts_recv']()
             q1 << kernels['mpiint', 'vect_fpts_unpack']()
-            runall([q2])
 
+            runall([q1])
+        #comm.Barrier()
+        #self.oset.test_u()
         # It is crucial important to overwrite the garbage info in mpi-artbnd faces
+        #self.oset.test_u()
+        
+
         if self.mvgrid and self.overset:
             self.oset.sync_device()
             self.oset.exchangeGradient()
             self.oset.sync_device()
+        #self.oset.test_u()
+        
+        
+        
+
 
         q1 << kernels['iint', 'comm_flux']()
         q1 << kernels['bcint', 'comm_flux'](t=t)
