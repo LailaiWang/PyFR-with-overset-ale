@@ -43,7 +43,6 @@ class PostOverset(object):
         for gid in range(len(self.mesh)):
             motioninfo = motion_exprs(self.cfg,gid)
             self.motion[f'grid_{gid}'] = calc_motion(self.t, self.t, motioninfo, self.fpdtype)
-        print('\n blanking',blanking)
         if not blanking:
             self.bksoln = self._merge_overset()
 

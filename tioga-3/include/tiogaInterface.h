@@ -21,6 +21,9 @@
 #ifdef _GPU
 #include <cuda_runtime.h>
 #endif
+#ifdef _GPU
+#include "cuda_funcs.h"
+#endif
 //
 // All the interfaces that are 
 // accessible to third party f90 and C
@@ -63,6 +66,9 @@ int tioga_get_n_igbps(void);
 void tioga_preprocess_grids_(void);
 
 void tioga_pass_data(int nfpos, int *fpos, int *celloffset);
+
+//void tg_copy_to_device_h_double(unsigned long long int a, double *b, double *data, int nbytes ); 
+
 
 void tioga_performconnectivity_(void);
 

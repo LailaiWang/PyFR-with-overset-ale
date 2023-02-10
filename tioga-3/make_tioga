@@ -1,0 +1,22 @@
+import os
+cmd='make clean'
+os.system(cmd)
+cmd='make swig'
+os.system(cmd)
+cmd='make convert'
+os.system(cmd)
+path= '../../lib/python3.9/site-packages'
+
+cmd = f'rm {path}/convert.py {path}/_convert.so {path}/tioga.py {path}/_tioga.so' 
+os.system(cmd)
+
+cmd = f'ln -s bin/convert.py {path}/convert.py'
+os.system(cmd)
+
+cmd = f'ln -s bin/_convert.so {path}/_convert.so'
+os.system(cmd)
+cmd = f'ln -s bin/_tioga.so {path}/_tioga.so'
+os.system(cmd)
+cmd = f'ln -s bin/tioga.py {path}/tioga.py'
+os.system(cmd) 
+ 

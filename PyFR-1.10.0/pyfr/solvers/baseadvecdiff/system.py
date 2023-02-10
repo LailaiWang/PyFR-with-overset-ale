@@ -26,16 +26,18 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         self.tstep+=1
         # do the overset related stuff first
         p0=time.time()
-
+        
         
         if self.mvgrid and self.overset:
             # check t 
             tn, tn1 = self.tcurr, self.tcurr+self.dtcurr
             # is first stage
+            
             if istage == 0:
                 # move grid to stage end
                 # first move faces using PyFR kernel
                 
+                        
                 fpdtype = self.backend.fpdtype
                 motion = self._calc_motion(tn1, tn1, self.motioninfo, fpdtype)
                 of = motion['offset']
@@ -45,12 +47,14 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                 p0_1=time.time()
                 # move grid to stage start
                 # first move faces using PyFR kernel
-                print('R0 \n',R,rank)
+                
                 motion = self._calc_motion(tn, tn, self.motioninfo, fpdtype)
                 of = motion['offset']
                 R = motion['Rmat']
+                self.rot_matrix=motion['Rmat']
+                #print(self.rot_matrix)
                 pivot = motion['pivot']
-                print(R)
+                
                 # these are used by get_face_nodes get_cell_nodes
                 q1 << kernels['eles','updateplocface'](
                     t=t, 
@@ -79,7 +83,8 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                 p0_2=time.time()
                 self.oset.performPointConnectivity()
                 p0_3=time.time()
-                print('STAGE 0 \n',rank,p0_1-p0_0,p0_2-p0_1,p0_3-p0_2, '\n')
+                #print('STAGE 0 \n',rank,p0_1-p0_0,p0_2-p0_1,p0_3-p0_2, '\n')
+            
                 
             else:
                 # for other stages once new blanking is setup
@@ -117,16 +122,16 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                 self.oset.sync_device()
                 # also need to move the body grid
                 # eventally move to last position
-                
                 self.oset.update_transform(motion['Rmat'], motion['pivot'], motion['offset'])
                 self.oset.update_adt_transform( motion )
                 self.oset.move_flat( motion )
                 self.oset.move_nested( motion )
                 self.oset.move_on_cpu()
                 
-                #self.oset.performPointConnectivity()
-                
+                # self.oset.performPointConnectivity()
+        
         p1=time.time()
+        
         if self.mvgrid is True:
             motion = self._calc_motion(t, t, self.motioninfo, fpdtype)
             
@@ -182,13 +187,11 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
             runall([q1])
         
         p2=time.time()
-        
         # Discontinuous u at interior and exterior interfaces
         q1 << kernels['eles', 'disu_ext']()
         q1 << kernels['eles', 'disu_int']()
         runall([q1])
         
-
         # Pack MPI related terms
         # In case there is overset boudary
         if ('mpiint','scal_fpts_pack') in kernels:
@@ -203,7 +206,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
             q1 << kernels['mpiint', 'scal_fpts_unpack']()
             runall([q1])
         #comm.Barrier()
-        
+        #self.oset.test_u()
         if ('mpiint','vect_fpts_mvel_pack') in kernels:
             q1 << kernels['mpiint','vect_fpts_mvel_pack']()
 
@@ -235,6 +238,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         q1 << kernels['bcint', 'con_u'](t=t)
         q1 << kernels['mpiint', 'con_u']()
         runall([q1])
+        
 
 
         q1 << kernels['eles', 'tgradpcoru_upts']()
@@ -261,17 +265,21 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         runall([q1])
 
         
+        
+        
+        
+        
+
         if ('mpiint','vect_fpts_pack') in kernels:
             q1 << kernels['mpiint', 'vect_fpts_pack']()
             runall([q1])
 
         if ('mpiint','vect_fpts_send') in kernels:
-
             q1 << kernels['mpiint', 'vect_fpts_send']()
             q1 << kernels['mpiint', 'vect_fpts_recv']()
             q1 << kernels['mpiint', 'vect_fpts_unpack']()
             runall([q1])
-        
+        #self.oset.test_u()
         # It is crucial important to overwrite the garbage info in mpi-artbnd faces
         #self.oset.test_u()
         
@@ -286,15 +294,14 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         p6=time.time()
         
         
-        
-        #self.oset.test_u()
-        
+
 
         q1 << kernels['iint', 'comm_flux']()
         q1 << kernels['bcint', 'comm_flux'](t=t)
         q1 << kernels['mpiint', 'comm_flux']()
         
         runall([q1])
+
         # Second correction kernel
         q1 << kernels['eles', 'tdivtconf']()
         
@@ -315,5 +322,4 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
 
         runall([q1])
         p7=time.time()
-        print(f'{rank=}',f'{istage=}',p1-p0,p2-p1,p3-p2,p4-p3,p5-p4,p6-p5,p7-p6)
-        
+        #print(f'{rank=}',f'{istage=}',p1-p0,p2-p1,p3-p2,p4-p3,p5-p4,p6-p5,p7-p6)

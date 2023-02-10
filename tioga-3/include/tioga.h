@@ -34,6 +34,7 @@
 #ifdef _GPU
 #include "cuda_funcs.h"
 #include "dMeshBlock.h"
+#include "helper.h"
 #endif
 
 #include <chrono>
@@ -230,6 +231,8 @@ class tioga
   void exchangeBoxes(void);
 
   void pass_data(int nfpos, int* fpos, int *celloffset);
+
+  //void copy_to_device_h_double(double *a_d, double *b, int nbytes, int st);
 
   void exchangeSearchData(void);
 

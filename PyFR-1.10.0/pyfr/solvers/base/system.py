@@ -103,7 +103,8 @@ class BaseSystem(object):
             # motion = self._calc_motion(1.0,1.0,self.motioninfo, self.backend.fpdtype)
 
         if self.overset is True:
-            self.oset = Overset(self,rallocs) 
+            self.oset = Overset(self,rallocs)
+            #self.rot_matrix=[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0] 
 
     def _compute_int_offsets(self, rallocs, mesh, gid, offset):
         lhsprank = rallocs.prank

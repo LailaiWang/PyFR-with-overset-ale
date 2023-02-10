@@ -80,8 +80,8 @@ def main():
     ap_export.add_argument('-region','--region', action = 'store_true', 
                            help = 'whether to blank cell on back ground mesh')
     ap_export.add_argument('-vorticity','--vorticity', action = 'store_true', 
-                           help = 'whether to blank cell on back ground mesh') 
-    # to calculate u', add the instantaneous soln  file here
+                           help = 'whether to blank cell on back ground mesh')  
+   # to calculate u', add the instantaneous soln  file here
     ap_export.add_argument('-af', '--avsolnf',required = False, 
                            help='Averaged solution file')
 

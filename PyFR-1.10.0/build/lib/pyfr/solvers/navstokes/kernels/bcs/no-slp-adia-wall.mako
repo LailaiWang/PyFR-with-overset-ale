@@ -26,7 +26,7 @@
     // energy
     ur[${nvars - 1}] = ul[${nvars - 1}] 
                      - (0.5/ul[0])*${pyfr.dot('ul[{i}]', i=(1, ndims + 1))}
-                     + (0.5/ul[0])*${pyfr.dot('ur[{i}]', i=(1, ndims + 1))};
+                     + (0.5*ul[0])*${pyfr.dot('mvelr[{i}][0]', i=(0, ndims))};
 % else:
     // energy
     ur[${nvars - 1}] = ul[${nvars - 1}];
@@ -57,7 +57,7 @@
     //energy
     ur[${nvars - 1}] = ul[${nvars - 1}]
                      - (0.5/ul[0])*${pyfr.dot('ul[{i}]', i=(1, ndims + 1))}
-                     + (0.5*ul[0])*${pyfr.dot('mvell[{i}][0]', i=(0, ndims))};
+                     + (0.5/ul[0])*${pyfr.dot('ur[{i}]', i=(1, ndims + 1))};
 
 %else:
     ur[${nvars - 1}] = ul[${nvars - 1}]

@@ -62,6 +62,10 @@ class Tioga:
 
         self.name = 'tioga'
 
+
+    def tiog_pass_data(self,nfpos, fpos):
+        tg.tioga_pass_data(nfpos, fpos)
+
     # Initial grid preprocessing
     def preprocess(self):
         tg.tioga_preprocess_grids_()

@@ -5,12 +5,11 @@ import os
 import re
 
 import numpy as np
-import math
+
 from pyfr.shapes import BaseShape
 from pyfr.util import memoize, subclass_where
 from pyfr.writers import BaseWriter
 from pyfr.solvers.moving_grid.movgrid import motion_exprs, calc_motion
-from pyfr.quadrules import get_quadrule
 
 class VTKWriter(BaseWriter):
     # Supported file types and extensions
@@ -170,70 +169,6 @@ class VTKWriter(BaseWriter):
         mm=np.vdot(xx,xx)
         
         return(rho,mm)
-
-    def calc_error(self, name, mesh, soln,t):
-        
-        
-        def my_func(a):
-            theta=math.sin(np.pi*(a[0]+a[1]+a[2]))    
-
-            return ((theta+3.0)*(theta+3.0))
-            #return(1.0)
-        
-        def normalize(a):
-
-            b=np.square(a)
-            return(b)
-            
-        
-        def _rcpdjac_at_np(eles,r):
-            _, djacs_mpts = eles._smats_djacs_mpts
-
-            # Interpolation matrix to pts
-            m00 = eles.basis.mbasis.nodal_basis_at(r)
-
-            # Interpolate the djacs
-            djac = m00 @ djacs_mpts
-
-            if np.any(djac < -1e-5):
-                raise RuntimeError('Negative mesh Jacobians detected')
-
-            return 1.0 / djac
-
-
-        #soln=np.array(self.elementscls.con_to_pri(soln, self.cfg))
-        nvars, nupts, neles = soln.shape
-        ndims=mesh.shape[2]
-        basiscls = subclass_where(BaseShape, name=name)
-        eles = self.elementscls(basiscls, mesh, self.cfg, 0)
-        ename='hex'
-        qrule='gauss-legendre'
-        qdeg = 4
-        r = get_quadrule(ename, qrule, qdeg=qdeg)
-        m0 = eles.basis.ubasis.nodal_basis_at(r.pts)
-        
-        ploc=eles.ploc_at_np('upts').swapaxes(1,2)
-        #update ploc and soln with quadrature   
-        soln=np.einsum('ij,...jk->...ik', m0, soln)     
-        ploc=np.einsum('ij,jk...->ik...', m0, ploc)
-        
-        # Get the ann soln
-        ann_soln=np.apply_along_axis(my_func, 2, ploc)
-        #error based on energy
-        error=ann_soln-soln[4,:,:]
-
-
-        err0=normalize(error)
-        # calculate det of jacobians
-        rcpdjacs = _rcpdjac_at_np(eles,r.pts)
-        rw=r.wts[:, None] / rcpdjacs
-        iex=rw*err0
-        err_sum=np.sum(iex)
-        print(np.sum(err0)/27000*8,err_sum)        
-       
-
-
-
     def _post_proc_fields_grad(self, vsoln):
         # Prepare the fields
         fields = []
@@ -531,7 +466,6 @@ class VTKWriter(BaseWriter):
         # Dimensions
         nspts, neles = mesh.shape[:2]
 
-        #for tgv enstrophy
         ###########################
         if self.calc_vorticity:
             if self.blanking:
@@ -547,9 +481,7 @@ class VTKWriter(BaseWriter):
                     self.enstropy+=self.calc_vort(name, mesh, soln)
 
             return
-        if gid==0:
-            t = self.stats.get('solver-time-integrator','tcurr')
-            self.calc_error(name,mesh,soln,t)
+
 
         ############################
 

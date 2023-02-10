@@ -175,7 +175,7 @@ class MovingGrid(object):
             snorm=intercls._snorm,smat=intercls._vect_lhs_smat, 
             magn=intercls._mag_pnorm_lhs,norm=intercls._norm_pnorm_lhs
         )
-
+        
     # return a kernel to update jaco on backend
     # need corresponding operators 
     def update_jaco_backend(self,elemcls,kernels,tplargs,dims,
@@ -345,6 +345,7 @@ def calc_motion(time, dt, motioninfo, fpdtype, sign = 1.0):
 
     axs = np.array(motioninfo['axis'])
     axs = axs/np.linalg.norm(axs)
+
     Q = [np.cos(alpha), np.sin(alpha)*axs[0], np.sin(alpha)*axs[1], np.sin(alpha)*axs[2]]
 
     Rmat   = quaternion_rotation_matrix(Q)
@@ -382,5 +383,4 @@ def quaternion_rotation_matrix(Q):
     r22 = 2.0 * (q0 * q0 + q3 * q3) - 1.0
 
     rot_matrix = [r00,r01,r02,r10,r11,r12,r20,r21,r22]
-
     return rot_matrix

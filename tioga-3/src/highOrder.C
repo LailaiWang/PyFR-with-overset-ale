@@ -1043,8 +1043,8 @@ void MeshBlock::getFringeNodes(bool unblanking)
     // Get total number of face nodes (flux points) for our AB faces
     maxPointsPerFace = 0;
     
-    Timer sst("get nodes per face ");
-    sst.startTimer();
+    //Timer sst("get nodes per face ");
+    //sst.startTimer();
     for (int i = 0; i < nreceptorFaces; i++)
     {
       get_nodes_per_face(&(ftag[i]),&(pointsPerFace[i]));
@@ -1060,9 +1060,9 @@ void MeshBlock::getFringeNodes(bool unblanking)
       //printf("pointperface %d\n",pointsPerFace[i]);
     }
      
-    sst.stopTimer();
+    //sst.stopTimer();
     
-    sst.showTime(16,"nodesperface");
+    //sst.showTime(16,"nodesperface");
     rxyz.resize(nFacePoints*3);
     ntotalPoints = nFacePoints;
 

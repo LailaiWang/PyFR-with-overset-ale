@@ -24,10 +24,8 @@ def face_vidx_incell():
     map_quad_3 = {0:[0,1,2],1:[2,5,8],2:[8,7,6],3:[6,3,0]}
     map_quad_4 = {0:[0,1,2,3],1:[3,7,11,15],2:[15,14,13,12],3:[12,8,4,0]}
 
-    
     map_hex_2 = {0:[0, 2, 3, 1], 1:[0, 1, 5, 4], 2:[5,1,3,7],
                          3:[3, 2, 6, 7], 4:[0, 4,6,2], 5:[4, 5, 7, 6]}
-
     map_hex_3 = {0:[0,2,8,6,1,5,7,3,4],
                  1:[2,0,18,20,1,9,19,11,10],
                  2:[8,2,20,26,5,11,23,17,14],
@@ -626,13 +624,13 @@ class Py_callbacks(tg.callbacks):
         import sys
         np.set_printoptions(threshold=sys.maxsize)
         if self.rank==0:
-               
-            lhs=self.system._int_inters[0].lhs
+            '''    
+            lhs=self.system._mpi_inters[0].lhs
             fcc=[]
             for i in lhs:
                 cc=(i[1],i[2])
                 fcc.append(cc)
-            
+            '''
             #print(f'{self.rank=}',f'{self.nfringe=}')
             #print(self.fringe_faceinfo)
             #matrix_entry = self._scal_view_fpts_ploc(
@@ -653,19 +651,19 @@ class Py_callbacks(tg.callbacks):
             Ploc=self.system.ele_map[ss].plocfpts
   
             #exit()
-            print(Ploc[0:24,32*32*3-5,:])
-            for idx,m in enumerate(self.system._int_inters):
+            print(plocfpts)
+            for idx,m in enumerate(self.system._mpi_inters):
 
-                print(m._norm_pnorm_lhs.get().shape)
+                #print(dir(self.system))
                 #scalrhs = self._scal_view(m.rhs, 'get_scal_fpts_for_inter')
-                #AAA=m._scal_rhs.get()
-                #BBB=m._vect_rhs.get()
+                AAA=m._scal_rhs.get()
+                BBB=m._vect_rhs.get()
                 #print(idx,BBB)
-                #name=f'foo-{idx}.dat'
-                #np.savetxt(name, BBB[1], delimiter=",")
+                name=f'foo-{idx}.dat'
+                np.savetxt(name, BBB[1], delimiter=",")
                 
-                print(idx,m._scal_lhs._mats[0].get()[4:16,:,32*32*32-5])
-                
+                #print(idx,dir(m))
+                #sys.exit()
                 #c=addrToFloatPtr(int(m._scal_rhs.data))
                 #tg.tg_print_data(m._scal_rhs.data)
                 #tg.tg_print_data(int(m.),0,1200,2)
@@ -674,7 +672,7 @@ class Py_callbacks(tg.callbacks):
                 #datatest=ptrToArray(m._scal_rhs,12*5)
             #for idx, (etype, eles) in enumerate(self.system.ele_map.items()):
             #    print(eles.eles.reshape(-1,self.system.ndims))
-        
+            #sys.exit()
 
 
 
@@ -823,7 +821,11 @@ class Py_callbacks(tg.callbacks):
             fpos_eidx = {'fpos':fpos_fringe,'cidx':cidx_fringe}
             if fpos_fringe.shape[0]>1:
                 self.scal_fpts_u = self._scal_view_fpts_u_n(fpos_eidx, 'scal_fpts')
-                self.vect_fpts_du = self._vect_view_fpts_du_n(fpos_eidx, 'vect_fpts')
+                #if 'euler' not in self.system:
+                #print(self.system)
+                
+                if 'euler' not in str(self.system):
+                    self.vect_fpts_du = self._vect_view_fpts_du_n(fpos_eidx, 'vect_fpts')
             
                 #self.scal_fpts_u = self._scal_view_fpts_u(faceinfo, 'get_scal_unsrted_fpts_for_inter')
                 #self.vect_fpts_du = self._vect_view_fpts_du(faceinfo, 'get_vect_unsrted_fpts_for_inter')
@@ -849,6 +851,7 @@ class Py_callbacks(tg.callbacks):
         #  overset artbnd
         
         if self.system.gridtype=='overset':
+            
             p1=time.time()
             for i in range(nfringe):
                 fid = ptrAt(fringeids,i)
@@ -1247,6 +1250,7 @@ class Py_callbacks(tg.callbacks):
         #overset faces
         '''
         if self.system.gridtype=='overset':
+
             tot_nfpts_ov =self.tot_nfpts_ov
             faceinfo_ov=self.fringe_faceinfo_ov 
             facefpts_ov_range = self.facefpts_ov_range
@@ -1276,7 +1280,8 @@ class Py_callbacks(tg.callbacks):
             )
             '''
             self.fringe_u_fpts_h = self.griddata['fringe_u_fpts_h']
-            tg.tg_copy_to_device_h(
+            
+            tg.tg_copy_to_device_h_double(
                 matrix_entry.data, addrToFloatPtr(self.fringe_u_fpts_h),
                 addrToFloatPtr(cc.ctypes.data),
                 int(nbytes)
@@ -1629,7 +1634,7 @@ class Py_callbacks(tg.callbacks):
         nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nspts*self.system.ndims
         tg.tg_copy_to_host(self.unblank_coords_d, xyz, int(nbytes))
         p1=time.time()
-        print('get cell nodes gpu',p1-p0)
+        #print('get cell nodes gpu',p1-p0)
         
     def get_q_spts_gpu(self, ele_stride, spt_stride, var_stride, ele_type):
         etype = 'hex-g{}'.format(self.gid)

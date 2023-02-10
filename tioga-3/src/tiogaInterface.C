@@ -25,6 +25,9 @@
 #include <string.h>
 
 #include "tiogaInterface.h"
+#ifdef _GPU
+#include "cuda_funcs.h"
+#endif
 
 //
 // All the interfaces that are 
@@ -152,7 +155,20 @@ extern "C" {
     //printf("HHHHHHHHHHHHHHH %d %d %d %d\n",a[0],a[1],a[2],a[3]);
     tg->pass_data(nfpos, fpos, celloffset);
   }
+  /*
+  void tg_copy_to_device_h_double(unsigned long long int a, double *b, double *data, int nbytes )
+  {
 
+    // cast a to pointer
+    
+    double* a_d = reinterpret_cast<double* > (a);
+    //double* b_d = reinterpret_cast<double* > (b);
+    //cudaStream_t stream;
+    int stream =3;
+    memcpy(b,data,nbytes);
+    tg->copy_to_device_h_double(a_d, b, nbytes, stream);
+  }
+*/
   double* tioga_get_igbp_list(void)
   {
     double* igbp_ptr = NULL;

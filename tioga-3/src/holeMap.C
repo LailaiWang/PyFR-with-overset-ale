@@ -131,8 +131,11 @@ void tioga::getHoleMap(void)
   }
 
   // now fill the holeMap
+   searchTime.startTimer();
   for (int i = 0; i < nmesh; i++)
     if (holeMap[i].existWall) fillHoleMap(holeMap[i].sam,holeMap[i].nx,isym);
+  searchTime.stopTimer();
+  searchTime.showTime(16,"HoleMAp->fillHolemap00");
 }
 
 /**
@@ -149,7 +152,12 @@ void tioga::getOversetMap(void)
   int meshtag;
 
   // Grid/Mesh ID, whether rank has wall nodes, and bbox of wall nodes if so
-  mb->getOversetBounds(&meshtag, &existOver, wbox);
+    searchTime.startTimer();
+
+    mb->getOversetBounds(&meshtag, &existOver, wbox);
+
+    searchTime.stopTimer();
+    searchTime.showTime(16,"HoleMAp->getOversetBound");
 
   // Get 'nmesh' : number of grids (separate mesh tags) in system
   MPI_Allreduce(&meshtag, &nmesh, 1, MPI_INT, MPI_MAX, scomm);
@@ -224,7 +232,10 @@ void tioga::getOversetMap(void)
   // mark the wall boundary cells in the holeMap
   if (overMap[meshtag].existWall)
   {
+    searchTime.startTimer();
     mb->markOversetBoundary(overMap[meshtag].sam,overMap[meshtag].nx,overMap[meshtag].extents);
+    searchTime.stopTimer();
+    searchTime.showTime(16,"HoleMAp->markOversetBoundary");
   }
 
   // allreduce the holeMap of each mesh
@@ -236,10 +247,15 @@ void tioga::getOversetMap(void)
       MPI_Allreduce(MPI_IN_PLACE,overMap[i].sam,bufferSize,MPI_INT,MPI_MAX,scomm);
     }
   }
-
+  
   // now fill the holeMap
-  for (int i = 0; i < nmesh; i++)
-    if (overMap[i].existWall) fillHoleMap(overMap[i].sam,overMap[i].nx,isym);
+    searchTime.startTimer();
+    printf("nmesh %d\n",nmesh);
+    for (int i = 0; i < nmesh; i++)
+      if (overMap[i].existWall) fillHoleMap(overMap[i].sam,overMap[i].nx,isym);
+    searchTime.stopTimer();
+    searchTime.showTime(16,"HoleMAp->fillHolemap");
+
 }
 
 /**

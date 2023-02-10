@@ -12,7 +12,8 @@ class FluidForcePlugin(BasePlugin):
     name = 'fluidforce'
     systems = ['ac-euler', 'ac-navier-stokes', 'euler', 'navier-stokes']
     formulations = ['dual', 'std']
-
+    #import sys
+    #np.set_printoptions(threshold=sys.maxsize)
     def __init__(self, intg, cfgsect, suffix):
         super().__init__(intg, cfgsect, suffix)
 
@@ -44,7 +45,6 @@ class FluidForcePlugin(BasePlugin):
         mesh, elemap = intg.system.mesh, intg.system.ele_map
         
         zipmesh = [mesh] if isinstance(mesh,list) is False else mesh
-        
         # mesh target
         tmesh = zipmesh[gid]
         # See which ranks have the boundary
@@ -71,7 +71,8 @@ class FluidForcePlugin(BasePlugin):
         if self._viscous:
             self._m4 = m4 = {}
             rcpjact = {}
-
+        
+        
         # If we have the boundary then process the interface
         if bc in tmesh:
             # Element indices and associated face normals
@@ -80,6 +81,84 @@ class FluidForcePlugin(BasePlugin):
 
             for etype, eidx, fidx, flags in tmesh[bc].astype('U4,i4,i1,i2'):
                 # add etype with partition info
+                etypem = '{}-g{}'.format(etype,gid)
+                eles = elemap[etypem]
+                if (etype, fidx) not in m0:
+                    facefpts = eles.basis.facefpts[fidx]
+
+                    m0[etypem, fidx] = eles.basis.m0[facefpts]
+                    qwts[etypem, fidx] = eles.basis.fpts_wts[facefpts]
+
+                if self._viscous and etypem not in m4:
+                    m4[etypem] = eles.basis.m4
+
+                    # Get the smats at the solution points
+                    smat = eles.smat_at_np('upts').transpose(2, 0, 1, 3)
+                    print(smat.shape)
+                    # Get |J|^-1 at the solution points
+                    rcpdjac = eles.rcpdjac_at_np('upts')
+
+                    # Product to give J^-T at the solution points
+                    rcpjact[etypem] = smat*rcpdjac
+
+                # Unit physical normals and their magnitudes (including |J|)
+                npn = eles.get_norm_pnorms(eidx, fidx)
+                mpn = eles.get_mag_pnorms(eidx, fidx)
+
+                eidxs[etypem, fidx].append(eidx)
+                norms[etypem, fidx].append(mpn[:, None]*npn)
+
+            self._eidxs = {k: np.array(v) for k, v in eidxs.items()}
+            self._norms = {k: np.array(v) for k, v in norms.items()}
+            if self._viscous:
+                self._rcpjact = {k: rcpjact[k[0]][..., v]
+                                 for k, v in self._eidxs.items()}
+
+
+    def __call__(self, intg):
+        # Return if no output is due
+        if intg.nacptsteps % self.nsteps:
+            return
+
+        # MPI info
+        comm, rank, root = get_comm_rank_root()
+
+        # Solution matrices indexed by element type
+        solns = dict(zip(intg.system.ele_types, intg.soln))
+        ndims, nvars = self.ndims, self.nvars
+
+        # Force vector
+        f = np.zeros(2*ndims if self._viscous else ndims)
+        
+        #Amir
+        # If we have the boundary then process the interface
+        elemap=intg.system.ele_map
+        
+        if intg.system.gridtype=='overset':
+            #print('ssssssssssssssssssssssssssssssssss',dir(intg.system._mpi_inters[0]))
+            Rmat=np.array(intg.system.rot_matrix)
+            Rmat=np.reshape(Rmat,(3,-1))
+            #Rmat.reshape(3,3)
+            mpi_int=intg.system._mpi_inters
+            #print( f'{mpi_int[0].lhs}',f'{mpi_int[0]._norm_pnorm_lhs.get()}','\n')
+        #print(elemap)
+        #exit()
+        '''
+        bc=self._bc
+        tmesh=self._tmesh
+        self._m0 = m0 = {}
+        self._qwts = qwts = defaultdict(list)
+        if self._viscous:
+            self._m4 = m4 = {}
+            rcpjact = {}
+        if bc in tmesh:
+            # Element indices and associated face normals
+            eidxs = defaultdict(list)
+            norms = defaultdict(list)
+    
+            for etype, eidx, fidx, flags in tmesh[bc].astype('U4,i4,i1,i2'):
+                # add etype with partition info
+                gid=1
                 etypem = '{}-g{}'.format(etype,gid)
                 eles = elemap[etypem]
                 if (etype, fidx) not in m0:
@@ -102,10 +181,17 @@ class FluidForcePlugin(BasePlugin):
 
                 # Unit physical normals and their magnitudes (including |J|)
                 npn = eles.get_norm_pnorms(eidx, fidx)
+                #update norms
+                
+                #npn=np.einsum('ij,kj->ki', Rmat, npn)
+                
+                
+                #exit()
                 mpn = eles.get_mag_pnorms(eidx, fidx)
 
                 eidxs[etypem, fidx].append(eidx)
                 norms[etypem, fidx].append(mpn[:, None]*npn)
+            print('HOOOOOOOOOOOOOOOOOOOO',Rmat)
 
             self._eidxs = {k: np.array(v) for k, v in eidxs.items()}
             self._norms = {k: np.array(v) for k, v in norms.items()}
@@ -113,21 +199,10 @@ class FluidForcePlugin(BasePlugin):
             if self._viscous:
                 self._rcpjact = {k: rcpjact[k[0]][..., v]
                                  for k, v in self._eidxs.items()}
+        '''
 
-    def __call__(self, intg):
-        # Return if no output is due
-        if intg.nacptsteps % self.nsteps:
-            return
 
-        # MPI info
-        comm, rank, root = get_comm_rank_root()
 
-        # Solution matrices indexed by element type
-        solns = dict(zip(intg.system.ele_types, intg.soln))
-        ndims, nvars = self.ndims, self.nvars
-
-        # Force vector
-        f = np.zeros(2*ndims if self._viscous else ndims)
 
         for etype, fidx in self._m0:
             # Get the interpolation operator
@@ -149,7 +224,8 @@ class FluidForcePlugin(BasePlugin):
             # Get the quadrature weights and normal vectors
             qwts = self._qwts[etype, fidx]
             norms = self._norms[etype, fidx]
-
+            
+            norms=np.einsum('ij,mkj->mki', Rmat, norms)
             # Do the quadrature
             f[:ndims] += np.einsum('i...,ij,jik', qwts, p, norms)
 
@@ -194,7 +270,6 @@ class FluidForcePlugin(BasePlugin):
 
             # Flush to disk
             self.outf.flush()
-
     def stress_tensor(self, u, du):
         c = self._constants
 

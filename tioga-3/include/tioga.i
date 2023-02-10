@@ -36,6 +36,7 @@ void tioga_unblank_part_1(void);
 void tioga_unblank_part_2(int nvar);
 void tioga_set_soasz(unsigned int sz);
 
+//void tg_copy_to_device_h_double(unsigned long long int a, double *b, double *data, int nbytes );
 void tioga_pass_data(int nfpos, int *fpos, int *celloffset);
 void tg_print_data(unsigned long long int datastart, unsigned long long int offset,
                    unsigned int nums, int dtype);
@@ -474,7 +475,6 @@ void tg_free_device(unsigned long long int d, int itemsize) {
 void tg_copy_to_device(unsigned long long int a, double *data, int nbytes) {
     // cast a to pointer
     double* a_d = reinterpret_cast<double* > (a);
-    printf("\n GGGGGG\n");
     cudaMemcpy(a_d, data, nbytes, cudaMemcpyHostToDevice);
 }
 //Amir test optimization

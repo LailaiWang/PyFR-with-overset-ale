@@ -26,6 +26,7 @@
 
 #ifdef _GPU
 #include "cuda_funcs.h"
+#include "helper.h"
 #endif
 
 /**
@@ -86,6 +87,11 @@ mb->celloffset= (int *) malloc(sizeof(int)*nfpos);
   }
 }
 
+/*void tioga::copy_to_device_h_double(double *a_d, double *b, int nbytes, int st)
+{
+  cudaMemcpyAsync(a_d, b, nbytes, cudaMemcpyHostToDevice, stream_handles[st] );
+}
+*/
 void tioga::registerFaceConnectivity(int gtype, int nftype, int *nf, int *nfv,
     int **fconn, int *f2c, int **c2f, int *iblank_face, int nOverFaces,
     int nWallFaces, int nMpiFaces, int *overFaces, int *wallFaces, int *mpiFaces, 
@@ -264,11 +270,9 @@ void tioga::doHoleCutting(bool unblanking)
 #ifdef TG_NORMAL
   // Generate structured map of solid boundary (hole) locations
   getHoleMap();
-  printf("done getHole map %d\n",unblanking);
 
   // Send/Recv oriented bounding boxes to/from all ranks and setup sndMap / rcvMap
   exchangeBoxes();
-  printf("done exchangeBoxes %d\n",unblanking);
 
   // Find a list of all potential receptor points and send to all possible
   // donor ranks
@@ -291,14 +295,25 @@ void tioga::doHoleCutting(bool unblanking)
 #endif
 
 #ifdef TG_DIRECTCUT
+  searchTime.startTimer();
   getHoleMap();
+  searchTime.stopTimer();
+  searchTime.showTime(16,"HoleMAp");
+  searchTime.startTimer();
   getOversetMap();
+  searchTime.stopTimer();
+  searchTime.showTime(16,"OversetMAp");
+  
+  
 //  outputHoleMap();
   if (!unblanking)
     exchangeBoxes();
 
-  
+  searchTime.startTimer();
   directCut();
+  searchTime.stopTimer();
+  searchTime.showTime(16,"DirectCut");
+  
   
 #endif
 }
@@ -319,18 +334,18 @@ void tioga::doPointConnectivity(bool unblanking)
   // Exchange new list of points, including high-order Artificial Boundary
   // face points or internal points (or fringe nodes for non-high order)
   //MPI_Barrier(MPI_COMM_WORLD);
-  searchTime.startTimer();
+  //searchTime.startTimer();
   exchangePointSearchData();
-  searchTime.stopTimer();
-  searchTime.showTime(16,"exchange time");
+  //searchTime.stopTimer();
+  //searchTime.showTime(16,"exchange time");
   //printf("done exchangePointSearhData\n");
   // Search for donor cells for all given points
-    searchTime.startTimer();
+    //searchTime.startTimer();
 
   mb->search();
 
-  searchTime.stopTimer();
-  searchTime.showTime(16,"search time");
+  //searchTime.stopTimer();
+  //searchTime.showTime(16,"search time");
 
   
     
@@ -338,14 +353,20 @@ void tioga::doPointConnectivity(bool unblanking)
   
   // Setup interpolation weights and such for final interp-point list
 #ifdef _GPU
+  searchTime.startTimer();
   mb->processPointDonorsGPU();
+  searchTime.stopTimer();
+  searchTime.showTime(16,"doPointconnectivity: processPoinDonor");
   //printf("done proceePointDonorsGPU\n");
 #else
   mb->processPointDonors();
 #endif
 
 #ifdef _GPU
+  searchTime.startTimer();
   setupCommBuffersGPU();
+  searchTime.stopTimer();
+  searchTime.showTime(16,"doPointconnectivity: SetupBuffer");
   //printf("done setupCommBuffersGPU\n");
 #endif
   

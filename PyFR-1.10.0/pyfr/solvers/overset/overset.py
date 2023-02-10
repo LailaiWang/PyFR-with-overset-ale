@@ -409,6 +409,7 @@ class Overset(object):
             int_f2v_r = np.array(
                 [fnodes(ir[0].split('-g')[0], ir[1], ir[2]) for ir in a.rhs if ir[3] == 0]
             )
+            print()
             # sanity check
             if np.all(np.sort(int_f2v_l) == np.sort(int_f2v_r)) == False:
                 raise RuntimeError('f2v inconsistency for interior interfaces')
@@ -440,6 +441,7 @@ class Overset(object):
             fposition = np.concatenate((bfposition, mfposition, itfposition), axis = 0)
             finstanceid = np.concatenate((binstanceid, minstanceid, itfinstanceid), axis = 0)
         elif mf2v == [] and bf2v != []:
+            print('TTTTTTTTT',len(binstanceid),len(itfinstanceid))
             f2v = np.concatenate((bf2v,itf2v), axis = 0) 
             f2c = np.concatenate((bf2c,itf2c), axis = 0) 
             facetypes = np.concatenate((bfacetypes, itfacetypes), axis = 0)
@@ -971,7 +973,7 @@ class Overset(object):
         p0=time.time()
         tg.tioga_do_point_connectivity()
         p1=time.time()
-        print('\n PERFORM_CON',self.rank,p1-p0)
+        #print('\n PERFORM_CON',self.rank,p1-p0)
 
     # For high-order codes: First part of unblank procedure (t^{n+1} blanking)
     def unblankPart1(self, motion):
@@ -989,7 +991,7 @@ class Overset(object):
         p5=time.time()
         tg.tioga_unblank_part_1()
         p6=time.time()
-        print('\n UNBLANK_PART1',p1-p0,p2-p1,p3-p2,p4-p3,p5-p4,p6-p5)
+        #print('\n UNBLANK_PART1',p1-p0,p2-p1,p3-p2,p4-p3,p5-p4,p6-p5)
 
     # For high-order codes: Second part of unblank procedure (t^n blanking + union)
     def unblankPart2(self, motion):
