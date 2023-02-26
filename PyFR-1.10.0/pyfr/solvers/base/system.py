@@ -34,12 +34,17 @@ class BaseSystem(object):
         self.tstep=0
         self.gid, self.goffset, self.ngrids = self._query_grid_id(rallocs)
 
-        self.mvgrid, self.overset  = False, False
+        self.mvgrid, self.overset, self.mvsearch  = False, False, True
         self.gridtype='background'
         
         if 'overset' in cfg.sections(): self.overset = True
+        
         if 'moving-object' in cfg.sections():
             self.mvgrid = True
+            stype=cfg.get('moving-object','mvsearch')
+            if stype=='off':
+                self.mvsearch=False
+            mtype = cfg.get('moving-object','type')
             mtype = cfg.get('moving-object','type')
             if mtype != 'rigid':
                 raise RuntimeError('PyFR only support rigid motion')

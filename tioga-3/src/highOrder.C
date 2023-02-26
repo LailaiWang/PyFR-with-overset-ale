@@ -1849,13 +1849,11 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
   ////Update for PyFR
 
 
-  printf("calc fpos fringe");
     
   
 
   Timer tloop ("loop Time:");
   tloop.startTimer();
-  printf("gpu updatefringePointData nreceptorFaces %d nreceptorCells %d\n", nreceptorFaces, nreceptorCells);
   int i,j,k;
   int world_rank;
   char filen[90];
@@ -1874,7 +1872,6 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
   mpi_id_ = (int *)malloc(sizeof(int)*nreceptorFaces);
   mpi_face_ = (int *)malloc(sizeof(int)*nreceptorFaces);
   //mpifringeid = (int *)malloc(sizeof(int)*nreceptorFaces);
-  printf("faceposition %d\n",fpos[0]);
   int nt1,nt2,fp1,fp2,eid1,eid2;
                       
 
@@ -1939,7 +1936,7 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
     }
   }
   tloop.stopTimer();
-  tloop.showTime();
+  //tloop.showTime();
   
   free(fpos_fringe);
   free(cidx_fringe);
@@ -1947,7 +1944,6 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
   ///fringe-mpi faces
   free(mpi_face_);
   free(mpi_id_);
-  printf("free dataaaaaaaaaaaaaaaaaa\n");
   
   /*MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   sprintf(filen,"qtmp%d.dat",world_rank);

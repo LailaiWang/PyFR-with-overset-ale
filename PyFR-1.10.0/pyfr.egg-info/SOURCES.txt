@@ -466,7 +466,6 @@ pyfr/solvers/navstokes/kernels/bcs/sup-in-fa.mako
 pyfr/solvers/navstokes/kernels/bcs/sup-out-fn.mako
 pyfr/solvers/overset/__init__.py
 pyfr/solvers/overset/overset.py
-pyfr/solvers/overset/pycallback_c.py
 pyfr/solvers/overset/pycallbacks.py
 pyfr/solvers/overset/kernels/__init__.py
 pyfr/solvers/overset/kernels/copy_fringe_grad.mako

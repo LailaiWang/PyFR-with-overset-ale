@@ -7,7 +7,7 @@ from mpi4py import MPI
 from collections import defaultdict
 from pyfr.nputil import fuzzysort
 from collections import defaultdict, OrderedDict
-from pyfr.solvers.overset.pycallbacks import Py_callbacks, face_vidx_incell, structured_hex_to_gmsh
+from pyfr.solvers.overset.pycallbacks import Py_callbacks,face_vidx_incell, structured_hex_to_gmsh,gmsh_to_structured_quad
 import time
 
 class Overset(object):
@@ -220,9 +220,9 @@ class Overset(object):
         fnodes = (
             lambda etype, eidx, fidx:
             
-            c2v[eidx][self.facevidxcell[etype+'_{}'.format(elesbasis[etype].nsptsord)][fidx]] 
+            c2v[eidx][self.facevidxcell[etype+f'_{elesbasis[etype].nsptsord}'][fidx]] 
         )
-         
+        
         
         # lists of interfaces
         # most of things in PYTHON are pointers
@@ -338,7 +338,6 @@ class Overset(object):
                     bf2c = pdf2c
                     bfposition = pdfposition
                     bcinstanceid = pdinstanceid
-                print('bcins pdf',bcinstanceid.shape,bfacetypes.shape)
         # mpi interfaces
         mfacetypes = []
         mf2v = [] 
@@ -353,6 +352,7 @@ class Overset(object):
                 mpi_facetypes = np.array( 
                     [fetype(m[0].split('-g')[0],m[2]) for m in a.lhs]
                 ) 
+                
                 mpi_f2v = np.array(
                     [fnodes(m[0].split('-g')[0],m[1],m[2]) for m in a.lhs]
                 ) 
@@ -409,7 +409,8 @@ class Overset(object):
             int_f2v_r = np.array(
                 [fnodes(ir[0].split('-g')[0], ir[1], ir[2]) for ir in a.rhs if ir[3] == 0]
             )
-            print()
+            #print(int_f2v_l.shape,int_f2v_r.shape,self.rank,a.lhs,int_f2v_l,int_f2v_r)
+            #exit()
             # sanity check
             if np.all(np.sort(int_f2v_l) == np.sort(int_f2v_r)) == False:
                 raise RuntimeError('f2v inconsistency for interior interfaces')
@@ -575,22 +576,29 @@ class Overset(object):
         
         vnums = []
         fnums = []
+        
         for i in range(self.nele_etypes.shape[0]):
             ist = sum(neletypes[:i+1])
             ied = sum(neletypes[:i+2])
+            for eletype,_ in self.system.ele_map.items():
+                if 'hex' or 'quad' in eletype:
             
-            shapeorder = self.system.ele_map['hex-g{}'.format(self.gid)].basis.nsptsord
-            ijk_to_gmsh = structured_hex_to_gmsh(shapeorder)
-            c2v_gmsh = np.zeros(c2v[ist:ied].shape)
-            c2v_gmsh[:,ijk_to_gmsh] = c2v[ist:ied,0:len(ijk_to_gmsh)]
+                    shapeorder = self.system.ele_map[eletype].basis.nsptsord
+                    if 'hex' in eletype:
+                        ijk_to_gmsh = structured_hex_to_gmsh(shapeorder)
+                    else:
+                        ijk_to_gmsh = gmsh_to_structured_quad(4) 
+                    c2v_gmsh = np.zeros(c2v[ist:ied].shape)
+                    print(c2v_gmsh.shape,c2v.shape,shapeorder,ijk_to_gmsh,ist,ied)
+                    c2v_gmsh[:,ijk_to_gmsh] = c2v[ist:ied,0:len(ijk_to_gmsh)]
 
-            flatv = np.array([b for a in c2v_gmsh[ist:ied] for b in a if b != -1])[None,...]
-            flatf = np.array([b for a in c2f[ist:ied] for b in a if b != -1])[None,...]
-            c2v_flat.append(flatv)
-            c2f_flat.append(flatf)
+                    flatv = np.array([b for a in c2v_gmsh[ist:ied] for b in a if b != -1])[None,...]
+                    flatf = np.array([b for a in c2f[ist:ied] for b in a if b != -1])[None,...]
+                    c2v_flat.append(flatv)
+                    c2f_flat.append(flatf)
 
-            vnums.append(flatv.shape[1])
-            fnums.append(flatf.shape[1])
+                    vnums.append(flatv.shape[1])
+                    fnums.append(flatf.shape[1])
 
         maxvnums, maxfnums = max(vnums), max(fnums)
         # get maximum dimension and pad zeros to make sure dimension consistency
@@ -847,10 +855,15 @@ class Overset(object):
 
             # note here for element coords in tioga (nnodes, dim, neles)
             crds = []
-            for _, eles in self.system.ele_map.items():
+            for eletype, eles in self.system.ele_map.items():
                 eles_ijk = eles.eles.swapaxes(1,2)
+                print (eles_ijk.shape)
                 shapeorder = eles.basis.nsptsord
-                ijk_to_gmsh = structured_hex_to_gmsh(shapeorder)
+                if 'hex' in eletype:
+                    ijk_to_gmsh = structured_hex_to_gmsh(shapeorder)
+                else:
+                    ijk_to_gmsh = gmsh_to_structured_quad(4)
+                    print(ijk_to_gmsh)
                 eles_gmsh = np.zeros(eles_ijk.shape)
                 eles_gmsh[ijk_to_gmsh,:,:] = eles_ijk[:,:,:]
                 crds.append( eles_gmsh.reshape(-1) )

@@ -59,6 +59,7 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
 
         # Template parameters for the flux kernel
         tplargs = dict(ndims=self.ndims, nvars=self.nvars,
+                       mvgrid=self.mvgrid,
                        c=self.cfg.items_as('constants', float))
 
         if 'flux' in self.antialias:
@@ -66,12 +67,12 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
             self.kernels['tdisf'] = lambda: self._be.kernel(
                 'tflux', tplargs=tplargs, dims=[self.nqpts, self.neles],
                 u=self._scal_qpts, smats=smatm,
-                f=self._vect_qpts
+                f=self._vect_qpts, mvel=self._vect_qpts_mvel
             )
         else:
             smatm = self.smat_at('upts') if self.mvgrid is False else self.smat_at_ncon('upts')
             self.kernels['tdisf'] = lambda: self._be.kernel(
                 'tflux', tplargs=tplargs, dims=[self.nupts, self.neles],
                 u=self.scal_upts_inb, smats=smatm,
-                f=self._vect_upts
+                f=self._vect_upts, mvel =self._vect_upts_mvel
             )
