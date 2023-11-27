@@ -24,6 +24,7 @@ class VTKWriter(BaseWriter):
         super().__init__(args)
         self.vort=0
         self.mass=0
+        self.mesh1=None
         self.dtype = np.dtype(args.precision).type
         self.divisor = args.divisor or self.cfg.getint('solver', 'order')
 
@@ -128,13 +129,42 @@ class VTKWriter(BaseWriter):
 
         return np.vstack([soln, gradsoln])
 
-    def calc_vort(self, name, mesh, soln):
+    def calc_vort(self, name, mesh, soln, gid, mesh1=None):
         # Call the reference pre-processor
         #soln = self._pre_proc_fields_ref(name, mesh, soln)
+        #def meanl:
+        def _rcpdjac_at_np(eles,r):
+            _, djacs_mpts = eles._smats_djacs_mpts
 
+            # Interpolation matrix to pts
+            m00 = eles.basis.mbasis.nodal_basis_at(r)
+
+            # Interpolate the djacs
+            djac = m00 @ djacs_mpts
+
+            if np.any(djac < -1e-5):
+                raise RuntimeError('Negative mesh Jacobians detected')
+
+            return 1.0 / djac
+        
+        if gid==2:
+            
+            meanloc1=np.mean(mesh1,axis=0)
+            meanloc2=np.mean(mesh,axis=0)
+            
+            nel,_=meanloc1.shape
+            ellist=[]
+            x=.7
+            for i in range(nel):
+                if (meanloc2[i,0]-x)*(meanloc2[i,0]+x)>0 or (meanloc2[i,1]-x)*(meanloc2[i,1]+x)>0 or (meanloc2[i,2]-x)*(meanloc2[i,2]+x)>0:
+                    ellist.append(i)
+            
+            soln=soln[:,:,ellist]
+            mesh=mesh[:,ellist,:]
+            
         # Dimensions
         nvars, nupts = soln.shape[:2]
-
+        
         # Get the shape class
         basiscls = subclass_where(BaseShape, name=name)
         
@@ -151,29 +181,46 @@ class VTKWriter(BaseWriter):
         # Evaluate the transformed gradient of the solution
         gradsoln = gradop @ soln.swapaxes(0, 1).reshape(nupts, -1)
         gradsoln = gradsoln.reshape(self.ndims, nupts, nvars, -1)
+        ename='hex'
+        qrule='gauss-legendre'
+        qdeg = 6
+        r = get_quadrule(ename, qrule, qdeg=qdeg)
+        m0 = eles.basis.ubasis.nodal_basis_at(r.pts)
+        
+        #ploc=eles.ploc_at_np('upts').swapaxes(1,2)
 
         # Untransform
         gradsoln = np.einsum('ijkl,jkml->mikl', smat*rcpdjac, gradsoln,
                              dtype=self.dtype, casting='same_kind')
-        gradsoln = gradsoln.reshape(nvars,self.ndims, -1)
 
-        ggrad=gradsoln[1:4,:,:]
-        nx,ny,nz= ggrad.shape
-        vort=np.zeros((nx,nz))
-        vort[0,:]=ggrad[1,2,:]-ggrad[2,1,:]
-        vort[1,:]=ggrad[0,2,:]-ggrad[2,0,:]
-        vort[2,:]=ggrad[1,0,:]-ggrad[0,1,:]
+        ggrad=gradsoln[1:4,:,:,:]
+        nx,ny,nz,nw= ggrad.shape
+        vort=np.zeros((nx,nz,nw))
+        vort[0,:,:]=ggrad[1,2,:,:]-ggrad[2,1,:,:]
+        vort[1,:,:]=ggrad[0,2,:,:]-ggrad[2,0,:,:]
+        vort[2,:,:]=ggrad[1,0,:,:]-ggrad[0,1,:,:]
                
+        vort1=np.square(vort)
+        vort2=np.sum(vort1,axis=0)
+        vort2=np.einsum('ij,...jk->...ik', m0, vort2)
+        rr=soln[0,:,:]
+        rr2=np.einsum('ij,...jk->...ik', m0, rr)
+
         
-        xx=vort.reshape((nx*nz,-1))
-        rho=np.sum(soln[0,:,:])
-        mm=np.vdot(xx,xx)
+        rcpdjacs = _rcpdjac_at_np(eles,r.pts)
+        rw=r.wts[:, None] / rcpdjacs
         
-        return(rho,mm)
+        iex=rw*vort2
+        rr2=rw*rr2
+        vort_sum=np.sum(iex)
+        rho_sum=np.sum(rr2)
+          
+    
+
+        return(rho_sum,vort_sum)
 
     def calc_error(self, name, mesh, soln,t):
         
-        print('get_ploc')
         
         def my_func(a):
             theta=math.sin(np.pi*(a[0]+a[1]+a[2]))    
@@ -333,6 +380,7 @@ class VTKWriter(BaseWriter):
             # need to be compatible with previous output
             #soln_inf = OrderedDict((k, v) for k,v in self.soln_inf.items() 
             #                      if 'g{}'.format(gid) in k)
+            soln_inf={}
             is_old = all(['-g' in k for k in self.soln_inf.keys()]) == False
             if (len(self.mesh)<2): 
                 is_old=True
@@ -344,14 +392,14 @@ class VTKWriter(BaseWriter):
                 # this is for multi grids output
                 soln_inf = OrderedDict((k, v) for k,v in self.soln_inf.items() 
                                   if 'g{}'.format(gid) in k)
-            
-            ngparts.append(len(soln_inf))
-            # build the offset 
-            offset = sum(ngparts[:gid+1])
-            # call function to write one mesh and corresponding soln
-            self._write_out(
-                self.outf[gid], amesh, self.mesh_inf[gid], soln_inf, gid, offset
-            )
+            if not soln_inf=={}: 
+                ngparts.append(len(soln_inf))
+                # build the offset 
+                offset = sum(ngparts[:gid+1])
+                # call function to write one mesh and corresponding soln
+                self._write_out(
+                    self.outf[gid], amesh, self.mesh_inf[gid], soln_inf, gid, offset
+                )
 
     def _write_out(self, outf, mesh, mesh_inf, soln_inf, gid, goffset):
         name, extn = os.path.splitext(outf)
@@ -500,17 +548,16 @@ class VTKWriter(BaseWriter):
         mk_g=mk
         
         # in case we have region
-        if gid == 0 and self.region:
+        if gid > 0 and self.region:
             pext=1
             pn_g=int(pn)-self.pext[gid]
-            mk_g=mk.split('-g')[0]+"_p"+str(pn_g)
-        elif (gid>0):
+            mk_g=mk.split('_p')[0]+"_p"+str(pn_g)
+        elif (gid>0 and self.region==False ):
             pn_g=int(pn)-self.gid0pn
             if gid==2:
                 pn_g=pn_g-1
             mk_g=mk.split('_p')[-1]
             mk_g=mk.split('_p')[0]+"_p"+str(pn_g)
-            print(gid, mk, mk_g)
         mesh0=mesh_inf
         name = mesh_inf[mk_g][0]
         mesh = mesh[mk_g].astype(self.dtype)
@@ -539,25 +586,33 @@ class VTKWriter(BaseWriter):
             
         # Dimensions
         nspts, neles = mesh.shape[:2]
+        
+        if gid==1:
+            self.mesh1=mesh
+
 
         #for tgv enstrophy
         ###########################
         if self.calc_vorticity:
             if self.blanking:
-                mass,vort=self.calc_vort(name, mesh, soln)
+                if gid<2:
+                    mass,vort=self.calc_vort(name, mesh, soln,gid)
+                if gid==2:
+                    mass,vort=self.calc_vort(name, mesh, soln, gid, self.mesh1)
                 self.mass+=mass
                 self.vort+=vort
                 t = self.stats.get('solver-time-integrator','tcurr')
+                
                 if gid==1:
-                    print(t,    self.vort/self.mass)
+                    print(t,     self.vort/self.mass/2)
 
             else:
                 if gid==0:
-                    self.enstropy+=self.calc_vort(name, mesh, soln)
+                    self.enstropy+=self.calc_vort(name, mesh, soln, gid)
 
             return
-        if gid==0:
-            t = self.stats.get('solver-time-integrator','tcurr')
+        #if gid==0:
+        #    t = self.stats.get('solver-time-integrator','tcurr')
             #self.calc_error(name,mesh,soln,t)
             #exit()
 
@@ -578,7 +633,7 @@ class VTKWriter(BaseWriter):
         if 'moving-object' in self.cfg.sections():
             motioninfo = motion_exprs(self.cfg, gid)
             if self.region:
-                motioninfo = motion_exprs(self.cfg, gid+1)
+                motioninfo = motion_exprs(self.cfg, gid)
             t = vpts.dtype.type(self.stats.get('solver-time-integrator','tcurr'))
             motion = calc_motion(t, t, motioninfo, vpts.dtype.type)
             rmat = np.array(motion['Rmat']).reshape(-1,3).astype(vpts.dtype)
@@ -671,7 +726,7 @@ class TensorProdShapeSubDiv(BaseShapeSubDiv):
             conbase = np.hstack((conbase, conbase + (1 + n)**2))
 
         # Calculate offset of each subdivided element's nodes
-        nodeoff = np.zeros((n,)*cls.ndim, dtype=np.int)
+        nodeoff = np.zeros((n,)*cls.ndim, dtype=np.int32)
         for dim, off in enumerate(np.ix_(*(range(n),)*cls.ndim)):
             nodeoff += off*(n + 1)**dim
 

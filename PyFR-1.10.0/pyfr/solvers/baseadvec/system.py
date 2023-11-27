@@ -10,6 +10,10 @@ import time
 # for debugging purpose
 from convert import *
 
+
+
+
+
 class BaseAdvectionSystem(BaseSystem):
     _nqueues = 2
 
@@ -31,9 +35,8 @@ class BaseAdvectionSystem(BaseSystem):
         self.tstep+=1
         # do the overset related stuff first
         p0=time.time()
-        if self.tstep>1 and self.mvsearch and self.overset:
-
         
+        if self.mvgrid and self.overset:
             # check t 
             tn, tn1 = self.tcurr, self.tcurr+self.dtcurr
             # is first stage
@@ -121,11 +124,11 @@ class BaseAdvectionSystem(BaseSystem):
                 # also need to move the body grid
                 # eventally move to last position
                 
-                #self.oset.update_transform(motion['Rmat'], motion['pivot'], motion['offset'])
-                #self.oset.update_adt_transform( motion )
-                #self.oset.move_flat( motion )
-                #self.oset.move_nested( motion )
-                #self.oset.move_on_cpu()
+                self.oset.update_transform(motion['Rmat'], motion['pivot'], motion['offset'])
+                self.oset.update_adt_transform( motion )
+                self.oset.move_flat( motion )
+                self.oset.move_nested( motion )
+                self.oset.move_on_cpu()
                 
                 #self.oset.performPointConnectivity()
                 
@@ -223,15 +226,14 @@ class BaseAdvectionSystem(BaseSystem):
         
         p3=time.time()
 
-        
+        #comm.Barrier
         # Here update the solution on artbnd
-        self.oset.sync_device()
+        
         if self.mvgrid and self.overset:
-            
+            self.oset.sync_device()
             self.oset.exchangeSolution()
-            
+            self.oset.sync_device()
         #self.oset.test_u()
-        self.oset.sync_device()
         
         p4=time.time()
 

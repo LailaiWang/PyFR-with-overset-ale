@@ -28,7 +28,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         p0=time.time()
         
         
-        if self.mvgrid and self.overset and self.mvsearch:
+        if self.mvgrid and self.overset:
             # check t 
             tn, tn1 = self.tcurr, self.tcurr+self.dtcurr
             # is first stage
@@ -122,18 +122,17 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                 self.oset.sync_device()
                 # also need to move the body grid
                 # eventally move to last position
+                self.oset.update_transform(motion['Rmat'], motion['pivot'], motion['offset'])
+                self.oset.update_adt_transform( motion )
+                self.oset.move_flat( motion )
+                self.oset.move_nested( motion )
+                self.oset.move_on_cpu()
                 
-                #self.oset.update_transform(motion['Rmat'], motion['pivot'], motion['offset'])
-                #self.oset.update_adt_transform( motion )
-                #self.oset.move_flat( motion )
-                #self.oset.move_nested( motion )
-                #self.oset.move_on_cpu()
-                
-                #self.oset.performPointConnectivity()
+                # self.oset.performPointConnectivity()
         
         p1=time.time()
         
-        if self.mvgrid is True and istage == 0:
+        if self.mvgrid is True:
             motion = self._calc_motion(t, t, self.motioninfo, fpdtype)
             
             of = motion['offset']

@@ -25,7 +25,6 @@
     f[${i}][${j + 1}] = rhov[${i}]*v[${j}]${' + p' if i == j else ''};
 % endfor
     // add contribution of grid deformation
-
 % if mvgrid is True:
 % for i, j in pyfr.ndrange(ndims, nvars):
     f[${i}][${j}] = f[${i}][${j}]-mvel[${i}][0]*s[${j}];

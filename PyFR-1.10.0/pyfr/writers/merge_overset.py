@@ -36,7 +36,8 @@ class PostOverset(object):
         self.precision = self.cfg.get('backend','precision')
         self.fpdtype = np.float32 if self.precision == 'single' else np.float64
         self.t = self.fpdtype(self.stats.get('solver-time-integrator','tcurr'))
-        
+        print(f'{mesh_inf=}')
+        print(f'{soln_inf=}')
         # build up the motion information
         self.motion = defaultdict(list)
         # avoid repeatly compute this part       
@@ -258,6 +259,7 @@ class PostOverset(object):
         
         for pfn, misil in parts.items(): # different element types
             for mk, sk in misil:
+                print(mk,sk,mesh[mk])
                 name = mesh_inf[mk][0]
                 mesh_0 = mesh[mk]
               #  soln = self.soln[sk].swapaxes(0, 1)
@@ -450,6 +452,7 @@ class PostOverset(object):
         volpart = np.array(volpart)
         errorpart = errorpart/np.sum(volpart)
         kinepart = kinepart/np.sum(volpart)
+        print(errorpart)
         kinepartlist = [kinepart[0,i] for i in range(4)]
         kinepartlist.append(self.t)
         kinepartlist = np.atleast_2d(np.array(kinepartlist))

@@ -38,8 +38,8 @@ class BaseTabulatedQuadRule(object):
             pts = [p[0] for p in pts]
 
         # Cast
-        self.pts = np.array(pts, dtype=np.float32)
-        self.wts = np.array(wts, dtype=np.float32)
+        self.pts = np.array(pts, dtype=np.float64)
+        self.wts = np.array(wts, dtype=np.float64)
 
 
 class BaseStoredQuadRule(BaseTabulatedQuadRule):
