@@ -126,7 +126,8 @@ class StdPIController(BaseStdController):
         if self._norm == 'l2':
             # Reduce locally (element types + field variables)
             err = np.array([sum(v for e in errest.retval for v in e)])
-            if self.system.gid==0: 
+
+            if self.system.gid == 0 and self.system.overset == True: 
                 err=np.array([0.0])
             # Reduce globally (MPI ranks)
             comm.Allreduce(get_mpi('in_place'), err, op=get_mpi('sum'))
@@ -141,9 +142,9 @@ class StdPIController(BaseStdController):
             print([v for e in errest.retval for v in e])
             err = np.array([max(v for e in errest.retval for v in e)])
             # Reduce globally (MPI ranks)
-            if self.system.gid==0: 
+            if self.system.gid == 0 and self.system.overset == True: 
                 err=np.array([0.0])
-            if self.system.gid==1:
+            if self.system.gid == 1:
                 print(f'{self.system.gid=}',err)
             
             comm.Allreduce(get_mpi('in_place'), err, op=get_mpi('max'))
