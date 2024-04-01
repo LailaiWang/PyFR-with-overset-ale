@@ -27,7 +27,6 @@ class CUDABackend(BaseBackend):
         os.environ.pop('CUDA_DEVICE', None)
         if devid != 'round-robin':
             os.environ['CUDA_DEVICE'] = devid
-        print(f"{devid=}")
 
         # Create a CUDA context
         from pycuda.autoinit import context
