@@ -114,8 +114,8 @@ class RegionMixing(object):
         else:
             mdata = self._prepare_mdata_bcs(intg, region)
             self.prepare_data = self._prepare_data_subset
+
         self.mdata=mdata
-        #print(mdata)
 
     def _prepare_data_all(self, intg):
         if intg.system.overset is True:
@@ -254,40 +254,18 @@ class RegionMixing(object):
             raise ValueError(f'Boundary {bcname} does not exist')
         mdata,ddata= [],[]
         if bc in tmesh:
-            
             for etype, eidx, fidx, flags in tmesh[bc].astype('U4,i4,i1,i2'):
-            # Determine which of our elements are on the boundary
-            #for etype, eidx in tmesh[bc][['f0', 'f1']].astype('U4,i4'):
+                # Determine which of our elements are on the boundary
+                #for etype, eidx in tmesh[bc][['f0', 'f1']].astype('U4,i4'):
                 # add gid
                 etypem = '{}-g{}'.format(etype,gid)
                 eset[etypem].append(eidx)
-            print(rank,eset)
+
             self._ele_regions, self._ele_region_data = [], {}
             for etype, eidxs in sorted(eset.items()):
                 doff = intg.system.ele_types.index(etype)
                 darr = np.unique(eidxs).astype(np.int32)
                 self._ele_regions.append((doff, etype, darr))
                 self._ele_region_data[f'{etype}_idxs'] = darr
+
         return mdata
-            
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-
-        
-        
-        
-        
-        
-        

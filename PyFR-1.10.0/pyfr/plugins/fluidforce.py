@@ -40,7 +40,6 @@ class FluidForcePlugin(BasePlugin):
         gid, offset = intg.system.gid, intg.system.goffset
         # Boundary to integrate over
         bc = 'bcon_{0}_p{1}'.format(suffix, intg.rallocs.prank-offset)
-        #print('\n bc', bc)
         # Get the mesh and elements
         mesh, elemap = intg.system.mesh, intg.system.ele_map
         
@@ -130,17 +129,14 @@ class FluidForcePlugin(BasePlugin):
         # Force vector
         f = np.zeros(2*ndims if self._viscous else ndims)
         
-        #Amir
         # If we have the boundary then process the interface
         elemap=intg.system.ele_map
-        
 
         Rmat=np.array(intg.system.rot_matrix)
         Rmat=np.reshape(Rmat,(3,-1))
-        #print("rotation matrix is")
-        #print(Rmat)
-        if intg.system.gridtype=='overset':
-            mpi_int=intg.system._mpi_inters
+
+        if intg.system.gridtype == 'overset':
+            mpi_int = intg.system._mpi_inters
 
         for etype, fidx in self._m0:
             # Get the interpolation operator
@@ -199,15 +195,13 @@ class FluidForcePlugin(BasePlugin):
             comm.Reduce(f, None, op=get_mpi('sum'), root=root)
         else:
             comm.Reduce(get_mpi('in_place'), f, op=get_mpi('sum'), root=root)
-
             # Build the row
             row = [intg.tcurr] + f.tolist()
-
             # Write
-            #print(','.join(str(r) for r in row), file=self.outf)
-
+            print(','.join(str(r) for r in row), file=self.outf)
             # Flush to disk
             self.outf.flush()
+
     def stress_tensor(self, u, du):
         c = self._constants
 
