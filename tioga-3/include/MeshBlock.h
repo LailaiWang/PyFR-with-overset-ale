@@ -254,7 +254,7 @@ private:
   int nreceptorCellsCart;
   int *ctag_cart;
   int *pickedCart;
- 	int *facefringeid=NULL;
+  int *facefringeid=NULL;
   int *facefringeid_=NULL;
   int *mpi_face_=NULL;
   int *mpi_id_=NULL;
@@ -543,10 +543,10 @@ private:
     iblank_cell=iblank_cell_input;
   }
   void setcallback(void (*f1)(int*, int*),
-		    void (*f2)(int *,int *,double *),
-		    void (*f3)(int *,double *,int *,double *),
-		    void (*f4)(int *,double *,int *,int *,double *,double *,int *),
-		   void (*f5)(int *,int *,double *,int *,int*,double *))
+        void (*f2)(int *,int *,double *),
+        void (*f3)(int *,double *,int *,double *),
+        void (*f4)(int *,double *,int *,int *,double *,double *,int *),
+        void (*f5)(int *,int *,double *,int *,int*,double *))
   {
     get_nodes_per_cell=f1;
     get_receptor_nodes=f2;

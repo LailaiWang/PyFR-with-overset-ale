@@ -198,7 +198,6 @@ void fillHoleMap(int *holeMap, int ix[3],int isym)
   // now start from outside and paint the
   // the exterior
   int ns2 = ix[0]*ix[1];
-  printf("ix[0]%d ix[1]%d ix[2]%d\n",ix[0],ix[1],ix[2]);
   for (int k = 0; k < ix[2]; k += (ix[2]-1))
     for (int j = 0; j < ix[1]; j++)
       for (int i = 0; i < ix[0]; i++)

@@ -302,10 +302,10 @@ extern "C" {
   }
 
   void tioga_set_highorder_callback_(void (*f1)(int*, int*),
-				    void (*f2)(int *,int *,double *),
-				    void (*f3)(int *,double *,int *,double *),
-				    void (*f4)(int *,double *,int *,int *,double *,double *,int *),
-				     void (*f5)(int *,int *,double *,int *,int *,double *))
+            void (*f2)(int *,int *,double *),
+            void (*f3)(int *,double *,int *,double *),
+            void (*f4)(int *,double *,int *,int *,double *,double *,int *),
+            void (*f5)(int *,int *,double *,int *,int *,double *))
   {
     tg->setcallback(f1,f2,f3,f4,f5);
     //get_nodes_per_cell=f1;

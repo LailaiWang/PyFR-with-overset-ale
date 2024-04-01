@@ -1890,18 +1890,11 @@ void filterElements(dMeshBlock mb, dvec<double> cut_bbox, dvec<int> filt,
     for (int d = 0; d < 3; d++)
       xc[d] = xv[3*i+d];
     
-    //if(ic == 0) printf("x y z %lf %lf %lf\n", xc[0], xc[1], xc[2]);
     if (mb.rrot) // Transform xc to hole map's coordinate system
     {   
       
       // update pivot
       double pivot[3] = {mb.Pivot[0], mb.Pivot[1], mb.Pivot[2]};
-      //double pivot[3] = {0.0};
-      //for(int d1 = 0; d1<3; d1++) {
-        //pivot[d1] -= mb.offset[d1];
-      //}
-
-      //printf("Pivot %lf %lf %lf\n", mb.Pivot[0], mb.Pivot[1], mb.Pivot[2]);
 
       double x2[3] = {0.,0.,0.};
       for (int d1 = 0; d1 < 3; d1++)
@@ -1993,39 +1986,9 @@ void filterFaces(dMeshBlock mb, dvec<float> ele_bbox, int nCut,
   }
 }
 
-// for debugging purpose
-__global__
-void print_device_data(int ncells, dvec<int> cutFlag ) {
-
-  const unsigned int ic = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ic>= ncells) return;
-  printf("cutFlag is %d\n", cutFlag[ic]);
-}
-
 void dMeshBlock::directCut(double* cutFaces_h, int nCut, int nvertf, double *cutBbox_h, int* cutFlag, int cutType)
 {
   // Setup cutMap
-  
-  ///////////////////////////////////////////////////////
-  // for debugging purpose
-  //printf("nCut is %d nvertf is %d\n", nCut, nvertf);
-  // printf the face to check ordering of the nodes
-  //FILE* fp = fopen("check_face_nodes.dat","w");
-
-  //for (int j=0;j<nCut;j++) {
-  //  for(int i=0;i<nvertf;i++) {
-  //    int dim =3;
-  //    fprintf(fp,"%lf, %lf, %lf, %d\n",
-  //                   cutFaces_h[j*nvertf*dim+i*dim+0],
-  //                   cutFaces_h[j*nvertf*dim+i*dim+1],
-  //                   cutFaces_h[j*nvertf*dim+i*dim+2],
-  //                   i
-  //                   );
-  //  }
-  //}
-  //fclose(fp);
-  /////////////////////////////////////////////////////////
-  
   cutFlag_d.resize(ncells);
   filt_eles.resize(ncells);
   filt_faces.resize(nCut);
@@ -2044,15 +2007,9 @@ void dMeshBlock::directCut(double* cutFaces_h, int nCut, int nvertf, double *cut
   {
     auto ijk2gmsh_quad_h = tg_funcs::structured_to_gmsh_quad(nvertf);
     ijk2gmsh_quad.assign(ijk2gmsh_quad_h.data(), nvertf);
-
-    //for(auto && i : ijk2gmsh_quad_h) {
-    //  printf(" %d ", i);
-    //}
-    //printf("\n");
   }
 
   /* Filter elements based upon cutting-surface bounding box & Cartesian approx. rep. */
-
   hvec<int> nfilt_h;
   dvec<int> nfilt_d;
   nfilt_h.resize(2);
@@ -2064,10 +2021,6 @@ void dMeshBlock::directCut(double* cutFaces_h, int nCut, int nvertf, double *cut
   int threads = 128;
   int blocks = (ncells + threads - 1) / threads;
   
-  ///////////////// for debugging purpose ////////////////////
-  //print_device_data<<<blocks, threads>>>(ncells, cutFlag_d);
-  ///////////////// for debugging purpose ////////////////////
-
   switch(nvert)
   {
     case 8:
@@ -2096,11 +2049,11 @@ void dMeshBlock::directCut(double* cutFaces_h, int nCut, int nvertf, double *cut
 
     return;
   }
+  //////////////////////////////////////////////////////////////////////
+  // Coarse: first pass done 
+  //////////////////////////////////////////////////////////////////////
 
-  //cuda_copy_d2h(cutFlag_d.data(), cutFlag, ncells);
-  //return;
   /* Filter cutting faces by intersection with the filtered elements' bounding box */
-
   blocks = (nCut + threads - 1) / threads;
 
   switch(nvertf)
@@ -2120,9 +2073,10 @@ void dMeshBlock::directCut(double* cutFaces_h, int nCut, int nvertf, double *cut
   }
   check_error();
 
-  ///////////////// for debugging purpose ////////////////////
-  //print_device_data<<<blocks, threads>>>(ncells, cutFlag_d);
-  ///////////////// for debugging purpose ////////////////////
+  /////////////////////////////////////////////////////////////////////
+  // Coarse: second pass done
+  /////////////////////////////////////////////////////////////////////
+
 
   nfilt_h.assign(nfilt_d.data(), 2);
   int nfiltC = nfilt_h[0];
@@ -2252,9 +2206,6 @@ void dMeshBlock::directCut(double* cutFaces_h, int nCut, int nvertf, double *cut
 
   cuda_copy_d2h(cutFlag_d.data(), cutFlag, ncells);
 
-  ///////////////// for debugging purpose ////////////////////
-  //print_device_data<<<blocks, threads>>>(ncells, cutFlag_d);
-  ///////////////// for debugging purpose ////////////////////
   // Free all data allocated in this function
 
   cfDist.free_data();

@@ -1381,7 +1381,6 @@ void MeshBlock::processPointDonorsGPU(void)
 
   if (ntypes == 1)
   {
-    printf("ntypes %d\n",ntypes);
     // Only one cell type - no need to map/unmap data by cell type
     weights_d.resize(nWeightsTotal);
     donor_frac_gpu(donors_d.data(), ninterp2, mb_d.rst.data(), weights_d.data());
@@ -1848,10 +1847,6 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
   
   ////Update for PyFR
 
-
-    
-  
-
   Timer tloop ("loop Time:");
   tloop.startTimer();
   int i,j,k;
@@ -1877,41 +1872,31 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
 
   for (i=0;i<nreceptorFaces;i++)
   { 
-    nt1=ftag[i]*2;
-    nt2=ftag[i]*2+1;
-    fp1=fpos[nt1];
-    fp2=fpos[nt2];
-    eid1=f2c[nt1];
-    eid2=f2c[nt2];
-    //side = 1 if self.griddata['iblank_cell'][cidx1] == 1 else 0
-    if (eid2>=0){
+    nt1 = ftag[i]*2;
+    nt2 = ftag[i]*2+1;
+    fp1 = fpos[nt1];
+    fp2 = fpos[nt2];
+    eid1= f2c[nt1];
+    eid2= f2c[nt2];
 
-      facefringeid_[nfringeid]=i;
-      
-      
+    if (eid2 >= 0){
+      facefringeid_[nfringeid] = i;
       if (iblank_cell[eid1]==1){
-        
-        fpos_fringe[nfringeid]=fp2;
+        fpos_fringe[nfringeid] = fp2;
         cidx_fringe[nfringeid] = eid2;//-celloffset[eid1];
       }else{
-        fpos_fringe[nfringeid]=fp1;
+        fpos_fringe[nfringeid] = fp1;
         cidx_fringe[nfringeid] = eid1;//-celloffset[eid2];
       }
       nfringeid++;
-
-    }if (eid2==-2){
-
-      //mpi-fringe faces
-      mpi_face_[nmpifringe]=ftag[i];
-      printf("ftag[i],%d\n\n\n",ftag[i]);
-      mpi_id_[nmpifringe]=i;
+    } if (eid2 == -2){
+      mpi_face_[nmpifringe] = ftag[i];
+      mpi_id_[nmpifringe] = i;
       nmpifringe++;
-
     }
   }
   if (nfringeid>0) {
     free(facefringeid);
-  
     facefringeid=(int *)malloc(sizeof(int)*nfringeid*3);
   }
   if (nmpifringe>0){
@@ -1929,8 +1914,7 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
   }
   if (nmpifringe>0){
     for (i=0;i<nmpifringe;i++)
-    { 
-      
+    {
       mpifringeid[i] = mpi_id_[i];
       mpifringeid[i+nmpifringe] = mpi_face_[i];
     }
@@ -1944,8 +1928,9 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
   ///fringe-mpi faces
   free(mpi_face_);
   free(mpi_id_);
-  
-  /*MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  /*
   sprintf(filen,"qtmp%d.dat",world_rank);
   FILE *fp=fopen(filen,"w");
   for (i=0;i<nreceptorFaces;i++)
@@ -1963,7 +1948,13 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
   
   fclose(fp);
   */
+  
+  //printf("current rank is %d interior fringe %d mpi fringe %d nreceptorFaces %d\n", 
+  //        world_rank, nfringeid, nmpifringe, nreceptorFaces);
+
   if (nreceptorFaces > 0)
+    // here facefringeids stores the interior artBnd related info
+    // mpifringeid stores the mpi relared 
     face_data_to_device(ftag, nreceptorFaces, 0, qtmp, facefringeid, mpifringeid, nfringeid);
 
   if (nreceptorCells > 0)

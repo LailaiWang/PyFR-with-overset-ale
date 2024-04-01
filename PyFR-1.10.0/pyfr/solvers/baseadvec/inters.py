@@ -23,7 +23,7 @@ class BaseAdvectionIntInters(BaseInters):
         # Generate the left and right hand side view matrices
         self._scal_lhs = self._scal_view(lhs, 'get_scal_fpts_for_inter')
         self._scal_rhs = self._scal_view(rhs, 'get_scal_fpts_for_inter')
-        print(self._scal_lhs)
+        #print(self._scal_lhs)
         # Generate LHS and RHS view matrices for coordinates related
         # i.e. mvel and smat
         self._vect_lhs_mvel = self._vect_rhs_mvel = None

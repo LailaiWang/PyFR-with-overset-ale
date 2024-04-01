@@ -115,7 +115,7 @@ class RegionMixing(object):
             mdata = self._prepare_mdata_bcs(intg, region)
             self.prepare_data = self._prepare_data_subset
         self.mdata=mdata
-        print(mdata)
+        #print(mdata)
 
     def _prepare_data_all(self, intg):
         if intg.system.overset is True:
@@ -228,7 +228,6 @@ class RegionMixing(object):
             data.append(intg.soln[doff][..., darr])
             data.append(darr)
 
-        print('w2wall_ddata',data)        
         return data
 
     def _prepare_region_data_eset(self, intg, eset):

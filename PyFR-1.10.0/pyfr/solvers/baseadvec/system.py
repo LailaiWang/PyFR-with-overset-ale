@@ -85,7 +85,7 @@ class BaseAdvectionSystem(BaseSystem):
                 p0_2=time.time()
                 self.oset.performPointConnectivity()
                 p0_3=time.time()
-                print('STAGE 0 \n',rank,p0_1-p0_0,p0_2-p0_1,p0_3-p0_2, '\n')
+                #print('STAGE 0 \n',rank,p0_1-p0_0,p0_2-p0_1,p0_3-p0_2, '\n')
                 
             else:
                 # for other stages once new blanking is setup

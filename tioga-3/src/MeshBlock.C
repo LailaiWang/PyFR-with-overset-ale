@@ -725,7 +725,7 @@ void MeshBlock::writeCellFile(int bid, int* flag)
 }
 void MeshBlock::writeData(void)
 {
-  printf("\n nOverFaces %d \n ",nOverFaces);
+  //printf("\n nOverFaces %d \n ",nOverFaces);
 
 }
 void MeshBlock::writeFlowFile(int bid,double *q,int nvar,int type)

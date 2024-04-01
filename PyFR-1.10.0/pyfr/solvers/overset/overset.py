@@ -146,7 +146,6 @@ class Overset(object):
 
         # flattern the coordinates
         unikcoords = unikcoords.reshape(-1).astype(self.fpdtype)
-        print(f'{unikcoords.shape=}')
         return unikcoords, nnodes_offset, nodesmap
 
     def _form_cell_info(self, nnodes_offset, nodesmap):
@@ -281,8 +280,15 @@ class Overset(object):
             bf2c = np.concatenate(bf2c, axis = 0)
             bfposition = np.concatenate(bfposition, axis = 0)
             binstanceid = np.concatenate(binstanceid, axis = 0)
+        else:
+          # convert to numpy array regardless
+          bfacetypes = np.array(bfacetypes)
+          bf2v = np.array(bf2v)
+          bf2c = np.array(bf2c)
+          bfposition = np.array(bfposition)
+          binstanceid = np.array(binstanceid)
+
         #only for periodic faces
-        bcinstanceid = []
         for idx, a in enumerate(int_inters):
             # deal with interior inters
             pd_ftypes_l = np.array(
@@ -332,25 +338,25 @@ class Overset(object):
                     bf2v = np.concatenate((bf2v,pdf2v), axis=0)
                     bf2c = np.concatenate((bf2c,pdf2c), axis=0)
                     bfposition = np.concatenate((bfposition,pdfposition), axis=0)
-                    bcinstanceid = np.concatenate((bcinstanceid,pdinstanceid), axis=0)
+                    binstanceid = np.concatenate((binstanceid,pdinstanceid), axis=0)
                 else:
                     bfacetypes = pdfacetypes
                     bf2v = pdf2v
                     bf2c = pdf2c
                     bfposition = pdfposition
-                    bcinstanceid = pdinstanceid
-                print('bcins pdf',bcinstanceid.shape,bfacetypes.shape)
+                    binstanceid = pdinstanceid
+                #print('bcins pdf',bcinstanceid.shape,bfacetypes.shape)
         # mpi interfaces
         mfacetypes = []
         mf2v = [] 
         mf2c = []
         mfposition = []
         minstanceid = []
-        print('mpi_inters',len(mpi_inters))
+        #print('mpi_inters',len(mpi_inters))
         if mpi_inters != []:
             
             mpi_faceidx = []
-            mpioffset = [bf2v.shape[0]] if bf2v != [] else [0] # starting idx of mpi faces
+            mpioffset = [bf2v.shape[0]] if bf2v.size != 0 else [0] # starting idx of mpi faces
             for idx, a in enumerate(mpi_inters):
                 mpi_facetypes = np.array( 
                     [fetype(m[0].split('-g')[0],m[2]) for m in a.lhs]
@@ -370,7 +376,6 @@ class Overset(object):
                 mfposition.append(mpi_fpos)
                 minstanceid.append(mpi_instance_idx)
                 
-                # mpi_idx for later use
                 rrank = 0
                 mpi_idx = np.arange(mpi_f2v.shape[0]) + mpioffset[idx]
                 mpioffset.append(mpioffset[idx]+mpi_f2v.shape[0])
@@ -382,6 +387,14 @@ class Overset(object):
             mf2c = np.concatenate(mf2c, axis = 0)
             mfposition = np.concatenate(mfposition, axis = 0)
             minstanceid = np.concatenate(minstanceid, axis = 0)
+        else:
+          # convert numpy array regardless
+          mfacetypes = np.array(mfacetypes)
+          mf2v = np.array(mf2v)
+          mf2c = np.array(mf2c)
+          mfposition = np.array(mfposition)
+          minstanceid = np.array(minstanceid)
+
         # interior interfaces
         itfacetypes = [] 
         itf2v = []
@@ -411,15 +424,15 @@ class Overset(object):
             int_f2v_r = np.array(
                 [fnodes(ir[0].split('-g')[0], ir[1], ir[2]) for ir in a.rhs if ir[3] == 0]
             )
-            print()
+            #print()
             # sanity check
             if np.all(np.sort(int_f2v_l) == np.sort(int_f2v_r)) == False:
                 raise RuntimeError('f2v inconsistency for interior interfaces')
 
             int_f2v = np.array(int_f2v_l)
-            int_f2c = np.array([[il[1], ir[1]] for il,ir in zip(a.lhs,a.rhs)])
+            int_f2c = np.array([[il[1], ir[1]] for il,ir in zip(a.lhs,a.rhs) if il[3] == 0 and ir[3] == 0])
 
-            int_fposition = np.array([[il[2], ir[2]] for il,ir in zip(a.lhs,a.rhs)])
+            int_fposition = np.array([[il[2], ir[2]] for il,ir in zip(a.lhs,a.rhs) if il[3] == 0 and ir[3] == 0])
             
             int_instance_idx = np.array([idx]*int_fposition.shape[0])
 
@@ -435,30 +448,25 @@ class Overset(object):
         itfposition = np.concatenate(itfposition, axis = 0)
         itfinstanceid = np.concatenate(itfinstanceid, axis = 0)
        
-        print(self.rank, f'{itfinstanceid.shape=}',type(bf2v), type(mf2v))
-        if (len(mf2v) == 0 and bf2v.size != 0):
-            print("HHHHHHHHHHHHHHHHHHHHH")
-        if   (mf2v != [] and bf2v.size==0 ):
-            print('TTTTTTTTT11111111')
+        if   (mf2v.size != 0 and bf2v.size != 0 ):
             f2v = np.concatenate((bf2v,mf2v,itf2v), axis = 0) 
             f2c = np.concatenate((bf2c,mf2c,itf2c), axis = 0) 
             facetypes = np.concatenate((bfacetypes, mfacetypes, itfacetypes), axis = 0)
             fposition = np.concatenate((bfposition, mfposition, itfposition), axis = 0)
             finstanceid = np.concatenate((binstanceid, minstanceid, itfinstanceid), axis = 0)
-        elif (mf2v == [] and bf2v.size != 0):
-            print('TTTTTTTTT',len(binstanceid),len(itfinstanceid))
+        elif (mf2v.size == 0  and bf2v.size != 0):
             f2v = np.concatenate((bf2v,itf2v), axis = 0) 
             f2c = np.concatenate((bf2c,itf2c), axis = 0) 
             facetypes = np.concatenate((bfacetypes, itfacetypes), axis = 0)
             fposition = np.concatenate((bfposition, itfposition), axis = 0)
-            finstanceid = np.concatenate((bcinstanceid,binstanceid,itfinstanceid), axis = 0)
-        elif mf2v != [] and bf2v.size == 0:
+            finstanceid = np.concatenate((binstanceid, itfinstanceid), axis = 0)
+        elif mf2v.size != 0 and bf2v.size == 0:
 
             f2v = np.concatenate((mf2v,itf2v), axis = 0) 
             f2c = np.concatenate((mf2c,itf2c), axis = 0) 
             facetypes = np.concatenate((mfacetypes, itfacetypes), axis = 0)
             fposition = np.concatenate((mfposition, itfposition), axis = 0)
-            finstanceid = np.concatenate((minstanceid,itfinstanceid), axis = 0)
+            finstanceid = np.concatenate((minstanceid, itfinstanceid), axis = 0)
         else:
             f2v = np.concatenate((itf2v), axis = 0) 
             f2c = np.concatenate((itf2c), axis = 0) 
@@ -644,7 +652,7 @@ class Overset(object):
         self.nface_ftypes = nface_ftypes
         # flatten f2c
         f2c_flat = f2c[srtdfaces].reshape(-1).astype(self.intdtype)
-        print(f'{len(srtdfaces)=}',finstanceid.shape,facetypes.shape)
+
         facetypes = facetypes[srtdfaces]
         faceposition = fposition[srtdfaces]
         f2corg = f2c[srtdfaces]
@@ -780,9 +788,6 @@ class Overset(object):
         f2v = arrayToDoubleIntPtr(address, nrw,nco, int(ns))
 
         
-        
-
-        
         # need to change
         f2c = arrayToIntPtr(grid['f2c'])
 
@@ -812,8 +817,9 @@ class Overset(object):
         nfaceposition=grid['faceposition'].shape[0]*2
         faceposition=np.array(grid['faceposition'].reshape(-1),dtype='int32')
         celloffset=np.array(grid['celloffset'].reshape(-1), dtype='int32')
+
         self.tioga_pass_data(nfaceposition, arrayToIntPtr(faceposition),arrayToIntPtr(celloffset))
-        #exit()
+
         tg.tioga_register_face_data_(gridType, f2c, c2f, iblank_face,
             noverfaces, nwallfaces, nmpifaces, overfaces, wallfaces,
             mpifaces, mpifaces_r_rank, mpifaces_r_fidx, nfacetypes, nfv, nf, f2v)
@@ -984,7 +990,6 @@ class Overset(object):
 
     # For high-order codes: First part of unblank procedure (t^{n+1} blanking)
     def unblankPart1(self, motion):
-        
         p0=time.time()
         self.update_transform(motion['Rmat'], motion['pivot'], motion['offset'])
         p1=time.time()
@@ -1097,10 +1102,7 @@ class Overset(object):
 
     # Interpolate solution and send/receive all data
     def exchangeSolution(self):
-        #if self.system.istage==0:
         tg.tioga_dataupdate_ab(self.nfields, 0)
-        #else:
-        #    self.callbacks.fringe_u_stage()
 
     # Interpolate solution gradient and send/receive all data
     def exchangeGradient(self):

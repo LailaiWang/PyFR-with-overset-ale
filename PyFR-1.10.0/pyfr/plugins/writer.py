@@ -76,7 +76,7 @@ class WriterPlugin(RegionMixing,BasePlugin):
         data = self.prepare_data(intg)
         # Write out the file
         solnfname = self._writer.write(data, metadata, intg.tcurr)
-        print('\n data ',rank,data)
+        #print('\n data ',rank,data)
 
         
 

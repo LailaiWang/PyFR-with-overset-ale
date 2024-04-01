@@ -47,7 +47,7 @@ class BaseRankAllocator(object):
                 # sanity check, 
                 if sum(gridranks) != comm.size:
                     raise RuntimeError('Mesh has {0} paritions but running with '
-                                       '{1} MPI ranks',format(sum(gridranks),comm.size))
+                                       '{1} MPI ranks'.format(sum(gridranks),comm.size))
                 # remove the first element
                 granks = gridranks[1:]
                 grankrange = [sum(granks[:i+1]) for i in range(len(granks))]

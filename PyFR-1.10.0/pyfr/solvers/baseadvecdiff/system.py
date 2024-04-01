@@ -36,8 +36,6 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
             if istage == 0:
                 # move grid to stage end
                 # first move faces using PyFR kernel
-                
-                        
                 fpdtype = self.backend.fpdtype
                 motion = self._calc_motion(tn1, tn1, self.motioninfo, fpdtype)
                 of = motion['offset']
@@ -116,7 +114,6 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                     pvx = pivot[0], pvy = pivot[1], pvz = pivot[2]
                 )
                 runall([q1])
-                
                 # is in  different stream
                 # need to sync before proceed
                 self.oset.sync_device()
@@ -264,12 +261,6 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
 
         runall([q1])
 
-        
-        
-        
-        
-        
-
         if ('mpiint','vect_fpts_pack') in kernels:
             q1 << kernels['mpiint', 'vect_fpts_pack']()
             runall([q1])
@@ -293,8 +284,6 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         
         p6=time.time()
         
-        
-
 
         q1 << kernels['iint', 'comm_flux']()
         q1 << kernels['bcint', 'comm_flux'](t=t)

@@ -490,8 +490,6 @@ void tg_copy_to_device_h(unsigned long long int a, double *b, double *data, int 
 void tg_copy_to_device(unsigned long long int a, int *data, int nbytes) {
     // cast a to pointer
     int* a_d = reinterpret_cast<int* > (a);
-        printf("\n IIIII\n");
-
     cudaMemcpy(a_d, data, nbytes, cudaMemcpyHostToDevice);
 }
 
@@ -499,20 +497,17 @@ void tg_copy_to_device(unsigned long long int a, int *data, int nbytes) {
 void tg_copy_to_device(unsigned long long int a, float *data, int nbytes) {
     float* a_d = reinterpret_cast<float* > (a);
     cudaMemcpy(a_d, data, nbytes, cudaMemcpyHostToDevice);
-    printf("\n IIIII\n");
 }
 
 // copy data from device to host for double
 void tg_copy_to_host(unsigned long long int a, double *data, int nbytes) {
    double* a_d = reinterpret_cast<double*> (a);
    cudaMemcpy(data, a_d, nbytes, cudaMemcpyDeviceToHost);
-   printf("\n IIIII\n");
 }
 // copy data from device to host for float
 void tg_copy_to_host(unsigned long long int a, float *data, int nbytes) {
    float* a_d = reinterpret_cast<float*> (a);
    cudaMemcpy(data, a_d, nbytes, cudaMemcpyDeviceToHost);
-   printf("\n IIIII\n");
 }
 
 %}

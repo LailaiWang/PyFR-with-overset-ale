@@ -133,7 +133,7 @@ class StdPIController(BaseStdController):
 
             # Normalise
             err = math.sqrt(float(err) / self._gndofs)
-            print('l2',[e for e in errest.retval],err)
+            #print('l2',[e for e in errest.retval],err)
 
         # L^∞ norm
         else:
@@ -147,7 +147,7 @@ class StdPIController(BaseStdController):
                 print(f'{self.system.gid=}',err)
             
             comm.Allreduce(get_mpi('in_place'), err, op=get_mpi('max'))
-            print(get_mpi('in_place'))
+            #print(get_mpi('in_place'))
             # Normalise
             err = math.sqrt(float(err))
 

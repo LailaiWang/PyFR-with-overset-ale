@@ -203,8 +203,8 @@ void tioga::unblankPart1(void)
   searchTime.startTimer();
   doHoleCutting(true);
   searchTime.stopTimer();
-  searchTime.showTime(16,"Holecutting");
-  printf("unblank 1 unblankPart1\n");
+  //searchTime.showTime(16,"Holecutting");
+  //printf("unblank 1 unblankPart1\n");
 }
 
 void tioga::unblankPart2(int nvar)
@@ -214,7 +214,7 @@ void tioga::unblankPart2(int nvar)
   // Swap iblank_cell pointer back
   mb->resetCurrentGrid();
   
-  printf("unblank 2 done resetCurrentGrid\n");
+  //printf("unblank 2 done resetCurrentGrid\n");
 
   mb->updateOBB();
 
@@ -227,9 +227,9 @@ void tioga::unblankPart2(int nvar)
   mb->calcFaceIblanks(meshcomm);
   mb->writeData();
   MPI_Allreduce(MPI_IN_PLACE, &nunblank, 1, MPI_INT, MPI_SUM, scomm);
-  printf("nunblank is %d\n",nunblank);
+  //printf("nunblank is %d\n",nunblank);
   searchTime.stopTimer();
-  searchTime.showTime(16,"unblank_part2");
+  //searchTime.showTime(16,"unblank_part2");
   if (nunblank > 0)
   { 
     //printf("update artifical boundaries send and recv\n");
@@ -295,24 +295,23 @@ void tioga::doHoleCutting(bool unblanking)
 #endif
 
 #ifdef TG_DIRECTCUT
-  searchTime.startTimer();
+  //searchTime.startTimer();
   getHoleMap();
-  searchTime.stopTimer();
-  searchTime.showTime(16,"HoleMAp");
-  searchTime.startTimer();
+  //searchTime.stopTimer();
+  //searchTime.showTime(16,"HoleMAp");
+  //searchTime.startTimer();
   getOversetMap();
-  searchTime.stopTimer();
-  searchTime.showTime(16,"OversetMAp");
+  //searchTime.stopTimer();
+  //searchTime.showTime(16,"OversetMAp");
   
-  
-//  outputHoleMap();
+  //outputHoleMap();
   if (!unblanking)
     exchangeBoxes();
 
-  searchTime.startTimer();
+  //searchTime.startTimer();
   directCut();
-  searchTime.stopTimer();
-  searchTime.showTime(16,"DirectCut");
+  //searchTime.stopTimer();
+  //searchTime.showTime(16,"DirectCut");
   
   
 #endif
@@ -330,7 +329,7 @@ void tioga::doPointConnectivity(bool unblanking)
   mb->getFringeNodes(unblanking);
   //printf("done getFringeNodes %d\n",unblanking);
   searchTime.stopTimer();
-  searchTime.showTime(16,"getfringenodes");  
+  //searchTime.showTime(16,"getfringenodes");  
   // Exchange new list of points, including high-order Artificial Boundary
   // face points or internal points (or fringe nodes for non-high order)
   //MPI_Barrier(MPI_COMM_WORLD);
@@ -356,7 +355,7 @@ void tioga::doPointConnectivity(bool unblanking)
   searchTime.startTimer();
   mb->processPointDonorsGPU();
   searchTime.stopTimer();
-  searchTime.showTime(16,"doPointconnectivity: processPoinDonor");
+  //searchTime.showTime(16,"doPointconnectivity: processPoinDonor");
   //printf("done proceePointDonorsGPU\n");
 #else
   mb->processPointDonors();
@@ -366,7 +365,7 @@ void tioga::doPointConnectivity(bool unblanking)
   searchTime.startTimer();
   setupCommBuffersGPU();
   searchTime.stopTimer();
-  searchTime.showTime(16,"doPointconnectivity: SetupBuffer");
+  //searchTime.showTime(16,"doPointconnectivity: SetupBuffer");
   //printf("done setupCommBuffersGPU\n");
 #endif
   
@@ -951,7 +950,7 @@ tioga::~tioga()
   free(recvCount);
   free(obblist);
 
-  if (myid==0) printf("#tioga :successfully cleared all the memory accessed\n");
+  //if (myid==0) printf("#tioga :successfully cleared all the memory accessed\n");
 }
 
 void tioga::dataUpdate_highorder(int nvar,double *q,int interptype)

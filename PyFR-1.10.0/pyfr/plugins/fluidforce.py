@@ -40,7 +40,7 @@ class FluidForcePlugin(BasePlugin):
         gid, offset = intg.system.gid, intg.system.goffset
         # Boundary to integrate over
         bc = 'bcon_{0}_p{1}'.format(suffix, intg.rallocs.prank-offset)
-        print('\n bc', bc)
+        #print('\n bc', bc)
         # Get the mesh and elements
         mesh, elemap = intg.system.mesh, intg.system.ele_map
         
@@ -94,7 +94,7 @@ class FluidForcePlugin(BasePlugin):
 
                     # Get the smats at the solution points
                     smat = eles.smat_at_np('upts').transpose(2, 0, 1, 3)
-                    print(smat.shape)
+                    #print(smat.shape)
                     # Get |J|^-1 at the solution points
                     rcpdjac = eles.rcpdjac_at_np('upts')
 
@@ -134,75 +134,13 @@ class FluidForcePlugin(BasePlugin):
         # If we have the boundary then process the interface
         elemap=intg.system.ele_map
         
+
+        Rmat=np.array(intg.system.rot_matrix)
+        Rmat=np.reshape(Rmat,(3,-1))
+        #print("rotation matrix is")
+        #print(Rmat)
         if intg.system.gridtype=='overset':
-            #print('ssssssssssssssssssssssssssssssssss',dir(intg.system._mpi_inters[0]))
-            Rmat=np.array(intg.system.rot_matrix)
-            Rmat=np.reshape(Rmat,(3,-1))
-            #Rmat.reshape(3,3)
             mpi_int=intg.system._mpi_inters
-            #print( f'{mpi_int[0].lhs}',f'{mpi_int[0]._norm_pnorm_lhs.get()}','\n')
-        #print(elemap)
-        #exit()
-        '''
-        bc=self._bc
-        tmesh=self._tmesh
-        self._m0 = m0 = {}
-        self._qwts = qwts = defaultdict(list)
-        if self._viscous:
-            self._m4 = m4 = {}
-            rcpjact = {}
-        if bc in tmesh:
-            # Element indices and associated face normals
-            eidxs = defaultdict(list)
-            norms = defaultdict(list)
-    
-            for etype, eidx, fidx, flags in tmesh[bc].astype('U4,i4,i1,i2'):
-                # add etype with partition info
-                gid=1
-                etypem = '{}-g{}'.format(etype,gid)
-                eles = elemap[etypem]
-                if (etype, fidx) not in m0:
-                    facefpts = eles.basis.facefpts[fidx]
-
-                    m0[etypem, fidx] = eles.basis.m0[facefpts]
-                    qwts[etypem, fidx] = eles.basis.fpts_wts[facefpts]
-
-                if self._viscous and etypem not in m4:
-                    m4[etypem] = eles.basis.m4
-
-                    # Get the smats at the solution points
-                    smat = eles.smat_at_np('upts').transpose(2, 0, 1, 3)
-
-                    # Get |J|^-1 at the solution points
-                    rcpdjac = eles.rcpdjac_at_np('upts')
-
-                    # Product to give J^-T at the solution points
-                    rcpjact[etypem] = smat*rcpdjac
-
-                # Unit physical normals and their magnitudes (including |J|)
-                npn = eles.get_norm_pnorms(eidx, fidx)
-                #update norms
-                
-                #npn=np.einsum('ij,kj->ki', Rmat, npn)
-                
-                
-                #exit()
-                mpn = eles.get_mag_pnorms(eidx, fidx)
-
-                eidxs[etypem, fidx].append(eidx)
-                norms[etypem, fidx].append(mpn[:, None]*npn)
-            print('HOOOOOOOOOOOOOOOOOOOO',Rmat)
-
-            self._eidxs = {k: np.array(v) for k, v in eidxs.items()}
-            self._norms = {k: np.array(v) for k, v in norms.items()}
-
-            if self._viscous:
-                self._rcpjact = {k: rcpjact[k[0]][..., v]
-                                 for k, v in self._eidxs.items()}
-        '''
-
-
-
 
         for etype, fidx in self._m0:
             # Get the interpolation operator
@@ -266,7 +204,7 @@ class FluidForcePlugin(BasePlugin):
             row = [intg.tcurr] + f.tolist()
 
             # Write
-            print(','.join(str(r) for r in row), file=self.outf)
+            #print(','.join(str(r) for r in row), file=self.outf)
 
             # Flush to disk
             self.outf.flush()
