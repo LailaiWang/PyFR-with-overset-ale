@@ -132,8 +132,11 @@ class FluidForcePlugin(BasePlugin):
         # If we have the boundary then process the interface
         elemap=intg.system.ele_map
 
-        Rmat=np.array(intg.system.rot_matrix)
-        Rmat=np.reshape(Rmat,(3,-1))
+        try:
+          Rmat=np.array(intg.system.rot_matrix)
+          Rmat=np.reshape(Rmat,(3,-1))
+        except:
+          Rmat = np.array([1.,0,0, 0,1.,0, 0,0,1.])
 
         if intg.system.gridtype == 'overset':
             mpi_int = intg.system._mpi_inters
@@ -159,7 +162,8 @@ class FluidForcePlugin(BasePlugin):
             qwts = self._qwts[etype, fidx]
             norms = self._norms[etype, fidx]
             
-            norms=np.einsum('ij,mkj->mki', Rmat, norms)
+            #norms = np.einsum('ij,mkj->mki', Rmat, norms)
+
             # Do the quadrature
             f[:ndims] += np.einsum('i...,ij,jik', qwts, p, norms)
 

@@ -131,9 +131,21 @@ class RegionMixing(object):
             for idx, soln in enumerate(intg.soln):
                 data.append(soln)
                 data.append(iblank_cell[etypeoff[idx]:etypeoff[idx+1]])
-        return data
-        
-        
+            return data
+        else:
+            # consider multiple type of elements here
+            etypeoff = [0]
+            neles = 0
+            for eshape in intg.system.ele_shapes:
+                neles = neles + eshape[2]
+                etypeoff.append(neles)
+            iblank_cell = np.array([0] * neles)
+            data = []
+            for idx, soln in enumerate(intg.soln):
+                data.append(soln)
+                # here we make this as 
+                data.append(iblank_cell[etypeoff[idx]:etypeoff[idx+1]])
+            return data
 
 
     def _prepare_mdata_bcs(self, intg, bcname):
