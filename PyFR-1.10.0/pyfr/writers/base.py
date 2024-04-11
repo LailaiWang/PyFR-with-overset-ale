@@ -63,8 +63,8 @@ class BaseWriter(object):
         )
         self.elementscls = self.systemscls.elementscls
         
-        self.postoverset = PostOverset(
-            self.elementscls, self.mesh, self.soln, self.mesh_inf, self.soln_inf,
-            self.cfg, self.stats,args.blanking
-        )
-
+        if nmsh != 1:
+            self.postoverset = PostOverset(
+                self.elementscls, self.mesh, self.soln, self.mesh_inf, self.soln_inf,
+                self.cfg, self.stats, args.blanking
+            )
