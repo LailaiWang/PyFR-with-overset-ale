@@ -28,7 +28,7 @@ class NativeWriter(object):
 
         # Gather the output metadata across all ranks
         mdata = comm.allgather(mdata)
-        print('\n mdata',mdata)
+
         # Parallel I/O
         if (h5py.get_config().mpi and
             'PYFR_FORCE_SERIAL_HDF5' not in os.environ):

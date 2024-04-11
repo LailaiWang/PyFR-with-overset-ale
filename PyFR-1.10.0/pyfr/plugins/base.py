@@ -97,25 +97,23 @@ class BasePlugin(object):
 class RegionMixing(object):
 
     def __init__(self, intg, cfgsect, *args, **kwargs):
-        super().__init__(intg, *args, **kwargs)
         # Output region
-        self.mdata=[]
-        region = self.cfg.get(cfgsect, 'region', '*')
-        # All elements
+        region = intg.cfg.get(cfgsect, 'region', '*')
         if region == '*':
+            # All elements
             mdata = self._prepare_mdata_all(intg)
             self.prepare_data = self._prepare_data_all
-        # All elements inside a box
         elif ',' in region:
-            box = self.cfg.getliteral(cfgsect, 'region')
+            # All elements inside a box
+            box = intg.cfg.getliteral(cfgsect, 'region')
             mdata = self._prepare_mdata_box(intg, *box)
             self.prepare_data = self._prepare_data_subset
-        # All elements on a boundary
         else:
-            mdata = self._prepare_mdata_bcs(intg, region)
+            # All elements on a boundary
+            mdata = intg._prepare_mdata_bcs(intg, region)
             self.prepare_data = self._prepare_data_subset
 
-        self.mdata=mdata
+        self.mdata = mdata
 
     def _prepare_data_all(self, intg):
         if intg.system.overset is True:
@@ -133,18 +131,9 @@ class RegionMixing(object):
                 data.append(iblank_cell[etypeoff[idx]:etypeoff[idx+1]])
             return data
         else:
-            # consider multiple type of elements here
-            etypeoff = [0]
-            neles = 0
-            for eshape in intg.system.ele_shapes:
-                neles = neles + eshape[2]
-                etypeoff.append(neles)
-            iblank_cell = np.array([0] * neles)
             data = []
             for idx, soln in enumerate(intg.soln):
                 data.append(soln)
-                # here we make this as 
-                data.append(iblank_cell[etypeoff[idx]:etypeoff[idx+1]])
             return data
 
 
@@ -160,24 +149,14 @@ class RegionMixing(object):
         zipmesh = [mesh] if isinstance(mesh,list) == False else mesh
         tmesh = zipmesh[gid]
         bcranks = comm.gather(bc in tmesh, root=root)
-        # Boundary of interest
-        
-        # Boundary to integrate over
-        #bc = 'bcon_{0}_p{1}'.format(suffix, intg.rallocs.prank-offset)
-        # See which ranks have the boundary           
-        # Ensure the boundary exists
        
         if rank == root and not any(bcranks):
             raise ValueError(f'Boundary {bcname} does not exist')
         mdata,ddata,mavedata= [],[],[]
         if bc in tmesh:            
             for etype, eidx, fidx, flags in tmesh[bc].astype('U4,i4,i1,i2'):
-            # Determine which of our elements are on the boundary
-            #for etype, eidx in tmesh[bc][['f0', 'f1']].astype('U4,i4'):
-                # add gid
                 etypem = '{}-g{}'.format(etype,gid)
                 eset[etypem].append(eidx)
-            
 
             elemap = intg.system.ele_map            
             for etype, eidxs in sorted(eset.items()):
@@ -208,6 +187,7 @@ class RegionMixing(object):
             mdata = mdata + [(f'soln_{etype}_blank', shape[2], np.int32) for etype, shape in einfo2]
             return mdata
         else:
+            # not overset, we need to deal with regular mesh
             # Element info and backend data type
             einfo  = zip(intg.system.ele_types, intg.system.ele_shapes)
             fpdtype = intg.backend.fpdtype
@@ -243,7 +223,6 @@ class RegionMixing(object):
         return data
 
     def _prepare_region_data_eset(self, intg, eset):
-
         comm, rank, root = get_comm_rank_root()
         elemap = intg.system.ele_map
         # Get the mesh and prepare the element set dict
@@ -254,22 +233,11 @@ class RegionMixing(object):
         zipmesh = [mesh] if isinstance(mesh,list) == False else mesh
         tmesh = zipmesh[gid]
         bcranks = comm.gather(bc in tmesh, root=root)
-        # Boundary of interest
-        
-        # Boundary to integrate over
-        #bc = 'bcon_{0}_p{1}'.format(suffix, intg.rallocs.prank-offset)
-        # See which ranks have the boundary
-         
-        # Ensure the boundary exists
  
         if rank == root and not any(bcranks):
             raise ValueError(f'Boundary {bcname} does not exist')
-        mdata,ddata= [],[]
         if bc in tmesh:
             for etype, eidx, fidx, flags in tmesh[bc].astype('U4,i4,i1,i2'):
-                # Determine which of our elements are on the boundary
-                #for etype, eidx in tmesh[bc][['f0', 'f1']].astype('U4,i4'):
-                # add gid
                 etypem = '{}-g{}'.format(etype,gid)
                 eset[etypem].append(eidx)
 
@@ -279,5 +247,3 @@ class RegionMixing(object):
                 darr = np.unique(eidxs).astype(np.int32)
                 self._ele_regions.append((doff, etype, darr))
                 self._ele_region_data[f'{etype}_idxs'] = darr
-
-        return mdata
