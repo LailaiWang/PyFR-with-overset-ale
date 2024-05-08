@@ -256,6 +256,11 @@ class Overset(object):
             bf2v = np.concatenate(bf2v, axis = 0)
             bf2c = np.concatenate(bf2c, axis = 0)
             bfposition = np.concatenate(bfposition, axis = 0)
+        else:
+            bfacetypes = np.array(bfacetypes) 
+            bf2v = np.array(bf2v)
+            bf2c = np.array(bf2c)
+            bfposition = np.array(bfposition)      
 
         for a in int_inters:
             # deal with interior inters
@@ -343,6 +348,12 @@ class Overset(object):
             mf2v = np.concatenate(mf2v, axis = 0)
             mf2c = np.concatenate(mf2c, axis = 0)
             mfposition = np.concatenate(mfposition, axis = 0)
+        else:
+            mfacetypes = np.array(mfacetypes)
+            mf2v = np.array(mf2v)
+            mf2c = np.array(mf2c)
+            mfposition = np.array(mfposition)
+
         # interior interfaces
         itfacetypes = [] 
         itf2v = []
@@ -376,9 +387,9 @@ class Overset(object):
                 raise RuntimeError('f2v inconsistency for interior interfaces')
 
             int_f2v = np.array(int_f2v_l)
-            int_f2c = np.array([[il[1], ir[1]] for il,ir in zip(a.lhs,a.rhs)])
+            int_f2c = np.array([[il[1], ir[1]] for il,ir in zip(a.lhs,a.rhs) if il[3] == 0 and ir[3] == 0] )
 
-            int_fposition = np.array([[il[2], ir[2]] for il,ir in zip(a.lhs,a.rhs)])
+            int_fposition = np.array([[il[2], ir[2]] for il,ir in zip(a.lhs,a.rhs) if il[3] == 0 and ir[3] == 0] )
 
             itfacetypes.append(int_facetypes)
             itf2v.append(int_f2v)
@@ -390,17 +401,17 @@ class Overset(object):
         itf2c = np.concatenate(itf2c, axis = 0)
         itfposition = np.concatenate(itfposition, axis = 0)
         
-        if   mf2v != [] and bf2v != []:
+        if   mf2v.size != 0 and bf2v.size != 0:
             f2v = np.concatenate((bf2v,mf2v,itf2v), axis = 0) 
             f2c = np.concatenate((bf2c,mf2c,itf2c), axis = 0) 
             facetypes = np.concatenate((bfacetypes, mfacetypes, itfacetypes), axis = 0)
             fposition = np.concatenate((bfposition, mfposition, itfposition), axis = 0)
-        elif mf2v == [] and bf2v != []:
+        elif mf2v.size == 0 and bf2v.size != 0:
             f2v = np.concatenate((bf2v,itf2v), axis = 0) 
             f2c = np.concatenate((bf2c,itf2c), axis = 0) 
             facetypes = np.concatenate((bfacetypes, itfacetypes), axis = 0)
             fposition = np.concatenate((bfposition, itfposition), axis = 0)
-        elif mf2v != [] and bf2v == []:
+        elif mf2v.size != 0 and bf2v.size == 0:
             f2v = np.concatenate((mf2v,itf2v), axis = 0) 
             f2c = np.concatenate((mf2c,itf2c), axis = 0) 
             facetypes = np.concatenate((mfacetypes, itfacetypes), axis = 0)
