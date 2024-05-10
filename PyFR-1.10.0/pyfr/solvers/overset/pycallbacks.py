@@ -598,7 +598,19 @@ class Py_callbacks(tg.callbacks):
             self.fringe_du_device(fringeids, nfringe, data)
 
     def fringe_u_device(self, fringeids, nfringe, data):
+        '''
+        Note all the data in here are in IJK order from Tioga
+        '''
         if nfringe == 0: return 0
+
+        nbcfaces = self.griddata['nbcfaces']
+        nmpifaces = self.griddata['nmpifaces']
+        # we first collect all fids here
+        fids = [ptrAt(fringeids, i) for i in range(nfringe)]
+        fids_inter = [ fid for fid in fids if fid >= nbcfaces + nmpifaces]
+        # note that within nbcfaces overset faces will be included if there is any
+        # beyond the range, there are all legit mpi faces and interior faces
+        fids_mpi = [fid for fid in fids if nbcfaces <= fid < nbcfaces + nmpifaces]
 
         # first deal with  inner artbnd
         tot_nfpts = 0
@@ -606,13 +618,13 @@ class Py_callbacks(tg.callbacks):
         side_int = []
         side_idx = [0]
         faceinfo_test = []
-        for i in range(nfringe):
-            fid = ptrAt(fringeids,i)
+
+        for fid in fids_inter:
             cidx1, cidx2 = self.griddata['f2corg'][fid]
             fpos1, fpos2 = self.griddata['faceposition'][fid]
             etyp1 = self.griddata['celltypes'][cidx1]
             etyp2 = self.griddata['celltypes'][cidx2] 
-            if cidx2>0:
+            if cidx2 >= 0:
                 side = 1 if self.griddata['iblank_cell'][cidx1] == 1 else 0
                 # for multiple element types in one partition
                 if self.griddata['iblank_cell'][cidx1] == self.griddata['iblank_cell'][cidx2] :
@@ -629,6 +641,8 @@ class Py_callbacks(tg.callbacks):
                 nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
                 tot_nfpts = tot_nfpts + nfpts
                 side_idx.append(tot_nfpts)
+            else:
+                raise RuntimeError('interior cell negtive right neighbor')       
         
         # save for later use
         self.fringe_u_fpts_d = self.griddata['fringe_u_fpts_d']
@@ -636,6 +650,7 @@ class Py_callbacks(tg.callbacks):
         self.tot_nfpts = tot_nfpts
 
         if faceinfo != []:
+            # Copy data in IJK order to PyFR such that we need the unsorted fpts
             self._scal_fpts_u = self._scal_view_fpts_u(
                 faceinfo, 'get_scal_unsrted_fpts_for_inter')
             # copy data to device
@@ -651,6 +666,10 @@ class Py_callbacks(tg.callbacks):
                 nfringe, tot_nfpts, self.system.nvars, self.backend.soasz, 3
             )
 
+        # now deal with MPI artificial boundaries
+        #for fid in fids_mpi:
+        #    pass
+
         # then deal with overset artbnd
         tot_nfpts_ov = 0
         faceinfo_ov = []
@@ -663,6 +682,9 @@ class Py_callbacks(tg.callbacks):
             etyp2 = self.griddata['celltypes'][cidx2] 
             
             if cidx2 < 0:
+                # here it could be mpi faces as well
+                if nbcfaces <= fid < nbcfaces + nmpifaces:
+                    print('this is an mpi face indeed, not an overet artbnd ')
                 # always use left info here
                 perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
                 faceinfo_ov.append(perface)

@@ -217,8 +217,8 @@ class Overset(object):
         bc_inters  = self.system._bc_inters
         mpi_inters = self.system._mpi_inters
         
-        # Treat overset mpiinters as bc here
-        # need to move overset inters from mpi_inters into bc_inters
+        # when we generate the face information, overset is stores in nbcfaces range
+        # but we are not distinguish where it starts 
         for mpiint in mpi_inters:
             if mpiint._rhsrank == None:
                 bc_inters.append(mpiint)
@@ -262,6 +262,7 @@ class Overset(object):
             bf2c = np.array(bf2c)
             bfposition = np.array(bfposition)      
 
+        # revert interior periodic faces back to boundary faces
         for a in int_inters:
             # deal with interior inters
             pd_ftypes_l = np.array(
@@ -313,7 +314,9 @@ class Overset(object):
                     bf2v = pdf2v
                     bf2c = pdf2c
                     bfposition = pdfposition 
-
+        
+        self.nbcfaces = bfacetypes.shape[0] # store this to check
+        
         # mpi interfaces
         mfacetypes = []
         mf2v = [] 
@@ -341,7 +344,7 @@ class Overset(object):
                 # mpi_idx for later use
                 rrank = 0
                 mpi_idx = np.arange(mpi_f2v.shape[0]) + mpioffset[idx]
-                mpioffset.append(mpioffset[idx]+mpi_f2v.shape[0])
+                mpioffset.append(mpioffset[idx] + mpi_f2v.shape[0])
                 mpi_faceidx.append([a._rhsrank,mpi_idx])
 
             mfacetypes = np.concatenate(mfacetypes, axis = 0)
@@ -664,6 +667,7 @@ class Overset(object):
         griddata['noverfaces'] = self.noverfaces # number of overset faces
         griddata['nmpifaces'] = self.nmpifaces # number of mpi faces
         griddata['nwallfaces'] = self.nwallfaces # number of wall faces
+        griddata['nbcfaces'] = self.nbcfaces
 
         griddata['oversetfaces'] = overfaceidx # face idx of overset faces
         griddata['wallfaces'] = wallfaceidx  # face idx of wall faces
