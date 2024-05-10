@@ -322,7 +322,7 @@ class Overset(object):
         if mpi_inters != []:
             
             mpi_faceidx = []
-            mpioffset = [bf2v.shape[0]] if bf2v != [] else [0] # starting idx of mpi faces
+            mpioffset = [bf2v.shape[0]] if bf2v.size != 0 else [0] # starting idx of mpi faces
             for idx, a in enumerate(mpi_inters):
                 mpi_facetypes = np.array( 
                     [fetype(m[0].split('-g')[0],m[2]) for m in a.lhs]

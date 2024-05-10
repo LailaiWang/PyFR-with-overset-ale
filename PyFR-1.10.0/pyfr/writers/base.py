@@ -58,7 +58,8 @@ class BaseWriter(object):
         )
 
         self.elementscls = self.systemscls.elementscls
-
+        
+        # postprocessing when there is overset
         self.postoverset = PostOverset(
             self.elementscls, self.mesh, self.soln, self.mesh_inf, self.soln_inf,
             self.cfg, self.stats

@@ -44,16 +44,19 @@ class PostOverset(object):
             motioninfo = motion_exprs(self.cfg,gid)
             self.motion[f'grid_{gid}'] = calc_motion(self.t, self.t, motioninfo, self.fpdtype)
 
+        # background solution
         self.bksoln = self._merge_overset()
 
         # starting from here process for different problems
 
     def _process_quant(self):
-        description = self.cfg.get('overset', 'description')
+        description = self.cfg.get('overset', 'description', 'wall-bounded')
 
         if description == 'vortexpropagation':
             self._exact_soln_isentropic_vortex(self.mesh, self.soln)
         elif description == 'taylorgreen':
+            pass
+        elif description == 'wall-bounded':
             pass
         else:
             # no subroutines defined for quantatitive analysis 
@@ -62,6 +65,14 @@ class PostOverset(object):
 
 
     def _merge_overset(self):
+        description = self.cfg.get('overset', 'description', 'wall-bounded')
+        if  description == 'wall-bounded':
+            solnbackground = defaultdict(list)
+            for k, v in self.soln_inf.items():
+                if 'g{0}' in k:
+                    solnbackground[part] = self.soln[part]   
+            return solnbackground
+
         ngparts = [0]
         
         # collect all the blanked upts in the backgroud mesh
@@ -95,8 +106,7 @@ class PostOverset(object):
         self._build_trees()
 
         solnbackground = defaultdict(list)
-        
-        # loop over blaned elements, here are the solution points
+        # loop over blanked elements, here are the solution points
         for part, eles in self.blanked_pts.items():
            
             blankedeidx = self.blanked_eid[part]
@@ -107,7 +117,7 @@ class PostOverset(object):
             for idxe in range(eles.shape[2]):
                 #loop over solution points
                 for idxspts in range(eles.shape[0]):
-                    pts      = eles[idxspts, :, idxe]
+                    pts = eles[idxspts, :, idxe]
 
                     # searching for the point in the forests
                     rst, destination = self._search_in_forests(pts)
