@@ -65,10 +65,11 @@ class NavierStokesMPIInters(BaseAdvectionDiffusionMPIInters):
         be.pointwise.register('pyfr.solvers.navstokes.kernels.mpiconu')
         be.pointwise.register('pyfr.solvers.navstokes.kernels.mpicflux')
 
+        # continuous flux 
         self.kernels['con_u'] = lambda: be.kernel(
             'mpiconu', tplargs=tplargs, dims=[self.ninterfpts],
             ulin=self._scal_lhs, urin=self._scal_rhs,
-            ulout=self._vect_lhs
+            ulout=self._vect_lhs, ovmarker=self._scal_lhs_artbnd
         )
         # add grid velocity into common flux kernel
         self.kernels['comm_flux'] = lambda: be.kernel(
@@ -78,7 +79,8 @@ class NavierStokesMPIInters(BaseAdvectionDiffusionMPIInters):
             artviscl=self._artvisc_lhs, artviscr=self._artvisc_rhs,
             mvelnl=self._scal_lhs_mvel,mvelnr=self._scal_rhs_mvel,
             mvell=self._vect_lhs_mvel,mvelr=self._vect_rhs_mvel,
-            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs
+            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs,
+            ovmarker=self._scal_lhs_artbnd
         )
 
 

@@ -87,8 +87,12 @@ class BaseInters(object):
     def _scal_view(self, inter, meth):
         return self._view(inter, meth, (self.nvars,))
     
-    # geometric conservation law is a scalar equation
+    def _scal_view_artbnd(self, inter, meth):
+        # only 1 variable for this
+        return self._view(inter, meth, (1,))
+
     def _scal_view_mvel(self, inter, meth):
+        # geometric conservation law is a scalar equation
         return self._view(inter, meth, (1,))
 
     def _vect_view(self, inter, meth):
@@ -109,6 +113,9 @@ class BaseInters(object):
         return self._xchg_view(inter, meth, (self.nvars,))
 
     def _scal_xchg_view_mvel(self, inter, meth):
+        return self._xchg_view(inter, meth, (1,))
+
+    def _scal_xchg_view_artbnd(self, inter, meth):
         return self._xchg_view(inter, meth, (1,))
 
     def _vect_xchg_view(self, inter, meth):

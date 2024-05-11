@@ -22,13 +22,20 @@
               mvell = 'in view fpdtype_t[${str(ndims)}][${str(one)}]'
               mvelr = 'inout mpi  fpdtype_t[${str(ndims)}][${str(one)}]'
               nl='in fpdtype_t[${str(ndims)}]'
-              magnl='in fpdtype_t'>
+              magnl='in fpdtype_t'
+              ovmarker='in view fpdtype_t'>
 
 // copy mvell into mvelr for mpi-overset interfaces
 % if ovset is True:
+% if mvgrid is True
 % for i in range(ndims):
     mvelr[${i}][0] = mvell[${i}][0];
 % endfor
+% endif
+// force beta to be 0.5 when a mpi face becomes interior artificial boundary
+% if ovmarker > 0: 
+    beta = 0.5; 
+% endif
 % endif
 
     // Perform the Riemann solve

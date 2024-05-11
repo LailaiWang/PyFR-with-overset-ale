@@ -975,8 +975,6 @@ class Overset(object):
             pivot.nbytes
         )
 
-        test=1
-
 
     def move_on_cpu(self):
         tg.tg_copy_to_host(

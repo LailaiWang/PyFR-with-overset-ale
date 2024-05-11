@@ -28,6 +28,7 @@ class BaseAdvectionIntInters(BaseInters):
         self._vect_lhs_mvel = self._vect_rhs_mvel = None
         self._vect_lhs_smat = self._vect_rhs_smat = None
         self._scal_lhs_mvel = self._scal_rhs_mvel = None
+
         
         if self.mvgrid is True: 
             # lhs and rhs be consistent even if the matrix 
@@ -80,6 +81,14 @@ class BaseAdvectionMPIInters(BaseInters):
         self._vect_lhs_mvel = self._vect_rhs_mvel = None
         self._vect_lhs_smat = self._vect_rhs_smat = None
         self._scal_lhs_mvel = self._scal_rhs_mvel = None
+
+        # get the view of the artbnd storage
+        if self.overset is True:
+            self._scal_lhs_artbnd = self._scal_xchg_view_artbnd(lhs, 'get_scal_fpts_artbnd_for_inter')
+            self._scal_rhs_artbnd = self._be._scal_xchg_view_artbnd(self._scal_lhs_artbnd)
+        else:
+            self._scal_lhs_artbnd = None
+            self._scal_rhs_artbnd = None
 
         if self.mvgrid is True:
             self.mvgrid_cls.update_mpi_inters_view_matrix(self, lhs)

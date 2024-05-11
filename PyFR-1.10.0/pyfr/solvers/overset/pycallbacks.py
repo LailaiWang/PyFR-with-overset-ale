@@ -588,9 +588,9 @@ class Py_callbacks(tg.callbacks):
         writeAt(dim_stride, 0, ds)
         return elesdata.data.__array_interface__['data'][0]
     
-    # fringe_data_to_device
-    # see faces.cpp
     def fringe_data_to_device(self, fringeids, nfringe, gradflag, data):
+        #fringe_data_to_device
+        # see faces.cpp
         if nfringe == 0: return
         if gradflag == 0: # passing u
             self.fringe_u_device(fringeids, nfringe, data)
@@ -602,6 +602,9 @@ class Py_callbacks(tg.callbacks):
         Note all the data in here are in IJK order from Tioga
         '''
         if nfringe == 0: return 0
+
+        # we first set the values for 
+        
 
         nbcfaces = self.griddata['nbcfaces']
         nmpifaces = self.griddata['nmpifaces']
@@ -954,3 +957,6 @@ class Py_callbacks(tg.callbacks):
 
     def _vect_view_fpts_du(self, inter, meth):
         return self._view(inter, meth, (self.system.ndims, self.system.nvars))
+
+    def _scal_view_artbnd(self, inter, meth):
+        return self._view(inter, meth, (1,))
