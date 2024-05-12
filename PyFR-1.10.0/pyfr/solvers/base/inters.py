@@ -29,6 +29,7 @@ class BaseInters(object):
         self.nvars      = next(iter(elemap.values())).nvars
         self.mvgrid     = next(iter(elemap.values())).mvgrid
         self.mvgrid_cls = next(iter(elemap.values())).mvgrid_cls
+        self.overset    = next(iter(self.elemap.values())).overset
 
         # Get the number of interfaces
         self.ninters = len(lhs)

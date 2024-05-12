@@ -2,6 +2,8 @@
 <%inherit file='base'/>
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 
+<% beta = c['ldg-beta'] %>
+
 <%pyfr:kernel name='mpiconu' ndim='1'
               ulin='in view fpdtype_t[${str(nvars)}]'
               urin='in mpi fpdtype_t[${str(nvars)}]'
@@ -12,11 +14,10 @@
 // we need to force ldg-beta to be 0.5, regardless what the possible value it is 
 // such that it wouldn't matter for the other face
 
-fpdtype_t beta = c['ldg-beta'];
 % if ovset is True:
-% if ovmarker > 0: 
-    beta = 0.5; // force ldg-beta to be 0.5
-% endif
+//% if ovmarker > 0.0: 
+//    beta = 0.5; // force ldg-beta to be 0.5
+//% endif
 % endif
 
 % for i in range(nvars):

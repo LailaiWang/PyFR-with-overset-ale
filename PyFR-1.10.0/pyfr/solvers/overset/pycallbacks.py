@@ -321,6 +321,8 @@ class Py_callbacks(tg.callbacks):
         self.griddata = griddata
         self.backend = system.backend
         tg.tioga_set_soasz(self.system.backend.soasz)
+        # set up mpi artbnd status
+        self.setup_mpi_artbnd_status_aux()
 
     # int* cellid int* nnodes # of solution points basis.upts
     def get_nodes_per_cell(self, cellid, nnodes):
@@ -587,7 +589,47 @@ class Py_callbacks(tg.callbacks):
         writeAt(var_stride, 0, vs)
         writeAt(dim_stride, 0, ds)
         return elesdata.data.__array_interface__['data'][0]
-    
+
+    def setup_mpi_artbnd_status_aux(self):
+        # information of all mpi interfaces
+        nbcfaces = self.griddata['nbcfaces']
+        nmpifaces = self.griddata['nmpifaces']
+        if nmpifaces == 0:
+            self._mpi_fpts_artbnd = None
+            return
+ 
+        tot_nfpts_mpi = 0
+        faceinfo_mpi = []
+        facefpts_mpi_range = []
+        for fid in range(nbcfaces, nbcfaces + nmpifaces):
+            cidx1, cidx2 = self.griddata['f2corg'][fid]
+            fpos1, _ = self.griddata['faceposition'][fid]
+            etyp1 = self.griddata['celltypes'][cidx1]
+            etyp2 = self.griddata['celltypes'][cidx2]
+            if cidx2 >= 0:
+                raise RuntimeError(f'Right cell of a mpi face shoud not be {cidx2}')
+            
+            perface = (etyp1, cidx1 - self. griddata['celloffset'][cidx1], fpos1, 0)
+            faceinfo_mpi.append(perface)
+
+            nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
+            tot_nfpts_mpi = tot_nfpts_mpi + nfpts
+            facefpts_mpi_range.append(tot_nfpts_mpi)
+
+        self.faceinfo_mpi = faceinfo_mpi
+        self.tot_nfpts_mpi = tot_nfpts_mpi
+        self.facefpts_mpi_range = facefpts_mpi_range
+
+        self._mpi_fpts_artbnd = self._scal_view_artbnd(
+            self.faceinfo_mpi, 'get_scal_fpts_artbnd_for_inter'
+        )
+        # tioga function to reset the status value to -1
+        tg.reset_mpi_face_artbnd_status_wrapper(
+            addrToFloatPtr(int(self._mpi_fpts_artbnd._mats[0].basedata)),
+            addrToUintPtr(self._mpi_fpts_artbnd.mapping.data),
+            nmpifaces, self.tot_nfpts_mpi, 1, self.backend.soasz, 3
+        )
+
     def fringe_data_to_device(self, fringeids, nfringe, gradflag, data):
         #fringe_data_to_device
         # see faces.cpp
@@ -602,9 +644,6 @@ class Py_callbacks(tg.callbacks):
         Note all the data in here are in IJK order from Tioga
         '''
         if nfringe == 0: return 0
-
-        # we first set the values for 
-        
 
         nbcfaces = self.griddata['nbcfaces']
         nmpifaces = self.griddata['nmpifaces']

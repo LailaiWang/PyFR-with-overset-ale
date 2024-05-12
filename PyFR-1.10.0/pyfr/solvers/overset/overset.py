@@ -323,9 +323,9 @@ class Overset(object):
         mf2c = []
         mfposition = []
         if mpi_inters != []:
-            
             mpi_faceidx = []
-            mpioffset = [bf2v.shape[0]] if bf2v.size != 0 else [0] # starting idx of mpi faces
+            #mpioffset = [bf2v.shape[0]] if bf2v.size != 0 else [0] # starting idx of mpi faces
+            mpioffset = [bf2v.shape[0]] # starting idx of mpi faces
             for idx, a in enumerate(mpi_inters):
                 mpi_facetypes = np.array( 
                     [fetype(m[0].split('-g')[0],m[2]) for m in a.lhs]
@@ -345,7 +345,7 @@ class Overset(object):
                 rrank = 0
                 mpi_idx = np.arange(mpi_f2v.shape[0]) + mpioffset[idx]
                 mpioffset.append(mpioffset[idx] + mpi_f2v.shape[0])
-                mpi_faceidx.append([a._rhsrank,mpi_idx])
+                mpi_faceidx.append([a._rhsrank, mpi_idx])
 
             mfacetypes = np.concatenate(mfacetypes, axis = 0)
             mf2v = np.concatenate(mf2v, axis = 0)
@@ -481,11 +481,11 @@ class Overset(object):
         mpifaces_r = np.array([], dtype = self.intdtype)
         mpifaces_r_rank = np.array([], dtype = self.intdtype)
 
-        if mpi_inters != []:
+        if mpi_inters != []: # when there is mpi interfaces
             MPI_TAG = 2314
             comm = MPI.COMM_WORLD
             # simple copy 
-            nbproc  = [a[0] for a in mpi_faceidx]
+            nbproc  = [a[0] for a in mpi_faceidx] # neighbor process ids
             recvbuf = [np.empty(a[1].shape[0], dtype=a[1].dtype) for a in mpi_faceidx]
             rranks  = []
             mfaces  = []

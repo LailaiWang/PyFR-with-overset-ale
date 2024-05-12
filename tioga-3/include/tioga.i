@@ -99,6 +99,13 @@ void move_grid_flat_wrapper(
     double* pivot,
     int stream = -1);
 
+void reset_mpi_face_artbnd_status_wrapper(
+    double* status, 
+    unsigned int* mapping, 
+    unsigned int nface,
+    unsigned int nfpts, unsigned int nvars, 
+    unsigned int soasz, int strean=-1);
+
 void initialize_stream_event();
 void destroy_stream_event();
 cudaStream_t get_stream_handle();
@@ -124,6 +131,7 @@ void addrToCudaStream(unsigned long long int);
 %ignore unpack_fringe_u_wrapper;
 %ignore unpack_fringe_grad_wrapper;
 %ignore pack_fringe_coords_wrapper;
+%ignore reset_mpi_face_artbnd_status_wrapper;
 %ignore initialize_stream_event;
 %ignore destroy_stream_event;
 %ignore get_stream_handle;

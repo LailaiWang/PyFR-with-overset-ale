@@ -70,6 +70,13 @@ void pack_fringe_coords_wrapper(
     int nPts, int nDims,
     unsigned int soasz,int stream = -1);
 
+void reset_mpi_face_artbnd_status_wrapper(
+    double* status, 
+    unsigned int* mapping, 
+    unsigned int nface,
+    unsigned int nfpts, unsigned int nvars, 
+    unsigned int soasz, int strean=-1);
+
 void move_grid_flat_wrapper(
     double* flatcoords, 
     double* flatcoords_ref, 

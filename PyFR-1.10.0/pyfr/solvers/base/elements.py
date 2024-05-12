@@ -511,7 +511,7 @@ class BaseElements(object):
         rmap = self._srtd_face_fpts[fidx][eidx]
         cmap = (eidx,)*nfp
 
-        return (self._scal_fpts_artbdn.mid,)*nfp, rmap, cmap
+        return (self._scal_fpts_artbnd.mid,)*nfp, rmap, cmap
 
     # for geometric conservation law
     def get_scal_fpts_mvel_for_inter(self, eidx, fidx):

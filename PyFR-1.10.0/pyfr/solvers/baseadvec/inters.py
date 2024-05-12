@@ -83,9 +83,12 @@ class BaseAdvectionMPIInters(BaseInters):
         self._scal_lhs_mvel = self._scal_rhs_mvel = None
 
         # get the view of the artbnd storage
+        # get both left and right for now, right seems to be useless
         if self.overset is True:
-            self._scal_lhs_artbnd = self._scal_xchg_view_artbnd(lhs, 'get_scal_fpts_artbnd_for_inter')
-            self._scal_rhs_artbnd = self._be._scal_xchg_view_artbnd(self._scal_lhs_artbnd)
+            self._scal_lhs_artbnd = self._scal_xchg_view_artbnd(
+                                        lhs, 'get_scal_fpts_artbnd_for_inter'
+                                    )
+            self._scal_rhs_artbnd = self._be.xchg_matrix_for_view(self._scal_lhs_artbnd)
         else:
             self._scal_lhs_artbnd = None
             self._scal_rhs_artbnd = None

@@ -274,6 +274,7 @@ void pack_cell_coords_wrapper(
 }
 
 
+
 __global__
 void unpack_unblank_u(
     int* ucellIDs, int* ecellIDs, 
@@ -515,6 +516,45 @@ void unpack_fringe_u_wrapper(
   }
 
   check_error();
+}
+
+__global__
+void reset_mpi_face_artbnd_status(
+    double* status,
+    unsigned int* mapping, 
+    unsigned int nface,
+    unsigned int nfpts,
+    unsigned int nvars, unsigned int soasz) {
+
+    const unsigned int pt = (blockDim.x * blockIdx.x + threadIdx.x);
+    if(pt >= nfpts) return;
+    
+    unsigned int gft = mapping[pt];
+
+    for(unsigned int var=0; var < nvars; var++){
+        printf("gft is %d\n", (int) gft);
+        status[gft+var*soasz] = -1.0;
+    }
+}
+
+void reset_mpi_face_artbnd_status_wrapper(
+    double* status, 
+    unsigned int* mapping, 
+    unsigned int nface,
+    unsigned int nfpts, unsigned int nvars, unsigned int soasz, int stream) {
+    
+    const int threads = 256;
+    int blocks = (nfpts + threads -1) / threads;
+    if (stream == -1) {
+        reset_mpi_face_artbnd_status<<<blocks, threads>>> (
+            status, mapping, nface, nfpts, nvars, soasz
+        );
+    } else {
+        reset_mpi_face_artbnd_status<<<blocks, threads, 0, stream_handles[stream]>>> (
+            status, mapping, nface, nfpts, nvars, soasz
+        );
+    }   
+
 }
 
 __global__
