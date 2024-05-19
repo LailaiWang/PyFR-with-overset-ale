@@ -33,9 +33,11 @@
 % endfor
 % endif
 // force beta to be 0.5 when a mpi face becomes interior artificial boundary
-//% if ovmarker > 0.0: 
-//    beta = 0.5; 
-//% endif
+% if ovmarker is not UNDEFINED:
+% if ovmarker > 0.0: 
+    beta = 0.5; 
+% endif
+% endif
 % endif
 
     // Perform the Riemann solve

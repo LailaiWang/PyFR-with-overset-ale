@@ -532,7 +532,6 @@ void reset_mpi_face_artbnd_status(
     unsigned int gft = mapping[pt];
 
     for(unsigned int var=0; var < nvars; var++){
-        printf("gft is %d\n", (int) gft);
         status[gft+var*soasz] = -1.0;
     }
 }
