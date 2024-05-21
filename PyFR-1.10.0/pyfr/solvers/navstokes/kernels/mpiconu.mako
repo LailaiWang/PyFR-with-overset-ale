@@ -16,19 +16,17 @@
 // we need to force ldg-beta to be 0.5, regardless what the possible value it is 
 // such that it wouldn't matter for the other face
 
-fpdtype_t beta;
-beta = ${lbeta};
-% if ovset is True:
-
-% if ovmaker is not UNDEFINED:
-    printf("ovmarker is %lf\n", ovmarker);
-
-% if ovmarker > 0.0: 
-    beta = 0.5; // force ldg-beta to be 0.5
-% endif
-
-% endif
-
+    fpdtype_t beta;
+    beta = ${lbeta};
+% if ovmpi is True:
+    % if lbeta != 0.5:
+        printf("some thing is wrong, mpi-overset face beta != 0.5 %lf\n", beta);
+    % endif
+% else:
+    %if overset is True:
+        beta = ovmarker > 0? 0.5:beta;
+        printf("beta is %lf\n", beta);
+    %endif
 % endif
 
 % for i in range(nvars):

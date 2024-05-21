@@ -522,6 +522,7 @@ __global__
 void reset_mpi_face_artbnd_status(
     double* status,
     unsigned int* mapping, 
+    double val,
     unsigned int nface,
     unsigned int nfpts,
     unsigned int nvars, unsigned int soasz) {
@@ -532,13 +533,14 @@ void reset_mpi_face_artbnd_status(
     unsigned int gft = mapping[pt];
 
     for(unsigned int var=0; var < nvars; var++){
-        status[gft+var*soasz] = -1.0;
+        status[gft+var*soasz] = val;
     }
 }
 
 void reset_mpi_face_artbnd_status_wrapper(
     double* status, 
-    unsigned int* mapping, 
+    unsigned int* mapping,
+    double val, 
     unsigned int nface,
     unsigned int nfpts, unsigned int nvars, unsigned int soasz, int stream) {
     
@@ -546,11 +548,11 @@ void reset_mpi_face_artbnd_status_wrapper(
     int blocks = (nfpts + threads -1) / threads;
     if (stream == -1) {
         reset_mpi_face_artbnd_status<<<blocks, threads>>> (
-            status, mapping, nface, nfpts, nvars, soasz
+            status, mapping, val, nface, nfpts, nvars, soasz
         );
     } else {
         reset_mpi_face_artbnd_status<<<blocks, threads, 0, stream_handles[stream]>>> (
-            status, mapping, nface, nfpts, nvars, soasz
+            status, mapping, val, nface, nfpts, nvars, soasz
         );
     }   
 

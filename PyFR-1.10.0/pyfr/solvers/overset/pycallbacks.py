@@ -616,19 +616,20 @@ class Py_callbacks(tg.callbacks):
             tot_nfpts_mpi = tot_nfpts_mpi + nfpts
             facefpts_mpi_range.append(tot_nfpts_mpi)
 
-        self.faceinfo_mpi = faceinfo_mpi
-        self.tot_nfpts_mpi = tot_nfpts_mpi
-        self.facefpts_mpi_range = facefpts_mpi_range
+        self.init_info_mpi = faceinfo_mpi
+        self.init_nfpts_mpi = tot_nfpts_mpi
+        self.init_mpi_range = facefpts_mpi_range
 
-        self._mpi_fpts_artbnd = self._scal_view_artbnd(
-            self.faceinfo_mpi, 'get_scal_fpts_artbnd_for_inter'
+        self._init_fpts_artbnd = self._scal_view_artbnd(
+            self.init_info_mpi, 'get_scal_fpts_artbnd_for_inter'
         )
         
         # tioga function to reset the status value to -1
         tg.reset_mpi_face_artbnd_status_wrapper(
-            addrToFloatPtr(int(self._mpi_fpts_artbnd._mats[0].basedata)),
-            addrToUintPtr(self._mpi_fpts_artbnd.mapping.data),
-            nmpifaces, self.tot_nfpts_mpi, 1, self.backend.soasz, 3
+            addrToFloatPtr(int(self._init_fpts_artbnd._mats[0].basedata)),
+            addrToUintPtr(self._init_fpts_artbnd.mapping.data),
+            -1.0,
+            nmpifaces, self.init_nfpts_mpi, 1, self.backend.soasz, 3
         )
 
     def fringe_data_to_device(self, fringeids, nfringe, gradflag, data):
@@ -651,9 +652,22 @@ class Py_callbacks(tg.callbacks):
         location in passed-in data
         ''' 
         if nfringe == 0: return 0
-        
         nbcfaces = self.griddata['nbcfaces']
         nmpifaces = self.griddata['nmpifaces']
+
+        if nmpifaces != 0:
+            # use initial info to reset
+            tg.reset_mpi_face_artbnd_status_wrapper(
+                addrToFloatPtr(int(self._init_fpts_artbnd._mats[0].basedata)),
+                addrToUintPtr(self._init_fpts_artbnd.mapping.data),
+                -1.0,
+                nmpifaces, self.init_nfpts_mpi, 1, self.backend.soasz, 3
+            )
+        
+        
+        # it seems to me now mpi faces come first and then inter come second
+        # for case when overset grids are not cutting each other
+
         # we first collect all fids here
         fids = [(ptrAt(fringeids, i),i) for i in range(nfringe)]
         # interior faces
@@ -731,6 +745,7 @@ class Py_callbacks(tg.callbacks):
             etyp2 = self.griddata['celltypes'][cidx2] 
             
             if cidx2 < 0:
+                # always use left face
                 perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
                 faceinfo_mpi.append(perface)
             
@@ -745,7 +760,18 @@ class Py_callbacks(tg.callbacks):
         self.tot_nfpts_mpi = tot_nfpts_mpi
 
         if faceinfo_mpi != []:
+            self._lmpi_fpts_artbnd = self._scal_view_artbnd(
+                self.fringe_faceinfo_mpi, 'get_scal_fpts_artbnd_for_inter'
+            )
             
+            # now we call the function to set these to one
+            tg.reset_mpi_face_artbnd_status_wrapper(
+                addrToFloatPtr(int(self._lmpi_fpts_artbnd._mats[0].basedata)),
+                addrToUintPtr(self._lmpi_fpts_artbnd.mapping.data),
+                1.0,
+                len(faceinfo_mpi), self.tot_nfpts_mpi, 1, self.backend.soasz, 3
+            )
+
             # here needs more work, need to identify the location of the data
             datatest = np.array(
                 [ptrAt(data,i) for i in range(tot_nfpts_mpi*5)]
@@ -768,12 +794,11 @@ class Py_callbacks(tg.callbacks):
             cc = datatest.swapaxes(0,1).reshape(-1)
             # non overset-mpi is the last one this could be a problem
             matrix_entry = self.system._mpi_inters[0]._scal_rhs
-            #tg.tg_copy_to_device(matrix_entry.data,data,int(nbytes))
-            tg.tg_copy_to_device(
-                matrix_entry.data,
-                addrToFloatPtr(cc.__array_interface__['data'][0]),
-                int(nbytes)
-            )
+            #tg.tg_copy_to_device(
+            #    matrix_entry.data,
+            #    addrToFloatPtr(cc.__array_interface__['data'][0]),
+            #    int(nbytes)
+            #)
                
         
         # then deal with overset artbnd
@@ -832,7 +857,6 @@ class Py_callbacks(tg.callbacks):
             cc = datatest.swapaxes(0,1).reshape(-1)
             # overset-mpi is the last one
             matrix_entry = self.system._mpi_inters[-1]._scal_rhs
-            #tg.tg_copy_to_device(matrix_entry.data,data,int(nbytes))
             tg.tg_copy_to_device(
                 matrix_entry.data,
                 addrToFloatPtr(cc.__array_interface__['data'][0]),

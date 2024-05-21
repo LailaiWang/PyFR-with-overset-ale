@@ -55,11 +55,12 @@ class NavierStokesMPIInters(BaseAdvectionDiffusionMPIInters):
         visc_corr = cfg.get('solver', 'viscosity-correction')
         shock_capturing = cfg.get('solver', 'shock-capturing')
         
-        overset = True if rhsrank == None else False
+        # this overset is to tell if this is a 
+        ovmpi = True if rhsrank == None else False
 
         tplargs = dict(ndims=self.ndims, nvars=self.nvars, rsolver=rsolver,
                        visc_corr=visc_corr, shock_capturing=shock_capturing,
-                       mvgrid=self.mvgrid, ovset=overset,
+                       mvgrid=self.mvgrid, ovmpi=ovmpi, overset = self.overset,
                        c=self._tpl_c)
 
         be.pointwise.register('pyfr.solvers.navstokes.kernels.mpiconu')

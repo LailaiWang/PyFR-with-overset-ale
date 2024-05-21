@@ -102,6 +102,7 @@ void move_grid_flat_wrapper(
 void reset_mpi_face_artbnd_status_wrapper(
     double* status, 
     unsigned int* mapping, 
+    double val,
     unsigned int nface,
     unsigned int nfpts, unsigned int nvars, 
     unsigned int soasz, int strean=-1);
