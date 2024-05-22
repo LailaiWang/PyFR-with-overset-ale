@@ -677,7 +677,76 @@ class Py_callbacks(tg.callbacks):
         fids_mpi = [(fid, i) for fid, i in fids if nbcfaces <= fid < nbcfaces + nmpifaces]
         fids_bc = [(fid, i) for fid, i in fids if fid < nbcfaces]        
 
-        # first deal with  inner artbnd
+        # now deal with MPI artificial boundaries
+        tot_nfpts_mpi = 0
+        faceinfo_mpi = []
+        facefpts_mpi_range = [0]
+        for fid, i in fids_mpi:
+            cidx1, cidx2 = self.griddata['f2corg'][fid]    
+            fpos1, fpos2 = self.griddata['faceposition'][fid]
+            etyp1 = self.griddata['celltypes'][cidx1]
+            etyp2 = self.griddata['celltypes'][cidx2] 
+            
+            if cidx2 < 0:
+                # always use left face
+                perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
+                faceinfo_mpi.append(perface)
+            
+                # always use left face
+                nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
+                tot_nfpts_mpi = tot_nfpts_mpi + nfpts
+                facefpts_mpi_range.append(tot_nfpts_mpi)
+            else:
+                raise RuntimeError("Something is wrong with fringe bc")
+        
+        self.fringe_faceinfo_mpi = faceinfo_mpi  
+        self.tot_nfpts_mpi = tot_nfpts_mpi
+
+        if faceinfo_mpi != []:
+            self._lmpi_fpts_artbnd = self._scal_view_artbnd(
+                self.fringe_faceinfo_mpi, 'get_scal_fpts_artbnd_for_inter'
+            )
+            
+            # now we call the function to set these to one
+            tg.reset_mpi_face_artbnd_status_wrapper(
+                addrToFloatPtr(int(self._lmpi_fpts_artbnd._mats[0].basedata)),
+                addrToUintPtr(self._lmpi_fpts_artbnd.mapping.data),
+                1.0,
+                len(faceinfo_mpi), self.tot_nfpts_mpi, 1, self.backend.soasz, 3
+            )
+
+            nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts_mpi
+            nbytes = nbytes*self.system.nvars
+
+            # here needs more work, need to identify the location of the data
+            # for now we assume it's always at the first locations
+            datatest = np.array(
+                [ptrAt(data,i) for i in range(tot_nfpts_mpi*5)]
+            ).astype(self.backend.fpdtype)
+        
+            datatest = datatest.reshape(-1,5)
+            
+            for idx, face in enumerate(faceinfo_mpi):
+                etype, typecidx, fpos, _ = face
+                srted_ord = self.system.ele_map[etype]._srtd_face_fpts[fpos][typecidx]
+                unsrted_ord = self.system.ele_map[etype].basis.facefpts[fpos]
+                # swap data according to the node ordering
+                nodesmap = []
+                for n in srted_ord:
+                    nodesmap.append(unsrted_ord.index(n))
+                # swap data 
+                a = datatest[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]]
+                datatest[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]] = a[nodesmap]
+            
+            cc = datatest.swapaxes(0,1).reshape(-1)
+            matrix_entry = self.system._mpi_inters[0]._scal_rhs
+            tg.tg_copy_to_device(
+                matrix_entry.data,
+                addrToFloatPtr(cc.__array_interface__['data'][0]),
+                int(nbytes)
+            )
+               
+        # then deal with  inner artbnd
         tot_nfpts = 0
         faceinfo = []
         side_int = []
@@ -723,7 +792,7 @@ class Py_callbacks(tg.callbacks):
             nbytes = nbytes*self.system.nvars
 
             # here needs more work, need identify the location of the data
-            tg.tg_copy_to_device( self.fringe_u_fpts_d, data, int(nbytes))
+            tg.tg_copy_to_device( self.fringe_u_fpts_d, data, int(nbytes), self.tot_nfpts_mpi*5)
             
             # datashape of eles._scal_fpts is [nfpts, neled2, nvars, soasz]
             tg.unpack_fringe_u_wrapper (
@@ -733,73 +802,6 @@ class Py_callbacks(tg.callbacks):
                 nfringe, tot_nfpts, self.system.nvars, self.backend.soasz, 3
             )
 
-        # now deal with MPI artificial boundaries
-        
-        tot_nfpts_mpi = 0
-        faceinfo_mpi = []
-        facefpts_mpi_range = [0]
-        for fid, i in fids_mpi:
-            cidx1, cidx2 = self.griddata['f2corg'][fid]    
-            fpos1, fpos2 = self.griddata['faceposition'][fid]
-            etyp1 = self.griddata['celltypes'][cidx1]
-            etyp2 = self.griddata['celltypes'][cidx2] 
-            
-            if cidx2 < 0:
-                # always use left face
-                perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
-                faceinfo_mpi.append(perface)
-            
-                # always use left face
-                nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
-                tot_nfpts_mpi = tot_nfpts_mpi + nfpts
-                facefpts_mpi_range.append(tot_nfpts_mpi)
-            else:
-                raise RuntimeError("Something is wrong with fringe bc")
-        
-        self.fringe_faceinfo_mpi = faceinfo_mpi  
-        self.tot_nfpts_mpi = tot_nfpts_mpi
-
-        if faceinfo_mpi != []:
-            self._lmpi_fpts_artbnd = self._scal_view_artbnd(
-                self.fringe_faceinfo_mpi, 'get_scal_fpts_artbnd_for_inter'
-            )
-            
-            # now we call the function to set these to one
-            tg.reset_mpi_face_artbnd_status_wrapper(
-                addrToFloatPtr(int(self._lmpi_fpts_artbnd._mats[0].basedata)),
-                addrToUintPtr(self._lmpi_fpts_artbnd.mapping.data),
-                1.0,
-                len(faceinfo_mpi), self.tot_nfpts_mpi, 1, self.backend.soasz, 3
-            )
-
-            # here needs more work, need to identify the location of the data
-            datatest = np.array(
-                [ptrAt(data,i) for i in range(tot_nfpts_mpi*5)]
-            ).astype(self.backend.fpdtype)
-        
-            datatest = datatest.reshape(-1,5)
-            
-            for idx, face in enumerate(faceinfo_mpi):
-                etype, typecidx, fpos, _ = face
-                srted_ord = self.system.ele_map[etype]._srtd_face_fpts[fpos][typecidx]
-                unsrted_ord = self.system.ele_map[etype].basis.facefpts[fpos]
-                # swap data according to the node ordering
-                nodesmap = []
-                for n in srted_ord:
-                    nodesmap.append(unsrted_ord.index(n))
-                # swap data 
-                a = datatest[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]]
-                datatest[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]] = a[nodesmap]
-            
-            cc = datatest.swapaxes(0,1).reshape(-1)
-            # non overset-mpi is the last one this could be a problem
-            matrix_entry = self.system._mpi_inters[0]._scal_rhs
-            #tg.tg_copy_to_device(
-            #    matrix_entry.data,
-            #    addrToFloatPtr(cc.__array_interface__['data'][0]),
-            #    int(nbytes)
-            #)
-               
         
         # then deal with overset artbnd
         tot_nfpts_ov = 0
@@ -829,13 +831,12 @@ class Py_callbacks(tg.callbacks):
         self.tot_nfpts_ov = tot_nfpts_ov
 
         if faceinfo_ov != []:
-            offset = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
-            offset = offset*self.system.nvars
+            #offset = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
+            #offset = offset*self.system.nvars
             nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts_ov
             nbytes = nbytes*self.system.nvars
             
             # a reordering is necessary here as the date layout in here is different
-            # here needs more work, need identify the location of the data
             datatest = np.array(
                 [ptrAt(data,i) for i in range(tot_nfpts_ov*5)]
             ).astype(self.backend.fpdtype)

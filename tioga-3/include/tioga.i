@@ -461,22 +461,23 @@ void tg_free_device(unsigned long long int d, int itemsize) {
 }
 
 // copy data from host to device for double
-void tg_copy_to_device(unsigned long long int a, double *data, int nbytes) {
+void tg_copy_to_device(unsigned long long int a, double *data, int nbytes, int offset = 0) {
     // cast a to pointer
     double* a_d = reinterpret_cast<double* > (a);
-    cudaMemcpy(a_d, data, nbytes, cudaMemcpyHostToDevice);
+    printf("current offset is %d\n", offset);
+    cudaMemcpy(a_d, data + offset, nbytes, cudaMemcpyHostToDevice);
 }
 
-void tg_copy_to_device(unsigned long long int a, int *data, int nbytes) {
+void tg_copy_to_device(unsigned long long int a, int *data, int nbytes, int offset = 0) {
     // cast a to pointer
     int* a_d = reinterpret_cast<int* > (a);
-    cudaMemcpy(a_d, data, nbytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(a_d, data + offset, nbytes, cudaMemcpyHostToDevice);
 }
 
 // copy data from host to device for float
-void tg_copy_to_device(unsigned long long int a, float *data, int nbytes) {
+void tg_copy_to_device(unsigned long long int a, float *data, int nbytes, int offset = 0) {
     float* a_d = reinterpret_cast<float* > (a);
-    cudaMemcpy(a_d, data, nbytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(a_d, data + offset, nbytes, cudaMemcpyHostToDevice);
 }
 
 // copy data from device to host for double

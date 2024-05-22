@@ -25,18 +25,17 @@
 % else:
     %if overset is True:
         beta = ovmarker > 0? 0.5:beta;
-        printf("beta is %lf\n", beta);
     %endif
 % endif
 
 % for i in range(nvars):
-% if beta == -0.5:
-    ulout[${i}] = ulin[${i}];
-% elif beta == 0.5:
-    ulout[${i}] = urin[${i}];
-% else:
-    ulout[${i}] = urin[${i}]*(0.5 + beta) + ulin[${i}]*(0.5 - beta);
-% endif
+    if (beta == - 0.5) {
+        ulout[${i}] = ulin[${i}];
+    } else if ( beta == 0.5) {
+        ulout[${i}] = urin[${i}];
+    } else {
+        ulout[${i}] = urin[${i}]*(0.5 + beta) + ulin[${i}]*(0.5 - beta);
+    }
 % endfor
 
 </%pyfr:kernel>
