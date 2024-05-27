@@ -675,12 +675,15 @@ class Py_callbacks(tg.callbacks):
         # note that within nbcfaces overset faces will be included if there is any
         # beyond the range, there are all legit mpi faces and interior faces
         fids_mpi = [(fid, i) for fid, i in fids if nbcfaces <= fid < nbcfaces + nmpifaces]
+        fids_mpi_zero = np.array([fid - nbcfaces  for fid, i in fids if nbcfaces <= fid < nbcfaces + nmpifaces]).astype('int32')
         fids_bc = [(fid, i) for fid, i in fids if fid < nbcfaces]        
 
+        self.fringe_u_fpts_d = self.griddata['fringe_u_fpts_d']
         # now deal with MPI artificial boundaries
         tot_nfpts_mpi = 0
         faceinfo_mpi = []
         facefpts_mpi_range = [0]
+        mpi_nfpts = []
         for fid, i in fids_mpi:
             cidx1, cidx2 = self.griddata['f2corg'][fid]    
             fpos1, fpos2 = self.griddata['faceposition'][fid]
@@ -695,10 +698,15 @@ class Py_callbacks(tg.callbacks):
                 # always use left face
                 nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
                 tot_nfpts_mpi = tot_nfpts_mpi + nfpts
+                mpi_nfpts.append(nfpts)
                 facefpts_mpi_range.append(tot_nfpts_mpi)
             else:
                 raise RuntimeError("Something is wrong with fringe bc")
-        
+        # we are certain data is continuously float aligned
+        mpi_nfpts = np.array(mpi_nfpts) * self.system.nvars
+        if mpi_nfpts.size !=0: mpi_nfpts = np.cumsum(mpi_nfpts) - mpi_nfpts[0]
+        mpi_nfpts = mpi_nfpts.astype('int32')
+
         self.fringe_faceinfo_mpi = faceinfo_mpi  
         self.tot_nfpts_mpi = tot_nfpts_mpi
 
@@ -715,17 +723,12 @@ class Py_callbacks(tg.callbacks):
                 len(faceinfo_mpi), self.tot_nfpts_mpi, 1, self.backend.soasz, 3
             )
 
-            nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts_mpi
-            nbytes = nbytes*self.system.nvars
-
-            # here needs more work, need to identify the location of the data
-            # for now we assume it's always at the first locations
             datatest = np.array(
-                [ptrAt(data,i) for i in range(tot_nfpts_mpi*5)]
+                [ptrAt(data,i) for i in range(self.tot_nfpts_mpi*self.system.nvars)]
             ).astype(self.backend.fpdtype)
-        
-            datatest = datatest.reshape(-1,5)
-            
+
+            datatest = datatest.reshape(-1,self.system.nvars)
+
             for idx, face in enumerate(faceinfo_mpi):
                 etype, typecidx, fpos, _ = face
                 srted_ord = self.system.ele_map[etype]._srtd_face_fpts[fpos][typecidx]
@@ -737,13 +740,42 @@ class Py_callbacks(tg.callbacks):
                 # swap data 
                 a = datatest[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]]
                 datatest[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]] = a[nodesmap]
-            
-            cc = datatest.swapaxes(0,1).reshape(-1)
-            matrix_entry = self.system._mpi_inters[0]._scal_rhs
+
+            # we first copy the current fids_mpi_zero to device
+            curmpientry = self.griddata['curmpientry_d'] # global face ids
             tg.tg_copy_to_device(
-                matrix_entry.data,
+                curmpientry, 
+                addrToFloatPtr(fids_mpi_zero.__array_interface__['data'][0]), 
+                fids_mpi_zero.nbytes
+            )
+            curnfpts = self.griddata['curnfpts_d'] # source offset
+            tg.tg_copy_to_device(
+                curnfpts, 
+                addrToFloatPtr(mpi_nfpts.__array_interface__['data'][0]),
+                mpi_nfpts.nbytes
+            )
+            # our target will only be part of the 
+            cc = datatest.swapaxes(0,1).reshape(-1)
+            # copy mpi data to fringe_u then the offset for interior faces 
+            # tot_mpi_nfpts * nvars
+            tg.tg_copy_to_device(
+                self.fringe_u_fpts_d,
                 addrToFloatPtr(cc.__array_interface__['data'][0]),
-                int(nbytes)
+                cc.nbytes
+            )
+            mpientry = self.griddata['mpientry_d']
+            mpinfpts = self.griddata['mnfpts_d'] # fpts per face global
+            # then copy the data the those mpi matrices in PyFR
+            base_entry = self.system._mpi_inters[0]._scal_rhs.data
+            tg.copy_to_mpi_rhs_wrapper(
+                addrToFloatPtr(base_entry), # base of destination
+                addrToFloatPtr(self.fringe_u_fpts_d),  # source
+                addrToUintPtr(mpientry), # doffset global
+                addrToUintPtr(curmpientry),  # current fidx
+                addrToUintPtr(curnfpts),  #
+                addrToUintPtr(mpinfpts), # number of fpts per face global
+                self.system.nvars,
+                self.tot_nfpts_mpi
             )
                
         # then deal with  inner artbnd
@@ -779,7 +811,6 @@ class Py_callbacks(tg.callbacks):
                 raise RuntimeError('interior cell negtive right neighbor')       
         
         # save for later use
-        self.fringe_u_fpts_d = self.griddata['fringe_u_fpts_d']
         self.fringe_faceinfo = faceinfo
         self.tot_nfpts = tot_nfpts
 
@@ -791,8 +822,10 @@ class Py_callbacks(tg.callbacks):
             nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
             nbytes = nbytes*self.system.nvars
 
-            # here needs more work, need identify the location of the data
-            tg.tg_copy_to_device( self.fringe_u_fpts_d, data, int(nbytes), self.tot_nfpts_mpi*5)
+            # mpi always comes first adding one offset
+            tg.tg_copy_to_device( 
+                self.fringe_u_fpts_d, data, int(nbytes), self.tot_nfpts_mpi*self.system.nvars
+            )
             
             # datashape of eles._scal_fpts is [nfpts, neled2, nvars, soasz]
             tg.unpack_fringe_u_wrapper (
@@ -836,7 +869,7 @@ class Py_callbacks(tg.callbacks):
             nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts_ov
             nbytes = nbytes*self.system.nvars
             
-            # a reordering is necessary here as the date layout in here is different
+            # this is good enough if two overset grids are not cutting each other
             datatest = np.array(
                 [ptrAt(data,i) for i in range(tot_nfpts_ov*5)]
             ).astype(self.backend.fpdtype)
@@ -867,13 +900,15 @@ class Py_callbacks(tg.callbacks):
     def fringe_du_device(self, fringeids, nfringe, data):
         # known from previous step fringe_u_device
         tot_nfpts = self.tot_nfpts
+        tot_nfpts_mpi = self.tot_nfpts_mpi
         if tot_nfpts == 0: return
         faceinfo = self.fringe_faceinfo
         # copy data to device
         self.fringe_du_fpts_d = self.griddata['fringe_du_fpts_d']
         nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
         nbytes = nbytes*self.system.nvars*self.system.ndims
-        tg.tg_copy_to_device(self.fringe_du_fpts_d, data, int(nbytes))
+        # need to skip mpi related
+        tg.tg_copy_to_device(self.fringe_du_fpts_d, data, int(nbytes), tot_nfpts_mpi*self.system.nvars*self.system.ndims)
         self._vect_fpts_du = self._vect_view_fpts_du(
                 faceinfo, 'get_vect_unsrted_fpts_for_inter')
         # copy to the place

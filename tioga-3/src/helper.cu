@@ -685,3 +685,56 @@ void move_grid_nested_wrapper(
   check_error();
 }
 
+__global__
+void copy_to_mpi_rhs(
+    double* base, 
+    double* src,
+    unsigned int* doffset, //offset from the base in char 1 byte
+    unsigned int* fidx,
+    unsigned int* soffset, // offset from the base in double 8 bytes
+    unsigned int* nfpts,
+    unsigned int nvar,
+    unsigned int nface
+    ) {
+  const unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  if(tid >= nface ) return;
+
+  int fid = fidx[tid];// fid is the global id
+  int doff = doffset[fid]; // in bytes
+  int nft = nfpts[fid]; //
+ 
+  char* cdest = ((char*) base) + doff;
+  double* dest = (double*) cdest;
+
+  int soff = soffset[tid]; // local id
+ 
+  double* source = src + soff;   
+ 
+  for(int j=0;j<nft;++j) {
+    for(int i=0;i<nvar;++i) { 
+        dest[j*nvar + i] = source[j*nvar + i];
+    }
+  }
+
+}
+
+// the wrapper to copy the data 
+void copy_to_mpi_rhs_wrapper(
+    double* base, double* src,
+    unsigned int* doffset, unsigned int* fidx,  // these two decide the offset for dest
+    unsigned int* soffset, // this one decide the offset for src
+    unsigned int* nfpts, 
+    unsigned int nvar, unsigned int nface, int stream
+) {
+  int threads = 256;
+  int blocks = (int) (nface + threads -1) /threads;
+  if(stream == -1) {
+    copy_to_mpi_rhs<<<blocks, threads>>>(base, src, doffset, fidx, soffset, nfpts, nvar, nface);
+  } else {
+    copy_to_mpi_rhs<<<blocks, threads, 0, stream_handles[stream]>>> (
+        base, src, doffset, fidx, soffset, nfpts, nvar, nface
+    );
+  }
+}
+
+

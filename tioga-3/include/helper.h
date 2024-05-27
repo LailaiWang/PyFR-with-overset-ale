@@ -101,6 +101,15 @@ void move_grid_nested_wrapper(
     double* pivot, // adding pivot info to allow for arbitrary pivot point
     int stream = -1);
 
+
+void copy_to_mpi_rhs_wrapper(
+    double* base, double* src,
+    unsigned int* doffset, unsigned int* fidx,  // these two decide the offset for dest
+    unsigned int* soffset, // this one decide the offset for src
+    unsigned int* nfpts, 
+    unsigned int nvar, unsigned int nface, int stream = -1
+);
+ 
 /// functions for gmres etc
 void pmg_helper(void (*pmgfunc) ());
 #endif

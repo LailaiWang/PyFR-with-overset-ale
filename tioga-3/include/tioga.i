@@ -107,6 +107,15 @@ void reset_mpi_face_artbnd_status_wrapper(
     unsigned int nfpts, unsigned int nvars, 
     unsigned int soasz, int strean=-1);
 
+void copy_to_mpi_rhs_wrapper(
+    double* base, double* src,
+    unsigned int* doffset, unsigned int* fidx,  // these two decide the offset for dest
+    unsigned int* soffset, // this one decide the offset for src
+    unsigned int* nfpts, 
+    unsigned int nvar, unsigned int nface, int stream = -1
+);
+
+
 void initialize_stream_event();
 void destroy_stream_event();
 cudaStream_t get_stream_handle();
@@ -139,6 +148,7 @@ void addrToCudaStream(unsigned long long int);
 %ignore get_event_handle;
 %ignore move_grid_flat_wrapper;
 %ignore move_grid_nested_wrapper;
+%ignore copy_to_mpi_rhs_wrapper;
 %ignore sync_device;
 %ignore addrToCudaStream;
 %include "tiogaInterface.h"
@@ -433,6 +443,7 @@ unsigned long long int tg_allocate_device(int maxcells, int maxupts,
 }
 
 unsigned long long int tg_allocate_device_int(int maxfaces) {
+    maxfaces = maxfaces > 1? maxfaces: 1; // at least has one 
     int nbytes = maxfaces*sizeof(int);
     int* d;
     cudaMalloc((void **) &d, nbytes);
@@ -464,7 +475,6 @@ void tg_free_device(unsigned long long int d, int itemsize) {
 void tg_copy_to_device(unsigned long long int a, double *data, int nbytes, int offset = 0) {
     // cast a to pointer
     double* a_d = reinterpret_cast<double* > (a);
-    printf("current offset is %d\n", offset);
     cudaMemcpy(a_d, data + offset, nbytes, cudaMemcpyHostToDevice);
 }
 

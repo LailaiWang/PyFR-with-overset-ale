@@ -27,14 +27,14 @@
 
     fpdtype_t beta;
     beta = ${lbeta};
-// copy mvell into mvelr for mpi-overset interfaces
 % if mvgrid is True:
 % for i in range(ndims):
+    // copy mvell into mvelr for mpi-overset interfaces
     mvelr[${i}][0] = mvell[${i}][0];
 % endfor
 % endif
 
-% if ovmpi is True:
+% if ovmpi is True: 
     %if lbeta !=0.5:
         printf("some thing is wrong, mpi-overset face beta != 0.5 %lf\n", beta);
     %endif
@@ -47,28 +47,21 @@
     fpdtype_t ficomm[${nvars}], fvcomm;
     ${pyfr.expand('rsolve','ul','ur','mvell','mvelr','nl','ficomm')};
 
-    // move these out
+    // we need to evaluate both left and right
     fpdtype_t fvl[${ndims}][${nvars}] = {{0}};
-% if lbeta != -0.5:
     ${pyfr.expand('viscous_flux_add', 'ul', 'gradul', 'fvl')};
     ${pyfr.expand('artificial_viscosity_add', 'gradul', 'fvl', 'artviscl')};
-% endif
 
-    // move these out
     fpdtype_t fvr[${ndims}][${nvars}] = {{0}};
-% if lbeta != 0.5:
     ${pyfr.expand('viscous_flux_add', 'ur', 'gradur', 'fvr')};
     ${pyfr.expand('artificial_viscosity_add', 'gradur', 'fvr', 'artviscr')};
-% endif
 
 % for i in range(nvars):
     // here use beta to check, downgrade to c language
     if (beta == -0.5) {
-        printf("detecting negative beta\n");
         fvcomm = ${' + '.join('nl[{j}]*fvr[{j}][{i}]'.format(i=i, j=j)
                           for j in range(ndims))};
     } else if (beta == 0.5) {
-        printf("detecting positive beta\n");
         fvcomm = ${' + '.join('nl[{j}]*fvl[{j}][{i}]'.format(i=i, j=j)
                           for j in range(ndims))};
     } else {
