@@ -112,6 +112,7 @@ void copy_to_mpi_rhs_wrapper(
     unsigned int* doffset, unsigned int* fidx,  // these two decide the offset for dest
     unsigned int* soffset, // this one decide the offset for src
     unsigned int* nfpts, 
+    unsigned int* fbase,
     unsigned int nvar, unsigned int nface, int stream = -1
 );
 

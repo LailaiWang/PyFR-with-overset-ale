@@ -755,7 +755,9 @@ class Py_callbacks(tg.callbacks):
                 mpi_nfpts.nbytes
             )
             # our target will only be part of the 
-            cc = datatest.swapaxes(0,1).reshape(-1)
+            #cc = datatest.swapaxes(0,1).reshape(-1)
+            cc = datatest.reshape(-1)
+            #print('cc is ', cc)
             # copy mpi data to fringe_u then the offset for interior faces 
             # tot_mpi_nfpts * nvars
             tg.tg_copy_to_device(
@@ -765,8 +767,12 @@ class Py_callbacks(tg.callbacks):
             )
             mpientry = self.griddata['mpientry_d']
             mpinfpts = self.griddata['mnfpts_d'] # fpts per face global
+            mbaseface = self.griddata['mbaseface_d']
             # then copy the data the those mpi matrices in PyFR
             base_entry = self.system._mpi_inters[0]._scal_rhs.data
+           
+            #print('base entry', base_entry)
+            #print('mpi entry', self.griddata['mpientry'][fids_mpi_zero[0]])
             tg.copy_to_mpi_rhs_wrapper(
                 addrToFloatPtr(base_entry), # base of destination
                 addrToFloatPtr(self.fringe_u_fpts_d),  # source
@@ -774,8 +780,9 @@ class Py_callbacks(tg.callbacks):
                 addrToUintPtr(curmpientry),  # current fidx
                 addrToUintPtr(curnfpts),  #
                 addrToUintPtr(mpinfpts), # number of fpts per face global
+                addrToUintPtr(mbaseface),
                 self.system.nvars,
-                self.tot_nfpts_mpi
+                fids_mpi_zero.shape[0]
             )
                
         # then deal with  inner artbnd
@@ -874,7 +881,7 @@ class Py_callbacks(tg.callbacks):
                 [ptrAt(data,i) for i in range(tot_nfpts_ov*5)]
             ).astype(self.backend.fpdtype)
 
-            datatest = datatest.reshape(-1,5)
+            datatest = datatest.reshape(-1,self.system.nvars)
 
             for idx, face in enumerate(faceinfo_ov):
                 etype, typecidx, fpos, _ = face

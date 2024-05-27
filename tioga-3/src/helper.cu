@@ -693,6 +693,7 @@ void copy_to_mpi_rhs(
     unsigned int* fidx,
     unsigned int* soffset, // offset from the base in double 8 bytes
     unsigned int* nfpts,
+    unsigned int* fbase,
     unsigned int nvar,
     unsigned int nface
     ) {
@@ -703,16 +704,27 @@ void copy_to_mpi_rhs(
   int doff = doffset[fid]; // in bytes
   int nft = nfpts[fid]; //
  
-  char* cdest = ((char*) base) + doff;
-  double* dest = (double*) cdest;
 
   int soff = soffset[tid]; // local id
- 
   double* source = src + soff;   
- 
-  for(int j=0;j<nft;++j) {
-    for(int i=0;i<nvar;++i) { 
-        dest[j*nvar + i] = source[j*nvar + i];
+  
+  char* cdest = ((char*) base) + doff; 
+  double* dest = (double*) cdest;// this is for first variable of the face
+    
+  //printf("offset for face %d\n", fbase[fid]);
+  for(int i=0;i<nvar;++i) { 
+    double* vdest = dest + i*fbase[fid]; // fbase is offset interms of double
+    for(int j=0;j<nft;++j) {
+        /*
+        printf("source %lf %lf %lf %lf %lf\n", 
+            source[j*nvar + 0],
+            source[j*nvar + 1],
+            source[j*nvar + 2],
+            source[j*nvar + 3],
+            source[j*nvar + 4]
+        );
+        */
+        vdest[j] = source[j*nvar + i];
     }
   }
 
@@ -723,16 +735,19 @@ void copy_to_mpi_rhs_wrapper(
     double* base, double* src,
     unsigned int* doffset, unsigned int* fidx,  // these two decide the offset for dest
     unsigned int* soffset, // this one decide the offset for src
-    unsigned int* nfpts, 
+    unsigned int* nfpts,
+    unsigned int* fbase, 
     unsigned int nvar, unsigned int nface, int stream
 ) {
   int threads = 256;
   int blocks = (int) (nface + threads -1) /threads;
   if(stream == -1) {
-    copy_to_mpi_rhs<<<blocks, threads>>>(base, src, doffset, fidx, soffset, nfpts, nvar, nface);
+    copy_to_mpi_rhs<<<blocks, threads>>>(
+        base, src, doffset, fidx, soffset, nfpts, fbase, nvar, nface
+    );
   } else {
     copy_to_mpi_rhs<<<blocks, threads, 0, stream_handles[stream]>>> (
-        base, src, doffset, fidx, soffset, nfpts, nvar, nface
+        base, src, doffset, fidx, soffset, nfpts, fbase, nvar, nface
     );
   }
 }

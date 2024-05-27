@@ -226,7 +226,8 @@ class Overset(object):
 
         # base on the address starting location, we sort this
         mpi_inters = sorted(mpi_inters, key=lambda x: x._scal_rhs.data, reverse=False)      
-        mpi_base = [x._scal_rhs.data for x in mpi_inters]        
+        mpi_base = [x._scal_rhs.data for x in mpi_inters] 
+        mpi_base_length = [ x._scal_rhs.datashape[1]/self.nvars for x in mpi_inters]       
 
         # bc interfaces
         bfacetypes =  []
@@ -328,6 +329,7 @@ class Overset(object):
         mfposition = []
         mdataentry = []
         mnfpts = []
+        mbaseface = []
         if mpi_inters != []:
             mpi_faceidx = []
             #mpioffset = [bf2v.shape[0]] if bf2v.size != 0 else [0] # starting idx of mpi faces
@@ -356,14 +358,18 @@ class Overset(object):
                                     
                 itemsize = np.dtype(self.system.backend.fpdtype).itemsize
 
+                # point by point entry exclude self.nvars
                 mpi_entry = np.array(
-                    [ elemap[m[0]].basis.nfacefpts[m[2]] * self.nvars * itemsize for m in a.lhs]
+                    [ elemap[m[0]].basis.nfacefpts[m[2]] * itemsize for m in a.lhs]
                 )
 
                 cur_nfpts= np.array(
                     [ elemap[m[0]].basis.nfacefpts[m[2]] for m in a.lhs]
                 )
 
+                print('umber of mpi faces', mpi_entry.shape)
+                # collecting total nfpts for this mpi_inters
+                mbaseface.append(np.ones(mpi_entry.shape[0]) * (np.sum(mpi_entry)/itemsize))    
                 # exclusive scan
                 mpi_entry =  np.cumsum(mpi_entry) - mpi_entry[0] 
                 mpi_entry = mpi_entry if idx == 0 else mpi_entry + mpi_base[idx] - mpi_base[idx-1] 
@@ -372,6 +378,7 @@ class Overset(object):
                 mdataentry.append(mpi_entry)
                 mnfpts.append(cur_nfpts)
 
+
             mfacetypes = np.concatenate(mfacetypes, axis = 0)
             mf2v = np.concatenate(mf2v, axis = 0)
             mf2c = np.concatenate(mf2c, axis = 0)
@@ -379,6 +386,7 @@ class Overset(object):
             # bytewise offset from the first data entry
             mdataentry = np.concatenate(mdataentry, axis = 0).astype(self.intdtype)
             mnfpts = np.concatenate(mnfpts, axis = 0).astype(self.intdtype)
+            mbaseface = np.concatenate(mbaseface, axis=0).astype(self.intdtype)
         else:
             mfacetypes = np.array(mfacetypes)
             mf2v = np.array(mf2v)
@@ -386,6 +394,7 @@ class Overset(object):
             mfposition = np.array(mfposition)
             mdataentry = np.array(mdataentry).astype(self.intdtype)
             mnfpts = np.array(mnfpts).astype(self.intdtype)
+            mbaseface = np.array(mbaseface).astype(self.intdtype)
 
         # interior interfaces
         itfacetypes = [] 
@@ -641,7 +650,7 @@ class Overset(object):
 
         return (c2v_flat, c2f_flat, f2v_flat, f2c_flat, facetypes, faceposition, f2corg,
                overnodes, wallnodes, overfaceidx, wallfaceidx, mpifaceidx, mpifaces_r,
-               mpifaces_r_rank, mdataentry, mnfpts)
+               mpifaces_r_rank, mdataentry, mnfpts, mbaseface)
         
 
     def _prepare_griddata(self, tol = 1e-8):
@@ -655,7 +664,7 @@ class Overset(object):
         # I know this is nasty
         (c2v_flat, c2f_flat, f2v_flat, f2c_flat, facetypes, faceposition, f2corg,
         overnodes, wallnodes, overfaceidx, wallfaceidx, mpifaceidx, mpifaces_r,
-        mpifaces_r_rank, mdataentry, mnfpts) = self._form_face_info(c2v, c2f)
+        mpifaces_r_rank, mdataentry, mnfpts, mbaseface) = self._form_face_info(c2v, c2f)
 
         griddata = defaultdict()
         
@@ -714,6 +723,7 @@ class Overset(object):
 
         griddata['mpientry'] = mdataentry
         griddata['mnfpts'] = mnfpts
+        griddata['mbaseface'] = mbaseface
         return griddata
 
     def _init_overset(self):
@@ -910,6 +920,15 @@ class Overset(object):
                 grid['mnfpts'].shape[0]
             )
 
+            self.mbaseface_d = tg.tg_allocate_device_int(
+                grid['mbaseface'].shape[0]
+            )
+
+            tg.tg_copy_to_device(self.mbaseface_d,
+                addrToFloatPtr(grid['mbaseface'].__array_interface__['data'][0]),
+                grid['mbaseface'].nbytes
+            )
+
             self.unblank_ids_ele = OrderedDict()
             self.unblank_ids_loc = OrderedDict()
             for etype in self.system.ele_types:
@@ -942,6 +961,7 @@ class Overset(object):
             grid['curmpientry_d'] = self.curmpientry_d
             grid['mnfpts_d'] = self.mnfpts_d
             grid['curnfpts_d'] = self.curnfpts_d
+            grid['mbaseface_d'] = self.mbaseface_d
 
             # additional memeory for local coordinates manipulation
             self.Rmat_d = tg.tg_allocate_device(
