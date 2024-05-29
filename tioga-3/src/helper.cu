@@ -712,18 +712,14 @@ void copy_to_mpi_rhs(
   double* dest = (double*) cdest;// this is for first variable of the face
     
   //printf("offset for face %d\n", fbase[fid]);
+  //printf("base is %ld\n", (long long) (base));
+  //printf("base of face is %d %d %d %d\n", doffset[0],doffset[1], doffset[2], doffset[3]);
   for(int i=0;i<nvar;++i) { 
     double* vdest = dest + i*fbase[fid]; // fbase is offset interms of double
     for(int j=0;j<nft;++j) {
-        /*
-        printf("source %lf %lf %lf %lf %lf\n", 
-            source[j*nvar + 0],
-            source[j*nvar + 1],
-            source[j*nvar + 2],
-            source[j*nvar + 3],
-            source[j*nvar + 4]
-        );
-        */
+        
+        //printf("source %lf \n", source[j*nvar + i]);
+        
         vdest[j] = source[j*nvar + i];
     }
   }

@@ -675,7 +675,9 @@ class Py_callbacks(tg.callbacks):
         # note that within nbcfaces overset faces will be included if there is any
         # beyond the range, there are all legit mpi faces and interior faces
         fids_mpi = [(fid, i) for fid, i in fids if nbcfaces <= fid < nbcfaces + nmpifaces]
-        fids_mpi_zero = np.array([fid - nbcfaces  for fid, i in fids if nbcfaces <= fid < nbcfaces + nmpifaces]).astype('int32')
+        # subtract the offset
+        fids_mpi_zero = np.array([fid - nbcfaces  for fid, i in fids if nbcfaces <= fid < nbcfaces + nmpifaces]).astype('int32') 
+        #print('fids_mpi_zero,',fids_mpi_zero)
         fids_bc = [(fid, i) for fid, i in fids if fid < nbcfaces]        
 
         self.fringe_u_fpts_d = self.griddata['fringe_u_fpts_d']
@@ -756,7 +758,9 @@ class Py_callbacks(tg.callbacks):
             )
             # our target will only be part of the 
             #cc = datatest.swapaxes(0,1).reshape(-1)
-            cc = datatest.reshape(-1)
+            cc = datatest.reshape(-1) 
+            #cc = np.ones(cc.shape).astype(self.backend.fpdtype) * (-100.0)
+            
             #print('cc is ', cc)
             # copy mpi data to fringe_u then the offset for interior faces 
             # tot_mpi_nfpts * nvars
@@ -768,9 +772,16 @@ class Py_callbacks(tg.callbacks):
             mpientry = self.griddata['mpientry_d']
             mpinfpts = self.griddata['mnfpts_d'] # fpts per face global
             mbaseface = self.griddata['mbaseface_d']
+            
+            #print('bases,', [x._scal_rhs.data for x in self.system._mpi_inters])
             # then copy the data the those mpi matrices in PyFR
             base_entry = self.system._mpi_inters[0]._scal_rhs.data
-           
+         
+            #print('base_entry,', base_entry)
+            #print('face base,', self.griddata['mbaseface'])  
+            #print('num of mpi artbdn,', fids_mpi_zero.shape[0])
+            #print('mpientry,', self.griddata['mpientry'])
+
             #print('base entry', base_entry)
             #print('mpi entry', self.griddata['mpientry'][fids_mpi_zero[0]])
             tg.copy_to_mpi_rhs_wrapper(

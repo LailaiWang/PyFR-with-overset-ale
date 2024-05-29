@@ -372,7 +372,7 @@ class Overset(object):
                 mbaseface.append(np.ones(mpi_entry.shape[0]) * (np.sum(mpi_entry)/itemsize))    
                 # exclusive scan
                 mpi_entry =  np.cumsum(mpi_entry) - mpi_entry[0] 
-                mpi_entry = mpi_entry if idx == 0 else mpi_entry + mpi_base[idx] - mpi_base[idx-1] 
+                mpi_entry = mpi_entry if idx == 0 else mpi_entry + mpi_base[idx] - mpi_base[0] 
 
                 mpi_nums.append(mpi_facetypes.shape[0])
                 mdataentry.append(mpi_entry)

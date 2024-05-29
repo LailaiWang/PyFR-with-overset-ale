@@ -4,6 +4,7 @@ import numpy as np
 
 # for debugging purpose
 from convert import *
+import sys
 
 class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
     def rhs(self, t, uinbank, foutbank):
@@ -199,9 +200,24 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
 
         q1 << kernels['eles', 'disu_int']()
         runall([q1])
+
+        # in case there is overset boundary
+        if ('mpiint','scal_fpts_send') in kernels:
+            q2 << kernels['mpiint', 'scal_fpts_send']()
+            q2 << kernels['mpiint', 'scal_fpts_recv']()
+            q2 << kernels['mpiint', 'scal_fpts_unpack']()
+
+        # send, recv and unpack state and mvel
+        #if self.mvgrid is True:
+        if ('mpiint','vect_fpts_mvel_send') in kernels:
+            q2 << kernels['mpiint', 'vect_fpts_mvel_send']()
+            q2 << kernels['mpiint', 'vect_fpts_mvel_recv']()
+            q2 << kernels['mpiint', 'vect_fpts_mvel_unpack']()
+        runall([q2])
         
         # here update the solution on artbnd
         if self.mvgrid and self.overset:
+            self.oset.sync_device()
             self.oset.exchangeSolution()
             self.oset.sync_device()
 
@@ -220,19 +236,20 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         q1 << kernels['eles', 'tgradpcoru_upts']()
         
         # in case there is overset boundary
-        if ('mpiint','scal_fpts_send') in kernels:
-            q2 << kernels['mpiint', 'scal_fpts_send']()
-            q2 << kernels['mpiint', 'scal_fpts_recv']()
-            q2 << kernels['mpiint', 'scal_fpts_unpack']()
+        #if ('mpiint','scal_fpts_send') in kernels:
+        #    q2 << kernels['mpiint', 'scal_fpts_send']()
+        #    q2 << kernels['mpiint', 'scal_fpts_recv']()
+        #    q2 << kernels['mpiint', 'scal_fpts_unpack']()
 
         # send, recv and unpack state and mvel
         #if self.mvgrid is True:
-        if ('mpiint','vect_fpts_mvel_send') in kernels:
-            q2 << kernels['mpiint', 'vect_fpts_mvel_send']()
-            q2 << kernels['mpiint', 'vect_fpts_mvel_recv']()
-            q2 << kernels['mpiint', 'vect_fpts_mvel_unpack']()
+        #if ('mpiint','vect_fpts_mvel_send') in kernels:
+        #    q2 << kernels['mpiint', 'vect_fpts_mvel_send']()
+        #    q2 << kernels['mpiint', 'vect_fpts_mvel_recv']()
+        #    q2 << kernels['mpiint', 'vect_fpts_mvel_unpack']()
 
-        runall([q1, q2])
+        #runall([q1, q2])
+        runall([q1])
 
 
         q1 << kernels['mpiint', 'con_u']()

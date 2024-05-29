@@ -29,7 +29,6 @@
     beta = ${lbeta};
 % if mvgrid is True:
 % for i in range(ndims):
-    // copy mvell into mvelr for mpi-overset interfaces
     mvelr[${i}][0] = mvell[${i}][0];
 % endfor
 % endif

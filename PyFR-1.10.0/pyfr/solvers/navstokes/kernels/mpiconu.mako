@@ -28,10 +28,15 @@
     %endif
 % endif
 
+    //%if ovmpi is not True:  
+    //if( beta == 0.5) {
+    //printf("right side %lf %lf %lf %lf %lf\n", urin[0], urin[1], urin[2], urin[3], urin[4]);
+    //}
+    //%endif
 % for i in range(nvars):
     if (beta == - 0.5) {
         ulout[${i}] = ulin[${i}];
-    } else if ( beta == 0.5) {
+    } else if ( beta == 0.5 ) {
         ulout[${i}] = urin[${i}];
     } else {
         ulout[${i}] = urin[${i}]*(0.5 + beta) + ulin[${i}]*(0.5 - beta);
