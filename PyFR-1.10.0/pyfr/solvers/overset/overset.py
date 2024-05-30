@@ -367,7 +367,7 @@ class Overset(object):
                     [ elemap[m[0]].basis.nfacefpts[m[2]] for m in a.lhs]
                 )
 
-                print('umber of mpi faces', mpi_entry.shape)
+                #print('umber of mpi faces', mpi_entry.shape)
                 # collecting total nfpts for this mpi_inters
                 mbaseface.append(np.ones(mpi_entry.shape[0]) * (np.sum(mpi_entry)/itemsize))    
                 # exclusive scan
