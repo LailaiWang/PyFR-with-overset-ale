@@ -6,6 +6,7 @@
 
 #define BIG_INT 2147483647
 
+
 //! Helper struct for direct-cut method [Galbraith 2013]
 typedef struct dCutMap
 {
@@ -97,6 +98,10 @@ public:
   dvec<int> filt_faces;
   dvec<float> ele_bbox;
   dvec<float> face_bbox;
+
+  // pyfr related
+  dvec<int> interior_fpts_mapping; // mapping for interior faces
+  
 
   /* ------ Member Functions ------ */
 

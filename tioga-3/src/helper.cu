@@ -13,7 +13,13 @@ void initialize_stream_event() {
 }
 
 void destroy_stream_event() {
-
+    for(int i=0;i<N_STREAMS-1;i++) {
+        cudaStreamDestroy(stream_handles[i]);
+    }
+    
+    for(int i=0;i<N_EVENTS;i++) {
+        cudaEventDestroy(event_handles[i]);
+    }
 }
 
 cudaStream_t get_stream_handle() {

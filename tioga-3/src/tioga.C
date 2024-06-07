@@ -1383,3 +1383,7 @@ void tioga::set_stream_handle(cudaStream_t handle, cudaEvent_t event)
   mb->set_stream_handle(handle, event);
 }
 #endif
+
+void tioga::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
+  mb->set_interior_mapping(faceinfo, mapping, nfpts);
+}

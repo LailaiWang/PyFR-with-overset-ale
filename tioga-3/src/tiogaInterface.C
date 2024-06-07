@@ -400,4 +400,8 @@ extern "C" {
     tg->registerDeviceGridData(xyz, coord, ibc,  ibf);
 #endif
   }
+
+  void tioga_set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
+    tg->set_interior_mapping(faceinfo, mapping, nfpts);
+  }
 }

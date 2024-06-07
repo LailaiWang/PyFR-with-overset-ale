@@ -1377,3 +1377,176 @@ void MeshBlock::setTransform(double* mat, double* pvt, double* off, int ndim)
 void MeshBlock::set_soasz(unsigned int sz) {
   soasz = sz;
 }
+
+void MeshBlock::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
+  int etype, cidx, fpos, nid;
+  for(int i=0;i<nfpts;++i) {
+    etype = faceinfo[i*4+0]; // element type
+    cidx = faceinfo[i*4+1];  // element number
+    fpos = faceinfo[i*4+2];  // face position
+    nid = faceinfo[i*4+3];   // node id
+    
+    auto key = std::vector<int>{etype, cidx, fpos, nid};
+    auto it = interior_mapping.find(key);
+    if(it == interior_mapping.end()) {
+        interior_mapping.insert({key, nid});
+    }
+  }
+}
+
+void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
+  auto range = std::views::iota(0, nfringe);
+  interior_target_nfpts.resize(nfringe);
+  interior_target_scan.resize(nfringe);
+
+  std::for_each(std::execution::par, range.begin(), range.end(),
+    [fringe, this] (auto idx) {
+      auto fid = fringe[idx];
+      interior_target_nfpts[idx] = face_fpts[fid];
+    });   
+  
+  std::exclusive_scan(std::execution::par, 
+      interior_target_nfpts.begin(), interior_target_nfpts.end(), 
+      interior_target_scan.begin(), 0
+    );
+
+  // total number of fpts
+  auto tnfpts = interior_target_scan[nfringe-1] + interior_target_nfpts[nfringe-1];
+  interior_target_mapping.resize(tnfpts);
+  
+  std::for_each(std::execution::par, range.begin(), range.end(),
+    [fringe, this](auto idx) {
+      auto fid = fringe[idx];
+      auto c0 = f2c[fid*2+0];
+      auto c1 = f2c[fid*2+1];
+      auto ib0 = iblank_cell[c0];
+      auto ib1 = iblank_cell[c1];
+        
+      auto check = ib0 ^ ib1;
+      if(check == 0) printf(" something is wrong on blanking status\n");         
+
+      if(ib0 == 0) {
+        for(auto i=0;i<face_fpts[fid];++i) {
+          auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
+          auto it = interior_mapping.find(key);
+          auto npid = interior_target_scan[fid] + i;
+          interior_target_mapping[npid] = it->second;
+        }
+      } else {
+        for(auto i=0;i<face_fpts[fid];++i) {
+          auto key = std::vector<int>{fcelltypes[fid][1], c1, fposition[fid][1], i};
+          auto it = interior_mapping.find(key);
+          auto npid = interior_target_scan[fid] + i;
+          interior_target_mapping[npid] = it->second;
+        }
+      }
+    });
+  // now we copy this to device 
+}
+
+void MeshBlock::set_mpi_mapping(int* faceinfo, int* mapping, int nfpts) {
+  int etype, cidx, fpos, nid;
+  for(int i=0;i<nfpts;++i) {
+    etype = faceinfo[i*4+0]; // element type
+    cidx = faceinfo[i*4+1];  // element number
+    fpos = faceinfo[i*4+2];  // face position
+    nid = faceinfo[i*4+3];   // node id
+    
+    auto key = std::vector<int>{etype, cidx, fpos, nid};
+    auto it = mpi_mapping.find(key);
+    if(it == mpi_mapping.end()) {
+      mpi_mapping.insert({key, nid});
+    }
+  }
+}
+
+void MeshBlock::figure_out_mpi_artbnd_target(int* fringe, int nfringe) {
+  auto range = std::views::iota(0, nfringe);
+  mpi_target_nfpts.resize(nfringe);
+  mpi_target_scan.resize(nfringe);
+    
+  std::for_each(std::execution::par, range.begin(), range.end(),
+    [fringe, this] (auto idx) {
+        auto fid = fringe[idx];
+        mpi_target_nfpts[idx] = face_fpts[fid];
+    });
+
+  std::exclusive_scan(std::execution::par, 
+      mpi_target_nfpts.begin(), mpi_target_nfpts.end(), 
+      mpi_target_scan.begin(), 0
+    );
+
+  auto tnfpts = mpi_target_scan[nfringe-1] + mpi_target_nfpts[nfringe-1];
+  mpi_target_mapping.resize(tnfpts);
+
+  std::for_each(std::execution::par, range.begin(), range.end(),
+    [fringe, this](auto idx) {
+      auto fid = fringe[idx];
+      auto c0 = f2c[fid*2+0];
+      auto c1 = f2c[fid*2+1];
+        
+      if(c1 >= 0) printf(" something is wrong on blaking mpi right cell\n");         
+
+      for(auto i=0;i<face_fpts[fid];++i) {
+        auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
+        auto it = mpi_mapping.find(key);
+        auto npid = mpi_target_scan[fid] + i;
+        mpi_target_mapping[npid] = it->second;
+      }
+    });
+}
+
+void MeshBlock::set_overset_mapping(int* faceinfo, int* mapping, int nfpts) {
+  int etype, cidx, fpos, nid;
+  for(int i=0;i<nfpts;++i) {
+    etype = faceinfo[i*4+0]; // element type
+    cidx = faceinfo[i*4+1];  // element number
+    fpos = faceinfo[i*4+2];  // face position
+    nid = faceinfo[i*4+3];   // node id
+    
+    auto key = std::vector<int>{etype, cidx, fpos, nid};
+    auto it = mpi_mapping.find(key);
+    if(it == mpi_mapping.end()) {
+      overset_mapping.insert({key, nid});
+    }
+  }
+}
+
+void MeshBlock::figure_out_overset_artbnd_target(int* fringe, int nfringe) {
+  auto range = std::views::iota(0, nfringe);
+  overset_target_nfpts.resize(nfringe);
+  overset_target_scan.resize(nfringe);
+    
+  std::for_each(std::execution::par, range.begin(), range.end(),
+    [fringe, this] (auto idx) {
+        auto fid = fringe[idx];
+        overset_target_nfpts[idx] = face_fpts[fid];
+    });
+
+  std::exclusive_scan(std::execution::par, 
+      overset_target_nfpts.begin(), overset_target_nfpts.end(), 
+      overset_target_scan.begin(), 0
+    );
+
+  auto tnfpts = overset_target_scan[nfringe-1] + overset_target_nfpts[nfringe-1];
+  overset_target_mapping.resize(tnfpts);
+
+  std::for_each(std::execution::par, range.begin(), range.end(),
+    [fringe, this](auto idx) {
+      auto fid = fringe[idx];
+      auto c0 = f2c[fid*2+0];
+      auto c1 = f2c[fid*2+1];
+        
+      if(c1 >= 0) printf(" something is wrong on blaking overset right cell\n");         
+
+      for(auto i=0;i<face_fpts[fid];++i) {
+        auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
+        auto it = overset_mapping.find(key);
+        auto npid = overset_target_scan[fid] + i;
+        overset_target_mapping[npid] = it->second;
+      }
+    });
+}
+
+
+

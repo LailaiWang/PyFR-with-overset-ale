@@ -124,6 +124,7 @@ cudaEvent_t get_event_handle();
 void sync_device();
 void addrToCudaStream(unsigned long long int);
 %nopythoncallback;
+%nodefaultdtor;
 
 %ignore tioga_dataupdate_ab;
 %ignore tioga_dataupdate_ab_send;

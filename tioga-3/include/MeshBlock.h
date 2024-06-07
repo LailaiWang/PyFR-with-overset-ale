@@ -27,7 +27,14 @@
  */
 #include <map>
 #include <unordered_set>
+#include <unordered_map>
 #include <set>
+#include <vector>
+#include <mutex>
+
+#include <algorithm>
+#include <ranges>
+#include <execution>
 
 #include "codetypes.h"
 #include "funcs.hpp"
@@ -39,6 +46,16 @@
 #include "dADT.h"
 #include "dMeshBlock.h"
 #endif
+
+struct vector_hash {
+  int operator()(const std::vector<int> &V) const {
+    int hash = V.size();
+    for(auto &i : V) {
+      hash ^= i + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+    }
+    return hash;
+  }
+};
 
 //! Helper struct for direct-cut method [Galbraith 2013]
 typedef struct CutMap
@@ -60,6 +77,9 @@ class MeshBlock
 friend class dMeshBlock;
 private:
   unsigned int soasz = 0;
+
+  int nbcfaces;  /**< number of boundary faces*/
+  int nmpifaces; /**< number of mpi faces*/
 
   int nnodes;  /** < number of grid nodes */
   int ncells;  /** < total number of cells */
@@ -128,6 +148,27 @@ private:
   dADT adt_d;       /** GPU-based ADT */
   dMeshBlock mb_d;  /** GPU-based mesh data */
 #endif
+
+  // pyfr related
+  std::vector<int> face_fpts; /** number of fpts per face*/
+  std::vector<std::vector<int>> fcelltypes; /**left and right cell type*/
+  std::vector<std::vector<int>> fposition;
+
+  std::unordered_map<std::vector<int>, int, vector_hash> interior_mapping;
+  std::unordered_map<std::vector<int>, int, vector_hash> mpi_mapping;
+  std::unordered_map<std::vector<int>, int, vector_hash> overset_mapping;
+
+  std::vector<int> interior_target_nfpts; // fringe nfpts per face
+  std::vector<int> interior_target_scan; // staring idx of fpts on each face
+  std::vector<int> interior_target_mapping; // mapping of very fpts 
+
+  std::vector<int> mpi_target_nfpts;
+  std::vector<int> mpi_target_scan;
+  std::vector<int> mpi_target_mapping;
+
+  std::vector<int> overset_target_nfpts;
+  std::vector<int> overset_target_scan;
+  std::vector<int> overset_target_mapping;
 
   //
   // Alternating digital tree library
@@ -668,6 +709,13 @@ private:
 #endif
   void set_soasz(unsigned int sz);
   unsigned int get_soasz() { return soasz;};
+
+  void set_interior_mapping(int* faceinfo, int* mapping, int nfpts);
+  void set_mpi_mapping(int* faceinfo, int* mapping, int nfpts);
+  void set_overset_mapping(int* faceinfo, int* mapping, int nfpts);
+  void figure_out_interior_artbnd_target(int* fringe, int nfringe);
+  void figure_out_mpi_artbnd_target(int* fringe, int nfringe);
+  void figure_out_overset_artbnd_target(int* fringe, int nfringe);
 };
 
 #endif

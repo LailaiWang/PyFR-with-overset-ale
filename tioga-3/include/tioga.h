@@ -380,6 +380,7 @@ class tioga
   //! Set pointers to storage of geometry data on device
   void registerDeviceGridData(double *xyz, double* coords, int *ibc, int *ibf);
 #endif
+  void set_interior_mapping(int* faceinfo, int* mapping, int nfpts);
 };
       
 #endif

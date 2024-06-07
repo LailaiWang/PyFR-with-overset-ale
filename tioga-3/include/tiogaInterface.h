@@ -140,4 +140,6 @@ void tioga_set_device_geo_data(double* xyz, double* coord, int* ibc, int* ibf);
 
 callbackFuncs tioga_get_callbacks(void);
 
+void tioga_set_interior_mapping(int* faceinfo, int* mapping, int nfpts);
+
 } /* extern "C" */
