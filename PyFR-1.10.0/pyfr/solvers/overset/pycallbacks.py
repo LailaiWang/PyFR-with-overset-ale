@@ -327,19 +327,26 @@ class Py_callbacks(tg.callbacks):
         # set up mpi artbnd status
         self.setup_mpi_artbnd_status_aux()
 
+    def setup_mpi_mapping(self):
+        '''
+        set up the mpi mapping for all mpi faces
+        '''
+        grid = self.griddata
+        nfaces, nbcfaces, nmpifaces = grid['nfaces'], grid['nbcfaces'], grid['nmpifaces']
+            
+        if nmpifaces == 0: return    
+    
+        f2c, fpos = grid['f2corg'], grid['faceposition'] 
+        ctype, off = grid['celltypes'], grid['celloffset']
+                   
     def setup_interior_mapping(self):
         '''
         set up the interior mapping of mesh interior faces
         '''
         grid = self.griddata
-        nfaces = grid['nfaces']
-        nbcfaces = grid['nbcfaces']
-        nmpifaces = grid['nmpifaces']
-
-        f2c = grid['f2corg']
-        fpos = grid['faceposition']
-        ctype = grid['celltypes']
-        off = grid['celloffset']
+        nfaces, nbcfaces, nmpifaces = grid['nfaces'], grid['nbcfaces'], grid['nmpifaces']
+        f2c, fpos = grid['f2corg'], grid['faceposition']
+        ctype, off = grid['celltypes'], grid['celloffset']
         
         # now only support this for hex
         ctype_to_int_dict = {'hex':8}
@@ -364,7 +371,7 @@ class Py_callbacks(tg.callbacks):
         pad = lambda a,n: np.concatenate((np.tile(a,(n,1)),np.array(range(n)).reshape(-1,1)),axis=1)
         left_side_in_int  = [ pad(a,n) for a, n in zip(left_side_in_int, left_side_nfpts)]
         left_side_in_int = np.array(left_side_in_int).reshape(-1,4)
-        left_mapping = scal_fpts_u_left.mapping.get()
+        left_mapping = fpts_u_left.mapping.get()
         # now lets do the same thing for right side
         righ_side_in_int = [info_in_int(fid, 1) for fid in range(nbcfaces+nmpifaces, nfaces)]
         righ_side_in_tuple = [info_in_tuple(fid, 1) for fid in range(nbcfaces+nmpifaces, nfaces)]

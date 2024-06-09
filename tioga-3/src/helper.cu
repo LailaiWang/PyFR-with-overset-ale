@@ -754,4 +754,75 @@ void copy_to_mpi_rhs_wrapper(
   }
 }
 
+__global__
+void pointwise_copy_to_mpi_rhs(
+    double* base,            // starting address of mpi data at pyfr side
+    unsigned int* doffset,   // offset from the base in char 1 byte for each point
+    unsigned int* voffset,   // variable offset for each varialbe entire face indexing
+    unsigned int* mpifids,   // face idx in entire mpi face indexing
+    unsigned int* face_nfpts,// nfpts per face for entire face indexing
+    double* src,             // source of the data to copy
+    unsigned int* soffset,   // offset from source in char  (be consistent with dest)
+    unsigned int nvar,       // number of variables
+    unsigned int nface,      // number of current mpi faces
+    unsigned int maxnfpts    // max number of fpts per face (to be future proof)
+    ) {
 
+  const unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+  int loc_f = threadIdx.x/maxnfpts; // local face id
+  int loc_n = threadIdx.x%maxnfpts; // local point id
+  int face_per_block = blockDim.x/maxnfpts;
+  int glo_f = face_per_block * blockIdx.x + loc_f; // this is the current number of mpi face
+  if (glo_f >= nface) return;
+  int nfpts = face_nfpts[glo_f]; // convert the global face id
+  if (loc_n > nfpts) return;
+
+  int mfid = mpifids[glo_f]; // id in the entire mpi
+
+  int doff = doffset[mfid*maxnfpts + loc_n]; 
+  int voff = voffset[mfid*maxnfpts + loc_n];
+ 
+  int soff = soffset[glo_f*maxnfpts + loc_n]; // local id
+  char* csource = src + soff;  
+  double* source = (double*) csource; 
+  
+  char* cdest = ((char*) base) + doff; 
+  double* dest = (double*) cdest;// this is for first variable of the face
+   
+  // note that in destination, the data are stored variable by variable 
+  for(int i=0;i<nvar;++i) { 
+    double* vdest = dest + i*voff; // fbase is offset interms of double
+    vdest[j] = source[i];
+  }
+
+}
+
+void pointwise_copy_to_mpi_rhs_wrapper(
+    double* base,            // starting address of mpi data at pyfr side
+    unsigned int* doffset,   // offset from the base in char 1 byte for each point
+    unsigned int* voffset,   // variable offset for each varialbe entire face indexing
+    unsigned int* mpifids,   // face idx in entire mpi face indexing
+    unsigned int* face_nfpts,// nfpts per face for entire face indexing
+    double* src,             // source of the data to copy
+    unsigned int* soffset,   // offset from source in char  (be consistent with dest)
+    unsigned int nvar,       // number of variables
+    unsigned int nface,      // number of current mpi faces
+    unsigned int maxnfpts    // max number of fpts per face (to be future proof)
+    ) {
+  
+  unsigned int threads = 512;
+  unsigned int faces_per_block = threads/maxnfpts;
+  unsigned int blocks = (unsigned int) ceil((float)nface/faces_per_block);
+
+  if(stream == -1) {
+    pointwise_copy_to_mpi_rhs<<<blocks, threads>>>(
+      base, doffset, voffset, mpifids, face_nfpts, src, soffset, nvar, nface, maxnfpts
+    );
+  } else {
+    pointwise_copy_to_mpi_rhs<<<blocks, threads, 0, stream_handles[stream]>>> (
+      base, doffset, voffset, mpifids, face_nfpts, src, soffset, nvar, nface, maxnfpts
+    );
+  }
+
+}

@@ -1378,6 +1378,11 @@ void MeshBlock::set_soasz(unsigned int sz) {
   soasz = sz;
 }
 
+void MeshBlock::set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts) {
+    maxnface = nface_in;
+    maxnfpts = nfpts_in;
+}
+
 void MeshBlock::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
   int etype, cidx, fpos, nid;
   for(int i=0;i<nfpts;++i) {
@@ -1444,7 +1449,16 @@ void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
   // now we copy this to device 
 }
 
-void MeshBlock::set_mpi_mapping(int* faceinfo, int* mapping, int nfpts) {
+void MeshBlock::set_mpi_mapping(int* faceinfo, int* mapping, int nv, int nfpts) {
+  /*
+  one pyfr partition could have different mpi inters, each mpi inters 
+  have its own memory allocated such that there are not necessarily continuous
+  moreover, the mpi variable are stored variable by variable 
+  Therefore here int mapping is organized as mapping[i*nv + 0]-> mapping[i*nv+nv]
+  for the different variables at the same flux point
+  Note that mapping here is interms of char instead of float/double in case the 
+  discontinuous memory is not float/double aligned
+  */
   int etype, cidx, fpos, nid;
   for(int i=0;i<nfpts;++i) {
     etype = faceinfo[i*4+0]; // element type
@@ -1458,6 +1472,77 @@ void MeshBlock::set_mpi_mapping(int* faceinfo, int* mapping, int nfpts) {
       mpi_mapping.insert({key, nid});
     }
   }
+}
+
+void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells, int maxnfaces, int maxnfpts) {
+  // element type, face position, number of cells, nfpts
+  // define this as 
+  //srted_order[cell][fpos] // gives a [0-nfpts) [nfpts, maxnfpts) garbage
+  //assuming just one type for now
+  std::vector<std::vector<std::vector<int>>> srted_order(ncells, 
+    std::vector<std::vector<int>>(maxnfaces, std::vector<int>(maxnfpts,-1))
+  );
+
+  std::vector<std::vector<std::vector<int>>> unsrted_order(ncells, 
+    std::vector<std::vector<int>>(maxnfaces, std::vector<int>(maxnfpts,-1))
+  );
+  
+  for(auto i=0;i<ncells;++i) {
+    for(auto j=0;j<maxnface;++j) {
+      for(auto k=0;k<maxnfpts;++k){
+        srted_order[i][j][k] = srted[i*maxnface*maxnfpts+j*maxnfpts+k];
+      } 
+    }
+  }
+
+  for(auto i=0;i<ncells;++i) {
+    for(auto j=0;j<maxnface;++j) {
+      for(auto k=0;k<maxnfpts;++k){
+        unsrted_order[i][j][k] = unsrted[i*maxnface*maxnfpts+j*maxnfpts+k];
+      } 
+    }
+  }
+
+  // we know in unsorted_order the id of fpts always in acending order
+  // data being passed in is in unsrted order  
+  std::vector<std:vector<std::unordered_map<int, int>>> unsrted_to_srted_map;
+  auto range = std::views::iota(0, ncells);
+  std::for_each(std::execution::par, range.begin(), range.end(), 
+    [this, &unsrted_to_srted_map, &unsrted_vec, &srted_vec](auto idx) {
+      for(auto i=0;i<ncf[idx];++i) {
+        std::unordered_map<int, int> lmap;
+        auto fid = c2f[idx][i]; // current face id
+        auto nfpts = face_fpts[fid];
+        for(auto j=0;j<nfpts;++j) {
+          auto sid = srted_order[idx][i][j]; // the sorted id of flux points
+          // search this id in undorted_order[idx][i]
+          auto& pool = unsrted_order[idx][i];
+          auto it = std::binary_search(pool.begin(), pool.begin() + nfpts, sid);
+          auto id = std::distance(pool.begin(), it);
+          if(id >= nfpts) printf("something is wrong on finding the reorder key\n");
+          lmap[j] = id;
+        }
+        unsrted_to_srted_map[idx][i] = lmap;
+      }
+    });
+    
+    data_reorder_map = unsrted_to_srted_map;
+}
+
+void MeshBlock::prepare_mpi_artbnd_target_data(double* data,int* fringe,int nvar,int nfringe) {
+  // here we need to do some reordering of the data
+  fringe_mpi_data.resize(fringe_mpi_tnfpts*nvar);
+  auto range = std::views::iota(0, nfringe);  
+  
+  std::for_each(std::execution::par, range.begin(), range.end(), [this](auto idx) {
+    auto  sidx = mpi_target_scan[idx];    // start idx of each face
+    auto  nfpt = mpi_target_nfpts[idx];
+    // now swap the values
+    for(auto i=0;i<nfpt;++i) {
+        fringe_mpi_data[sidx*nvar] = data[idx];
+    }
+  );
+  // then copy this data to the device
 }
 
 void MeshBlock::figure_out_mpi_artbnd_target(int* fringe, int nfringe) {
@@ -1477,6 +1562,8 @@ void MeshBlock::figure_out_mpi_artbnd_target(int* fringe, int nfringe) {
     );
 
   auto tnfpts = mpi_target_scan[nfringe-1] + mpi_target_nfpts[nfringe-1];
+  fringe_mpi_tnfpts = tnfpts;
+
   mpi_target_mapping.resize(tnfpts);
 
   std::for_each(std::execution::par, range.begin(), range.end(),
@@ -1496,57 +1583,13 @@ void MeshBlock::figure_out_mpi_artbnd_target(int* fringe, int nfringe) {
     });
 }
 
-void MeshBlock::set_overset_mapping(int* faceinfo, int* mapping, int nfpts) {
-  int etype, cidx, fpos, nid;
-  for(int i=0;i<nfpts;++i) {
-    etype = faceinfo[i*4+0]; // element type
-    cidx = faceinfo[i*4+1];  // element number
-    fpos = faceinfo[i*4+2];  // face position
-    nid = faceinfo[i*4+3];   // node id
-    
-    auto key = std::vector<int>{etype, cidx, fpos, nid};
-    auto it = mpi_mapping.find(key);
-    if(it == mpi_mapping.end()) {
-      overset_mapping.insert({key, nid});
-    }
-  }
-}
-
-void MeshBlock::figure_out_overset_artbnd_target(int* fringe, int nfringe) {
+void MeshBlock::prepare_overset_artbnd_target_data(double* data, int nvar, int nfringe) {
+  // here we need to do some reordering of the data 
+  fringe_overset_data.resize(fringe_overset_tnfpts*nvar);
   auto range = std::views::iota(0, nfringe);
-  overset_target_nfpts.resize(nfringe);
-  overset_target_scan.resize(nfringe);
-    
-  std::for_each(std::execution::par, range.begin(), range.end(),
-    [fringe, this] (auto idx) {
-        auto fid = fringe[idx];
-        overset_target_nfpts[idx] = face_fpts[fid];
-    });
 
-  std::exclusive_scan(std::execution::par, 
-      overset_target_nfpts.begin(), overset_target_nfpts.end(), 
-      overset_target_scan.begin(), 0
-    );
+  std::for_each(std::execution::par, range.begin(), range.end(), [this](auto idx) {
 
-  auto tnfpts = overset_target_scan[nfringe-1] + overset_target_nfpts[nfringe-1];
-  overset_target_mapping.resize(tnfpts);
-
-  std::for_each(std::execution::par, range.begin(), range.end(),
-    [fringe, this](auto idx) {
-      auto fid = fringe[idx];
-      auto c0 = f2c[fid*2+0];
-      auto c1 = f2c[fid*2+1];
-        
-      if(c1 >= 0) printf(" something is wrong on blaking overset right cell\n");         
-
-      for(auto i=0;i<face_fpts[fid];++i) {
-        auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
-        auto it = overset_mapping.find(key);
-        auto npid = overset_target_scan[fid] + i;
-        overset_target_mapping[npid] = it->second;
-      }
-    });
+  });
+  // then copy this data to device   
 }
-
-
-

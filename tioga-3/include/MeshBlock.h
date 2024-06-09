@@ -1,4 +1,4 @@
-#ifndef MESHBLOCK_H
+# ifndef MESHBLOCK_H
 #define MESHBLOCK_H
 //
 // This file is part of the Tioga software library
@@ -149,10 +149,13 @@ private:
   dMeshBlock mb_d;  /** GPU-based mesh data */
 #endif
 
+  int maxnface; // max number of faces per element
+  int maxnfpts; // max number of fpts per face
+
   // pyfr related
-  std::vector<int> face_fpts; /** number of fpts per face*/
-  std::vector<std::vector<int>> fcelltypes; /**left and right cell type*/
-  std::vector<std::vector<int>> fposition;
+  std::vector<int> face_fpts; // number of fpts per face
+  std::vector<std::vector<int>> fcelltypes; // left and right cell type
+  std::vector<std::vector<int>> fposition;  // left and right face position
 
   std::unordered_map<std::vector<int>, int, vector_hash> interior_mapping;
   std::unordered_map<std::vector<int>, int, vector_hash> mpi_mapping;
@@ -162,14 +165,13 @@ private:
   std::vector<int> interior_target_scan; // staring idx of fpts on each face
   std::vector<int> interior_target_mapping; // mapping of very fpts 
 
+  int fringe_mpi_tnfpts;
   std::vector<int> mpi_target_nfpts;
   std::vector<int> mpi_target_scan;
   std::vector<int> mpi_target_mapping;
 
-  std::vector<int> overset_target_nfpts;
-  std::vector<int> overset_target_scan;
-  std::vector<int> overset_target_mapping;
-
+  std::vector<std:vector<std::unordered_map<int, int>>> data_reorder_map;
+    
   //
   // Alternating digital tree library
   //
@@ -710,6 +712,9 @@ private:
   void set_soasz(unsigned int sz);
   unsigned int get_soasz() { return soasz;};
 
+  void set_maxnface_maxnfpts(unsigned int, unsigned int);
+ 
+  void set_data_reorg_map();
   void set_interior_mapping(int* faceinfo, int* mapping, int nfpts);
   void set_mpi_mapping(int* faceinfo, int* mapping, int nfpts);
   void set_overset_mapping(int* faceinfo, int* mapping, int nfpts);
