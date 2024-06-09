@@ -321,8 +321,61 @@ class Py_callbacks(tg.callbacks):
         self.griddata = griddata
         self.backend = system.backend
         tg.tioga_set_soasz(self.system.backend.soasz)
+
+        self.setup_interior_mapping()
+
         # set up mpi artbnd status
         self.setup_mpi_artbnd_status_aux()
+
+    def setup_interior_mapping(self):
+        '''
+        set up the interior mapping of mesh interior faces
+        '''
+        grid = self.griddata
+        nfaces = grid['nfaces']
+        nbcfaces = grid['nbcfaces']
+        nmpifaces = grid['nmpifaces']
+
+        f2c = grid['f2corg']
+        fpos = grid['faceposition']
+        ctype = grid['celltypes']
+        off = grid['celloffset']
+        
+        # now only support this for hex
+        ctype_to_int_dict = {'hex':8}
+        # define some lambdas
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        info_in_int = lambda fid, i: [ctype_to_int(ctype[f2c[fid][i]]),f2c[fid][i],fpos[fid][i]]
+        rf = lambda cidx : cidx - off[cidx]
+        info_in_tuple = lambda fid, i: (ctype[f2c[fid][i]],rf(f2c[fid][i]),fpos[fid][i],0)
+        
+        # get left and right separately
+        left_side_in_int = [info_in_int(fid, 0) for fid in range(nbcfaces+nmpifaces, nfaces)]
+        left_side_in_tuple = [info_in_tuple(fid, 0) for fid in range(nbcfaces+nmpifaces, nfaces)]
+        
+        # new generate the information
+        fpts_u_left = self._scal_view_fpts_u(
+            left_side_in_tuple, 'get_scal_unsrted_fpts_for_inter'
+        )
+
+        get_nfpts = lambda etype, pos : self.system.ele_map[etype].basis.nfacefpts[pos]
+        left_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in left_side_in_tuple]
+
+        pad = lambda a,n: np.concatenate((np.tile(a,(n,1)),np.array(range(n)).reshape(-1,1)),axis=1)
+        left_side_in_int  = [ pad(a,n) for a, n in zip(left_side_in_int, left_side_nfpts)]
+        left_side_in_int = np.array(left_side_in_int).reshape(-1,4)
+        left_mapping = scal_fpts_u_left.mapping.get()
+        # now lets do the same thing for right side
+        righ_side_in_int = [info_in_int(fid, 1) for fid in range(nbcfaces+nmpifaces, nfaces)]
+        righ_side_in_tuple = [info_in_tuple(fid, 1) for fid in range(nbcfaces+nmpifaces, nfaces)]
+        # new generate the information
+        fpts_u_righ = self._scal_view_fpts_u(
+            righ_side_in_tuple, 'get_scal_unsrted_fpts_for_inter'
+        )
+        righ_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in righ_side_in_tuple]
+        righ_side_in_int  = [ pad(a,n) for a, n in zip(righ_side_in_int, righ_side_nfpts)]
+        righ_side_in_int = np.array(righ_side_in_int).reshape(-1,4)
+        righ_mapping = fpts_u_righ.mapping.get()
 
     # int* cellid int* nnodes # of solution points basis.upts
     def get_nodes_per_cell(self, cellid, nnodes):
@@ -641,6 +694,8 @@ class Py_callbacks(tg.callbacks):
         else: # passing du
             self.fringe_du_device(fringeids, nfringe, data)
 
+
+    
     def fringe_u_device(self, fringeids, nfringe, data):
         '''
         For grid which has no overset faces, fringe faces can be:
