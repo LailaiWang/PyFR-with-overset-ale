@@ -299,9 +299,6 @@ class tioga
    mb->set_cell_iblank(iblank_cell);
   }
 
-  void set_soasz(unsigned int sz) {
-    mb->set_soasz(sz);
-  }
   
   //! Set callback functions for general high-order methods
   void setcallback(void (*f1)(int*, int*),
@@ -380,6 +377,16 @@ class tioga
   //! Set pointers to storage of geometry data on device
   void registerDeviceGridData(double *xyz, double* coords, int *ibc, int *ibf);
 #endif
+  void set_soasz(unsigned int sz) {
+    mb->set_soasz(sz);
+  }
+
+  void set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts) {
+    mb->set_maxnface_maxnfpts(maxnface, maxnfpts);
+  }
+  void set_face_fpts(int* ffpts, unsigned int ntface);
+  void set_fcelltypes(int* fctype, unsigned int ntface);
+  void set_fposition(int* fpos, unsigned int ntface);
   void set_interior_mapping(int* faceinfo, int* mapping, int nfpts);
 };
       

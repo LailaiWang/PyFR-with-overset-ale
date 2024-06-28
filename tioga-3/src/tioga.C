@@ -1384,6 +1384,19 @@ void tioga::set_stream_handle(cudaStream_t handle, cudaEvent_t event)
 }
 #endif
 
+void tioga::set_face_fpts(int* ffpts, unsigned int ntface) {
+  mb->set_face_fpts(ffpts, ntface);
+}
+
+void tioga::set_fcelltypes(int* fctype, unsigned int ntface) {
+  mb->set_fcelltypes(fctype, ntface);
+}
+
+void tioga::set_fposition(int* fpos, unsigned int ntface) {
+  mb->set_fposition(fpos, ntface);
+}
+
 void tioga::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
   mb->set_interior_mapping(faceinfo, mapping, nfpts);
 }
+

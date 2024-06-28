@@ -113,7 +113,6 @@ void tioga_set_ab_callback_gpu_(void (*h2df)(int* ids, int nf, int grad, double 
                                 int (*gnw)(int),
                                 void (*dfg)(int*, int, double*, double*));
 
-void tioga_set_soasz(unsigned int sz);
 
 void tioga_register_moving_grid_data(double* grid_vel,
                                      double* offset,
@@ -140,6 +139,11 @@ void tioga_set_device_geo_data(double* xyz, double* coord, int* ibc, int* ibf);
 
 callbackFuncs tioga_get_callbacks(void);
 
-void tioga_set_interior_mapping(int* faceinfo, int* mapping, int nfpts);
+void tioga_set_soasz(unsigned int sz);
+void tioga_set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts);
+void tioga_set_face_fpts(unsigned long long ffpts, unsigned int ntface);
+void tioga_set_fcelltypes(unsigned long long fctype, unsigned int ntface);
+void tioga_set_fposition(unsigned long long fpos, unsigned int ntface);
+void tioga_set_interior_mapping(unsigned long long faceinfo, unsigned long long mapping, int nfpts);
 
 } /* extern "C" */

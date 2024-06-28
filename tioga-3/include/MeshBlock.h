@@ -170,7 +170,7 @@ private:
   std::vector<int> mpi_target_scan;
   std::vector<int> mpi_target_mapping;
 
-  std::vector<std:vector<std::unordered_map<int, int>>> data_reorder_map;
+  //std::vector<std:vector<std::unordered_map<int, int>>> data_reorder_map;
     
   //
   // Alternating digital tree library
@@ -713,7 +713,10 @@ private:
   unsigned int get_soasz() { return soasz;};
 
   void set_maxnface_maxnfpts(unsigned int, unsigned int);
- 
+  void set_face_fpts(int* ffpts, unsigned int ntface);   
+  void set_fcelltypes(int* fctype, unsigned int ntface);
+  void set_fposition(int* fpos, unsigned int ntface);
+
   void set_data_reorg_map();
   void set_interior_mapping(int* faceinfo, int* mapping, int nfpts);
   void set_mpi_mapping(int* faceinfo, int* mapping, int nfpts);

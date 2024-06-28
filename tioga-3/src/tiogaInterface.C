@@ -364,9 +364,6 @@ extern "C" {
     tg->unblankAllGrids(nvar);
   }
 
-  void tioga_set_soasz(unsigned int sz) {
-    tg->set_soasz(sz);
-  }
 
   callbackFuncs tioga_get_callbacks(void)
   {
@@ -401,7 +398,32 @@ extern "C" {
 #endif
   }
 
-  void tioga_set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
-    tg->set_interior_mapping(faceinfo, mapping, nfpts);
+  void tioga_set_soasz(unsigned int sz) {
+    tg->set_soasz(sz);
+  }
+
+  void tioga_set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts) {
+    tg->set_maxnface_maxnfpts(maxnface, maxnfpts);
+  }
+
+  void tioga_set_face_fpts(unsigned long long ffpts, unsigned int ntface) {
+    int* fptr = reinterpret_cast<int*>(ffpts);
+    tg->set_face_fpts(fptr, ntface);
+  }
+  
+  void tioga_set_fcelltypes(unsigned long long fctype, unsigned int ntface) {
+    int* cptr = reinterpret_cast<int*>(fctype);
+    tg->set_fcelltypes(cptr, ntface);
+  }
+
+  void tioga_set_fposition(unsigned long long fpos, unsigned int ntface) {
+    int* posptr = reinterpret_cast<int*>(fpos);
+    tg->set_fposition(posptr, ntface);
+  }
+
+  void tioga_set_interior_mapping(unsigned long long faceinfo, unsigned long long mapping, int nfpts) {
+    int* infoptr = reinterpret_cast<int*>(faceinfo);
+    int* mptr = reinterpret_cast<int*>(mapping);
+    tg->set_interior_mapping(infoptr, mptr, nfpts);
   }
 }

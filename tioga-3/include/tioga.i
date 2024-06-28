@@ -35,6 +35,13 @@ void tioga_set_transform(double *mat, double* pvt, double *off, int ndim);
 void tioga_unblank_part_1(void);
 void tioga_unblank_part_2(int nvar);
 void tioga_set_soasz(unsigned int sz);
+void tioga_set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts);
+
+void tioga_set_face_fpts(unsigned long long ffpts, unsigned int ntface);
+void tioga_set_fcelltypes(unsigned long long fctype, unsigned int ntface);
+void tioga_set_fposition(unsigned long long fpos, unsigned int ntface);
+
+void tioga_set_interior_mapping(unsigned long long faceinfo, unsigned long long mapping, int nfpts);
 
 void tg_print_data(unsigned long long int datastart, unsigned long long int offset,
                    unsigned int nums, int dtype);
@@ -136,6 +143,12 @@ void addrToCudaStream(unsigned long long int);
 %ignore tioga_unblank_part_1;
 %ignore tioga_unblank_part_2;
 %ignore tioga_set_soasz;
+%ignore tioga_set_maxnface_maxnfpts;
+%ignore tioga_set_face_fpts;
+%ignore tioga_set_fcelltypes;
+%ignore tioga_set_fposition;
+
+%ignore tioga_set_interior_mapping;
 %ignore tg_print_data;
 %ignore get_nodal_basis_wrapper;
 %ignore pack_cell_coords_wrapper;

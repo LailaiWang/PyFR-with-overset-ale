@@ -1378,23 +1378,45 @@ void MeshBlock::set_soasz(unsigned int sz) {
   soasz = sz;
 }
 
-void MeshBlock::set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts) {
-    maxnface = nface_in;
-    maxnfpts = nfpts_in;
+void MeshBlock::set_maxnface_maxnfpts(unsigned int nface_in, unsigned int nfpts_in) {
+  maxnface = nface_in;
+  maxnfpts = nfpts_in;
+}
+
+void MeshBlock::set_face_fpts(int* ffpts, unsigned int ntface) {
+  face_fpts.resize(ntface);
+  std::copy(ffpts, ffpts + ntface, face_fpts.begin());
+}
+
+void MeshBlock::set_fcelltypes(int* fctype, unsigned int ntface) {
+  // this is a one time deal, no need to parallel
+  fcelltypes = std::vector<std::vector<int>> (ntface, std::vector<int>(2,-1));
+  for(int i=0;i<ntface;++i){
+    fcelltypes[i][0] = fctype[i*2+0];
+    fcelltypes[i][1] = fctype[i*2+1];
+  }
+}
+
+void MeshBlock::set_fposition(int* fpos, unsigned int ntface) {
+  fposition = std::vector<std::vector<int>> (ntface, std::vector<int>(2, -1));
+  for(int i=0;i<ntface;++i) {
+    fposition[i][0] = fpos[i*2+0];
+    fposition[i][1] = fpos[i*2+1];
+  }
 }
 
 void MeshBlock::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
   int etype, cidx, fpos, nid;
   for(int i=0;i<nfpts;++i) {
     etype = faceinfo[i*4+0]; // element type
-    cidx = faceinfo[i*4+1];  // element number
-    fpos = faceinfo[i*4+2];  // face position
-    nid = faceinfo[i*4+3];   // node id
+    cidx = faceinfo[i*4+1];  // element number in all cell types
+    fpos = faceinfo[i*4+2];  // face position in the cell
+    nid = faceinfo[i*4+3];   // node idx
     
     auto key = std::vector<int>{etype, cidx, fpos, nid};
     auto it = interior_mapping.find(key);
     if(it == interior_mapping.end()) {
-        interior_mapping.insert({key, nid});
+      interior_mapping.insert({key, nid});
     }
   }
 }
@@ -1404,12 +1426,14 @@ void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
   interior_target_nfpts.resize(nfringe);
   interior_target_scan.resize(nfringe);
 
+  // we need face_fpts
   std::for_each(std::execution::par, range.begin(), range.end(),
     [fringe, this] (auto idx) {
       auto fid = fringe[idx];
       interior_target_nfpts[idx] = face_fpts[fid];
     });   
   
+  //
   std::exclusive_scan(std::execution::par, 
       interior_target_nfpts.begin(), interior_target_nfpts.end(), 
       interior_target_scan.begin(), 0
@@ -1419,6 +1443,8 @@ void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
   auto tnfpts = interior_target_scan[nfringe-1] + interior_target_nfpts[nfringe-1];
   interior_target_mapping.resize(tnfpts);
   
+  // for these interior fringe faces
+  // here we need fcelltypes and fposition
   std::for_each(std::execution::par, range.begin(), range.end(),
     [fringe, this](auto idx) {
       auto fid = fringe[idx];
@@ -1449,16 +1475,15 @@ void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
   // now we copy this to device 
 }
 
+/*
 void MeshBlock::set_mpi_mapping(int* faceinfo, int* mapping, int nv, int nfpts) {
-  /*
-  one pyfr partition could have different mpi inters, each mpi inters 
-  have its own memory allocated such that there are not necessarily continuous
-  moreover, the mpi variable are stored variable by variable 
-  Therefore here int mapping is organized as mapping[i*nv + 0]-> mapping[i*nv+nv]
-  for the different variables at the same flux point
-  Note that mapping here is interms of char instead of float/double in case the 
-  discontinuous memory is not float/double aligned
-  */
+  //one pyfr partition could have different mpi inters, each mpi inters 
+  //have its own memory allocated such that there are not necessarily continuous
+  //moreover, the mpi variable are stored variable by variable 
+  //Therefore here int mapping is organized as mapping[i*nv + 0]-> mapping[i*nv+nv]
+  //for the different variables at the same flux point
+  //Note that mapping here is interms of char instead of float/double in case the 
+  //discontinuous memory is not float/double aligned
   int etype, cidx, fpos, nid;
   for(int i=0;i<nfpts;++i) {
     etype = faceinfo[i*4+0]; // element type
@@ -1593,3 +1618,4 @@ void MeshBlock::prepare_overset_artbnd_target_data(double* data, int nvar, int n
   });
   // then copy this data to device   
 }
+*/

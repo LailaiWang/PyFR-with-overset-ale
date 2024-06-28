@@ -784,7 +784,7 @@ void pointwise_copy_to_mpi_rhs(
   int voff = voffset[mfid*maxnfpts + loc_n];
  
   int soff = soffset[glo_f*maxnfpts + loc_n]; // local id
-  char* csource = src + soff;  
+  char* csource = (char*)src + soff;  
   double* source = (double*) csource; 
   
   char* cdest = ((char*) base) + doff; 
@@ -793,7 +793,7 @@ void pointwise_copy_to_mpi_rhs(
   // note that in destination, the data are stored variable by variable 
   for(int i=0;i<nvar;++i) { 
     double* vdest = dest + i*voff; // fbase is offset interms of double
-    vdest[j] = source[i];
+    *vdest = source[i];
   }
 
 }
@@ -808,7 +808,8 @@ void pointwise_copy_to_mpi_rhs_wrapper(
     unsigned int* soffset,   // offset from source in char  (be consistent with dest)
     unsigned int nvar,       // number of variables
     unsigned int nface,      // number of current mpi faces
-    unsigned int maxnfpts    // max number of fpts per face (to be future proof)
+    unsigned int maxnfpts,   // max number of fpts per face (to be future proof)
+    int stream
     ) {
   
   unsigned int threads = 512;
