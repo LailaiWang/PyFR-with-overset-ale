@@ -1422,6 +1422,17 @@ void MeshBlock::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
 }
 
 void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
+  
+  {
+    int pid = getpid();
+    printf("current pid is %d\n",pid);
+    int idebugger = 0;
+    while(idebugger) {
+
+    };
+  }
+
+  if (nfringe == 0) return;
   // interior_mapping is for every flux points
   auto range = std::views::iota(0, nfringe);
   interior_target_nfpts.resize(nfringe);
@@ -1443,11 +1454,14 @@ void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
   // total number of fpts
   auto tnfpts = interior_target_scan[nfringe-1] + interior_target_nfpts[nfringe-1];
   interior_target_mapping.resize(tnfpts);
-  
+ 
+  int rank =0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   // for these interior fringe faces
   // here we need fcelltypes and fposition
-  std::for_each(std::execution::par, range.begin(), range.end(),
-    [fringe, this](auto idx) {
+  //std::for_each(std::execution::par, range.begin(), range.end(),
+  std::for_each(range.begin(), range.end(),
+    [fringe, this, &rank](auto idx) {
       auto fid = fringe[idx];
       auto c0 = f2c[fid*2+0];
       auto c1 = f2c[fid*2+1];
@@ -1461,18 +1475,19 @@ void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
         for(auto i=0;i<face_fpts[fid];++i) {
           auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
           auto it = interior_mapping.find(key);
-          auto npid = interior_target_scan[fid] + i;
+          auto npid = interior_target_scan[idx] + i;
           interior_target_mapping[npid] = it->second;
         }
       } else {
         for(auto i=0;i<face_fpts[fid];++i) {
           auto key = std::vector<int>{fcelltypes[fid][1], c1, fposition[fid][1], i};
           auto it = interior_mapping.find(key);
-          auto npid = interior_target_scan[fid] + i;
+          auto npid = interior_target_scan[idx] + i;
           interior_target_mapping[npid] = it->second;
         }
       }
     });
+
   // now we copy this to device 
 }
 
