@@ -1400,3 +1400,7 @@ void tioga::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
   mb->set_interior_mapping(faceinfo, mapping, nfpts);
 }
 
+void tioga::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
+  mb->figure_out_interior_artbnd_target(fringe, nfringe);
+}
+

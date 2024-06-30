@@ -426,4 +426,10 @@ extern "C" {
     int* mptr = reinterpret_cast<int*>(mapping);
     tg->set_interior_mapping(infoptr, mptr, nfpts);
   }
+
+  void tioga_figure_out_interior_artbnd_target(unsigned long long faddr, unsigned int nfringe) {
+    int* fringe = reinterpret_cast<int*>(faddr);
+    tg->figure_out_interior_artbnd_target(fringe, nfringe);
+  }
+  
 }

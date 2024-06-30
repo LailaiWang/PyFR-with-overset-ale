@@ -388,6 +388,7 @@ class tioga
   void set_fcelltypes(int* fctype, unsigned int ntface);
   void set_fposition(int* fpos, unsigned int ntface);
   void set_interior_mapping(int* faceinfo, int* mapping, int nfpts);
+  void figure_out_interior_artbnd_target(int* fringe, int nfringe);
 };
       
 #endif

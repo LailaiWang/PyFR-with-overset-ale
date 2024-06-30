@@ -145,5 +145,5 @@ void tioga_set_face_fpts(unsigned long long ffpts, unsigned int ntface);
 void tioga_set_fcelltypes(unsigned long long fctype, unsigned int ntface);
 void tioga_set_fposition(unsigned long long fpos, unsigned int ntface);
 void tioga_set_interior_mapping(unsigned long long faceinfo, unsigned long long mapping, int nfpts);
-
+void tioga_figure_out_interior_artbnd_target(unsigned long long fringe, unsigned int nfringe);
 } /* extern "C" */

@@ -1422,6 +1422,7 @@ void MeshBlock::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
 }
 
 void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
+  // interior_mapping is for every flux points
   auto range = std::views::iota(0, nfringe);
   interior_target_nfpts.resize(nfringe);
   interior_target_scan.resize(nfringe);
