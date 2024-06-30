@@ -61,7 +61,6 @@ class Overset(object):
             self._performConnectivity()
         
         self.name = 'tioga'
-
     
     def _form_unique_nodes(self, tol = 1e-9):
         '''
@@ -90,6 +89,7 @@ class Overset(object):
             elesbasis[etype.split('-g')[0]] = eles.basis
 
         maxnspt, maxnfcs = max(nspt_etypes), max(nfcs_etypes)
+       
         # keep track of some small things
         self.elesbasis, self.maxnspt, self.maxnfcs = elesbasis, maxnspt, maxnfcs
 
@@ -235,6 +235,7 @@ class Overset(object):
         bf2c = []
         bfposition = []
         bcoffset = [0]
+
         # for parallel computing partitions could possibly have no bc inters
         if bc_inters != []:
             for a in bc_inters:
@@ -367,7 +368,7 @@ class Overset(object):
                     [ elemap[m[0]].basis.nfacefpts[m[2]] for m in a.lhs]
                 )
 
-                #print('umber of mpi faces', mpi_entry.shape)
+                #print('number of mpi faces', mpi_entry.shape)
                 # collecting total nfpts for this mpi_inters
                 mbaseface.append(np.ones(mpi_entry.shape[0]) * (np.sum(mpi_entry)/itemsize))    
                 # exclusive scan
@@ -636,7 +637,7 @@ class Overset(object):
         f2c_flat = f2c[srtdfaces].reshape(-1).astype(self.intdtype)
 
         facetypes = facetypes[srtdfaces]
-        faceposition = fposition[srtdfaces]
+        faceposition = fposition[srtdfaces].astype(self.intdtype)
         f2corg = f2c[srtdfaces]
         
         # recover overset interfaces are pushed into last 
@@ -648,6 +649,7 @@ class Overset(object):
         self.system._mpi_inters = mpi_inters        
         self.system._bc_inters = bc_inters
 
+        
         return (c2v_flat, c2f_flat, f2v_flat, f2c_flat, facetypes, faceposition, f2corg,
                overnodes, wallnodes, overfaceidx, wallfaceidx, mpifaceidx, mpifaces_r,
                mpifaces_r_rank, mdataentry, mnfpts, mbaseface)
@@ -666,6 +668,11 @@ class Overset(object):
         overnodes, wallnodes, overfaceidx, wallfaceidx, mpifaceidx, mpifaces_r,
         mpifaces_r_rank, mdataentry, mnfpts, mbaseface) = self._form_face_info(c2v, c2f)
 
+        # now let's figure out the nfpts per face
+        get_etype = lambda fid : celltypes[f2corg[fid][0]]
+        get_fpos = lambda fid : faceposition[fid][0]
+        facefpts = np.array([ self.system.ele_map[get_etype(fid)].basis.nfacefpts[get_fpos(fid)] for fid in range(self.nfaces)]).astype(self.intdtype)
+
         griddata = defaultdict()
         
         griddata['bodytag'] = self.gid # grid id
@@ -681,10 +688,14 @@ class Overset(object):
         griddata['nv' ] = self.nspt_etypes # number of nodes for each type
         griddata['nc' ] = self.nele_etypes # number of cells for each type
         griddata['ncf'] = self.nfcs_etypes # number of faces for each type
-
+        
+        griddata['maxnfpts'] = int(facefpts.max())
+        griddata['maxnface'] = int(self.maxnfcs)
+        
         griddata['nfacetypes'] = self.nfacetypes # number of face types
         griddata['facetypes'] = facetypes
         griddata['faceposition'] = faceposition
+        griddata['facefpts'] = facefpts
         griddata['f2corg'] = f2corg
         griddata['nf' ] =  self.nface_ftypes 
         griddata['nfv'] =  np.array([9]*self.nfacetypes).astype(self.intdtype) 
@@ -726,6 +737,26 @@ class Overset(object):
         griddata['mbaseface'] = mbaseface
         return griddata
 
+    def _setup_supporting_numbers(self, maxnface: int, maxnfpts: int):
+        tg.tioga_set_soasz(self.system.backend.soasz)
+        tg.tioga_set_maxnface_maxnfpts(maxnface, maxnfpts)
+
+    def _setup_face_related_info(self, grid):
+        ntface = grid['nfaces']
+        facefpts = grid['facefpts']
+
+        cell_map = {'hex':8, 'quad': 4, 'tri':3}
+        simp_ctype = lambda ctype : ctype.split('-')[0]
+        get_ctype = lambda lr : [cell_map[simp_ctype(grid['celltypes'][lr[0]])], 
+                                 cell_map[simp_ctype(grid['celltypes'][lr[1]])]
+                                ]
+        cells = [[l, r] if r>= 0 else [l, l] for l, r in grid['f2corg']]
+        fcelltypes = np.array([ get_ctype(lr) for lr in cells]).astype(self.intdtype).reshape(-1)
+        faceposition = grid['faceposition']
+        tg.tioga_set_face_fpts(facefpts.ctypes.data, ntface)
+        tg.tioga_set_fcelltypes(fcelltypes.ctypes.data, ntface)
+        tg.tioga_set_fposition(faceposition.ctypes.data, ntface)
+
     def _init_overset(self):
         '''
         Convert numpy arrarys into pointers
@@ -753,28 +784,19 @@ class Overset(object):
         overnodes = arrayToIntPtr(grid['obcnodes'])
         wallnodes = arrayToIntPtr(grid['wallnodes'])
         
-        # new version using ptrAt(array, rowidx, colidx) to check data
         (nrw, nco), ns = grid['c2v'].shape, grid['c2v'].nbytes/grid['c2v'].size
-        address, flag = grid['c2v'].__array_interface__['data']
-        if flag != False: raise RuntimeError('2D array not in continuous RAM')
-        c2v = arrayToDoubleIntPtr(address, nrw,nco, int(ns))
+        c2v = arrayToDoubleIntPtr(grid['c2v'].ctypes.data, nrw,nco, int(ns))
         
         (nrw, nco), ns = grid['c2f'].shape, grid['c2f'].nbytes/grid['c2f'].size
-        address, flag = grid['c2f'].__array_interface__['data']
-        if flag != False: raise RuntimeError('2D array not in continuous RAM')
-        c2f = arrayToDoubleIntPtr(address, nrw,nco, int(ns))
-
+        c2f = arrayToDoubleIntPtr(grid['c2f'].ctypes.data, nrw,nco, int(ns))
         (nrw, nco), ns = grid['f2v'].shape, grid['f2v'].nbytes/grid['f2v'].size
-        address, flag = grid['f2v'].__array_interface__['data']
-        if flag != False: raise RuntimeError('2D array not in continuous RAM')
-        f2v = arrayToDoubleIntPtr(address, nrw,nco, int(ns))
-        
-        # need to change
+        f2v = arrayToDoubleIntPtr(grid['f2v'].ctypes.data, nrw,nco, int(ns))
+
         f2c = arrayToIntPtr(grid['f2c'])
 
-        iblank      = addrToIntPtr(grid['iblank_node'].__array_interface__['data'][0])
-        iblank_face = addrToIntPtr(grid['iblank_face'].__array_interface__['data'][0])
-        iblank_cell = addrToIntPtr(grid['iblank_cell'].__array_interface__['data'][0])
+        iblank      = addrToIntPtr(grid['iblank_node'].ctypes.data)
+        iblank_face = addrToIntPtr(grid['iblank_face'].ctypes.data)
+        iblank_cell = addrToIntPtr(grid['iblank_cell'].ctypes.data)
         
         noverfaces = grid['noverfaces']
         nwallfaces = grid['nwallfaces']
@@ -789,7 +811,9 @@ class Overset(object):
 
         gridType = grid['cuttype']
         
-        # Begin setting up Tioga class, see /tioga/include/tiogaInterface.h
+        self._setup_supporting_numbers(grid['maxnface'], grid['maxnfpts'])
+        self._setup_face_related_info(grid)
+
         tg.tioga_registergrid_data_(btag, nnodes, xyz, iblank,
             nwallnodes, novernodes, wallnodes, overnodes, ncelltypes, nv,
             ncf, nc, c2v)
@@ -819,10 +843,10 @@ class Overset(object):
             #else:
             #    grid['rigidPivot']  = np.array([0,-2,0]).astype(fpdtype)
 
-            gridV  = addrToFloatPtr(grid['gridVel'].__array_interface__['data'][0])
-            offset = addrToFloatPtr(grid['rigidOffset'].__array_interface__['data'][0])
-            Rmat   = addrToFloatPtr(grid['rigidRotMat'].__array_interface__['data'][0])
-            pivot  = addrToFloatPtr(grid['rigidPivot'].__array_interface__['data'][0])
+            gridV  = addrToFloatPtr(grid['gridVel'].ctypes.data)
+            offset = addrToFloatPtr(grid['rigidOffset'].ctypes.data)
+            Rmat   = addrToFloatPtr(grid['rigidRotMat'].ctypes.data)
+            pivot  = addrToFloatPtr(grid['rigidPivot'].ctypes.data)
             
             tg.tioga_register_moving_grid_data(gridV, offset, Rmat, pivot)
 
@@ -898,7 +922,7 @@ class Overset(object):
             self.mpientry_d = tg.tg_allocate_device_int( grid['mpientry'].shape[0] ) 
 
             tg.tg_copy_to_device( self.mpientry_d,
-                addrToFloatPtr(grid['mpientry'].__array_interface__['data'][0]),
+                addrToFloatPtr(grid['mpientry'].ctypes.data),
                 grid['mpientry'].nbytes
             )
 
@@ -912,7 +936,7 @@ class Overset(object):
             )
 
             tg.tg_copy_to_device(self.mnfpts_d,
-                addrToFloatPtr(grid['mnfpts'].__array_interface__['data'][0]),
+                addrToFloatPtr(grid['mnfpts'].ctypes.data),
                 grid['mnfpts'].nbytes
             )
 
@@ -925,7 +949,7 @@ class Overset(object):
             )
 
             tg.tg_copy_to_device(self.mbaseface_d,
-                addrToFloatPtr(grid['mbaseface'].__array_interface__['data'][0]),
+                addrToFloatPtr(grid['mbaseface'].ctypes.data),
                 grid['mbaseface'].nbytes
             )
 
@@ -979,8 +1003,8 @@ class Overset(object):
             tg.tioga_set_device_geo_data(
                 addrToFloatPtr(self.coords_d.data),
                 addrToFloatPtr(self.ecoords_d.data), 
-                addrToIntPtr(int(grid['iblank_cell'].__array_interface__['data'][0])),
-                addrToIntPtr(int(grid['iblank_face'].__array_interface__['data'][0]))
+                addrToIntPtr(int(grid['iblank_cell'].ctypes.data)),
+                addrToIntPtr(int(grid['iblank_face'].ctypes.data))
             )
 
             tg.tioga_set_stream_handle(self.cudastream,self.cudaevent)
