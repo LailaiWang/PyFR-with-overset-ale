@@ -40,7 +40,6 @@ void tioga_set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts);
 void tioga_set_face_fpts(unsigned long long ffpts, unsigned int ntface);
 void tioga_set_fcelltypes(unsigned long long fctype, unsigned int ntface);
 void tioga_set_fposition(unsigned long long fpos, unsigned int ntface);
-
 void tioga_set_interior_mapping(unsigned long long faceinfo, unsigned long long mapping, int nfpts);
 
 void tg_print_data(unsigned long long int datastart, unsigned long long int offset,

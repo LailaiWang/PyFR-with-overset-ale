@@ -1412,11 +1412,11 @@ void MeshBlock::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
     cidx = faceinfo[i*4+1];  // element number in all cell types
     fpos = faceinfo[i*4+2];  // face position in the cell
     nid = faceinfo[i*4+3];   // node idx
-    
+
     auto key = std::vector<int>{etype, cidx, fpos, nid};
     auto it = interior_mapping.find(key);
     if(it == interior_mapping.end()) {
-      interior_mapping.insert({key, nid});
+      interior_mapping.insert({key, mapping[i]});
     }
   }
 }

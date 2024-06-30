@@ -320,8 +320,6 @@ class Py_callbacks(tg.callbacks):
         self.gid = system.gid
         self.griddata = griddata
         self.backend = system.backend
-        tg.tioga_set_soasz(self.system.backend.soasz)
-
         self.setup_interior_mapping()
 
         # set up mpi artbnd status
@@ -353,7 +351,7 @@ class Py_callbacks(tg.callbacks):
         # define some lambdas
         ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
         info_in_int = lambda fid, i: [ctype_to_int(ctype[f2c[fid][i]]),f2c[fid][i],fpos[fid][i]]
-        rf = lambda cidx : cidx - off[cidx]
+        rf = lambda cidx : cidx - off[cidx] # cell idx in its own type is needed for tuple
         info_in_tuple = lambda fid, i: (ctype[f2c[fid][i]],rf(f2c[fid][i]),fpos[fid][i],0)
         
         # get left and right separately
@@ -370,8 +368,8 @@ class Py_callbacks(tg.callbacks):
 
         pad = lambda a,n: np.concatenate((np.tile(a,(n,1)),np.array(range(n)).reshape(-1,1)),axis=1)
         left_side_in_int  = [ pad(a,n) for a, n in zip(left_side_in_int, left_side_nfpts)]
-        left_side_in_int = np.array(left_side_in_int).reshape(-1,4)
-        left_mapping = fpts_u_left.mapping.get()
+        left_side_in_int = np.array(left_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
+        left_mapping = fpts_u_left.mapping.get().squeeze(0).astype('int32')
         # now lets do the same thing for right side
         righ_side_in_int = [info_in_int(fid, 1) for fid in range(nbcfaces+nmpifaces, nfaces)]
         righ_side_in_tuple = [info_in_tuple(fid, 1) for fid in range(nbcfaces+nmpifaces, nfaces)]
@@ -381,8 +379,15 @@ class Py_callbacks(tg.callbacks):
         )
         righ_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in righ_side_in_tuple]
         righ_side_in_int  = [ pad(a,n) for a, n in zip(righ_side_in_int, righ_side_nfpts)]
-        righ_side_in_int = np.array(righ_side_in_int).reshape(-1,4)
-        righ_mapping = fpts_u_righ.mapping.get()
+        righ_side_in_int = np.array(righ_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
+        righ_mapping = fpts_u_righ.mapping.get().squeeze(0).astype('int32')
+        
+        sum_info = np.concatenate((left_side_in_int, righ_side_in_int)).astype('int32')
+        # this could exceed int
+        sum_mapping = np.concatenate((left_mapping, righ_mapping)).astype('int32')
+        # now we set the information on tioga
+        tg.tioga_set_interior_mapping(sum_info.ctypes.data, sum_mapping.ctypes.data, sum_mapping.shape[0])
+
 
     # int* cellid int* nnodes # of solution points basis.upts
     def get_nodes_per_cell(self, cellid, nnodes):
@@ -700,8 +705,6 @@ class Py_callbacks(tg.callbacks):
             self.fringe_u_device(fringeids, nfringe, data)
         else: # passing du
             self.fringe_du_device(fringeids, nfringe, data)
-
-
     
     def fringe_u_device(self, fringeids, nfringe, data):
         '''
