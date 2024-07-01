@@ -737,9 +737,10 @@ class Overset(object):
         griddata['mbaseface'] = mbaseface
         return griddata
 
-    def _setup_supporting_numbers(self, maxnface: int, maxnfpts: int):
+    def _setup_supporting_numbers(self, maxnface: int, maxnfpts: int, nmpifaces: int, nbcfaces: int):
         tg.tioga_set_soasz(self.system.backend.soasz)
         tg.tioga_set_maxnface_maxnfpts(maxnface, maxnfpts)
+        tg.tioga_set_face_numbers(nmpifaces, nbcfaces)
 
     def _setup_face_related_info(self, grid):
         ntface = grid['nfaces']
@@ -811,7 +812,8 @@ class Overset(object):
 
         gridType = grid['cuttype']
         
-        self._setup_supporting_numbers(grid['maxnface'], grid['maxnfpts'])
+        self._setup_supporting_numbers(grid['maxnface'], grid['maxnfpts'], grid['nmpifaces'], grid['nbcfaces'])
+        
         self._setup_face_related_info(grid)
 
         tg.tioga_registergrid_data_(btag, nnodes, xyz, iblank,

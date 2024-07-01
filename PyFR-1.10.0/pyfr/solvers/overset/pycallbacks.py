@@ -321,33 +321,54 @@ class Py_callbacks(tg.callbacks):
         self.griddata = griddata
         self.backend = system.backend
         self.setup_interior_mapping()
+        self.setup_mpi_mapping()
 
         # set up mpi artbnd status
         self.setup_mpi_artbnd_status_aux()
 
     def setup_mpi_mapping(self):
-        '''
-        set up the mpi mapping for all mpi faces
-        '''
         grid = self.griddata
         nfaces, nbcfaces, nmpifaces = grid['nfaces'], grid['nbcfaces'], grid['nmpifaces']
-            
         if nmpifaces == 0: return    
     
         f2c, fpos = grid['f2corg'], grid['faceposition'] 
         ctype, off = grid['celltypes'], grid['celloffset']
+        
+        ctype_to_int_dict = {'hex': 8}
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        info_in_int = lambda fid: [ctype_to_int(ctype[f2c[fid][0]]),f2c[fid][0],fpos[fid][0]]
+        rf = lambda cidx : cidx - off[cidx]
+        info_in_tuple = lambda fid: (ctype[f2c[fid][0]],rf(f2c[fid][0]),fpos[fid][0],0)
+        
+        mpi_side_in_int = [info_in_int(fid) for fid in range(nbcfaces, nbcfaces+nmpifaces)]
+        mpi_side_in_tuple = [info_in_tuple(fid) for fid in range(nbcfaces, nbcfaces+nmpifaces)]
+
+        mpi_fpts_artbnd = self._scal_view_artbnd(
+            mpi_side_in_tuple, 'get_scal_fpts_artbnd_for_inter'
+        )
+
+        get_nfpts = lambda etype, pos : self.system.ele_map[etype].basis.nfacefpts[pos]
+        mpi_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in mpi_side_in_tuple]
+
+        pad = lambda a,n: np.concatenate((np.tile(a,(n,1)),np.array(range(n)).reshape(-1,1)),axis=1)
+
+        mpi_side_in_int  = [ pad(a,n) for a, n in zip(mpi_side_in_int, mpi_side_nfpts)]
+        mpi_side_in_int = np.array(mpi_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
+        
+        mpi_mapping = mpi_fpts_artbnd.mapping.get().squeeze(0)
+
+        basedata = int(mpi_fpts_artbnd.basedata)
+        tg.tioga_set_mpi_mapping(basedata, mpi_side_in_int.ctypes.data, mpi_mapping.ctypes.data, mpi_mapping.shape[0])
+        
                    
     def setup_interior_mapping(self):
-        '''
-        set up the interior mapping of mesh interior faces
-        '''
         grid = self.griddata
         nfaces, nbcfaces, nmpifaces = grid['nfaces'], grid['nbcfaces'], grid['nmpifaces']
         f2c, fpos = grid['f2corg'], grid['faceposition']
         ctype, off = grid['celltypes'], grid['celloffset']
         
         # now only support this for hex
-        ctype_to_int_dict = {'hex':8}
+        ctype_to_int_dict = {'hex': 8}
         # define some lambdas
         ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
         info_in_int = lambda fid, i: [ctype_to_int(ctype[f2c[fid][i]]),f2c[fid][i],fpos[fid][i]]
@@ -386,7 +407,12 @@ class Py_callbacks(tg.callbacks):
         # this could exceed int
         sum_mapping = np.concatenate((left_mapping, righ_mapping)).astype('int32')
         # now we set the information on tioga
-        tg.tioga_set_interior_mapping(sum_info.ctypes.data, sum_mapping.ctypes.data, sum_mapping.shape[0])
+
+        if int(fpts_u_left.basedata) != int(fpts_u_righ.basedata):
+            raise RuntimeError("Interior left and right basedata not consistent")
+        # need to copy this base data as well
+        basedata = fpts_u_left.basedata
+        tg.tioga_set_interior_mapping(basedata, sum_info.ctypes.data, sum_mapping.ctypes.data, sum_mapping.shape[0])
 
 
     # int* cellid int* nnodes # of solution points basis.upts
@@ -698,8 +724,7 @@ class Py_callbacks(tg.callbacks):
         )
 
     def fringe_data_to_device(self, fringeids, nfringe, gradflag, data):
-        #fringe_data_to_device
-        # see faces.cpp
+        # say highOrder.C
         if nfringe == 0: return
         if gradflag == 0: # passing u
             self.fringe_u_device(fringeids, nfringe, data)
@@ -707,16 +732,8 @@ class Py_callbacks(tg.callbacks):
             self.fringe_du_device(fringeids, nfringe, data)
     
     def fringe_u_device(self, fringeids, nfringe, data):
-        '''
-        For grid which has no overset faces, fringe faces can be:
-             interior faces or mpi faces
-        For grid which has oversert faces, fringe faces can be:
-             overset face, interior faces, or mpi faces
-        One would assume these faces are not sorted and organized in fringids
-        In this case, you need to figure out the fring id type and corresponding data
-        location in passed-in data
-        ''' 
         if nfringe == 0: return 0
+
         nbcfaces = self.griddata['nbcfaces']
         nmpifaces = self.griddata['nmpifaces']
 
@@ -729,10 +746,6 @@ class Py_callbacks(tg.callbacks):
                 nmpifaces, self.init_nfpts_mpi, 1, self.backend.soasz, 3
             )
         
-        
-        # it seems to me now mpi faces come first and then inter come second
-        # for case when overset grids are not cutting each other
-
         # we first collect all fids here
         fids = [(ptrAt(fringeids, i),i) for i in range(nfringe)]
         # interior faces
@@ -821,14 +834,9 @@ class Py_callbacks(tg.callbacks):
                 addrToFloatPtr(mpi_nfpts.__array_interface__['data'][0]),
                 mpi_nfpts.nbytes
             )
-            # our target will only be part of the 
-            #cc = datatest.swapaxes(0,1).reshape(-1)
+
             cc = datatest.reshape(-1) 
-            #cc = np.ones(cc.shape).astype(self.backend.fpdtype) * (-100.0)
             
-            #print('cc is ', cc)
-            # copy mpi data to fringe_u then the offset for interior faces 
-            # tot_mpi_nfpts * nvars
             tg.tg_copy_to_device(
                 self.fringe_u_fpts_d,
                 addrToFloatPtr(cc.__array_interface__['data'][0]),
@@ -838,17 +846,8 @@ class Py_callbacks(tg.callbacks):
             mpinfpts = self.griddata['mnfpts_d'] # fpts per face global
             mbaseface = self.griddata['mbaseface_d']
             
-            #print('bases,', [x._scal_rhs.data for x in self.system._mpi_inters])
-            # then copy the data the those mpi matrices in PyFR
             base_entry = self.system._mpi_inters[0]._scal_rhs.data
          
-            #print('base_entry,', base_entry)
-            #print('face base,', self.griddata['mbaseface'])  
-            #print('num of mpi artbdn,', fids_mpi_zero.shape[0])
-            #print('mpientry,', self.griddata['mpientry'])
-
-            #print('base entry', base_entry)
-            #print('mpi entry', self.griddata['mpientry'][fids_mpi_zero[0]])
             tg.copy_to_mpi_rhs_wrapper(
                 addrToFloatPtr(base_entry), # base of destination
                 addrToFloatPtr(self.fringe_u_fpts_d),  # source
