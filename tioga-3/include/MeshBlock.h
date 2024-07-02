@@ -165,10 +165,21 @@ private:
   std::vector<int> interior_target_scan; // staring idx of fpts on each face
   std::vector<int> interior_target_mapping; // mapping of very fpts 
 
-  int fringe_mpi_tnfpts;
+  unsigned long long int interior_basedata;
+  dvec<int> interior_target_mapping_d; // interior mapping
+  dvec<double> interior_data_d; // memory buffer to interior ab
+
+  
+  unsigned long long int mpi_basedata; // address
+  std::vector<int> mpi_points_offset;
+  std::vector<int> mpi_vars_offset;
+    
+  int mpi_tnfpts;
   std::vector<int> mpi_target_nfpts;
   std::vector<int> mpi_target_scan;
   std::vector<int> mpi_target_mapping;
+  dvec<int> mpi_target_mapping_d; // interior mapping
+  dvec<double> mpi_data_d; // memory buffer to interior ab
 
   //std::vector<std:vector<std::unordered_map<int, int>>> data_reorder_map;
     
@@ -621,7 +632,7 @@ private:
                             int (*gnw)(int),
                             void (*dfg)(int*, int, double*, double*))
   {
-    face_data_to_device = h2df;
+    face_data_to_device = h2df; // this is the function to move face data to device
     cell_data_to_device = h2dc;
     get_q_spts_d = gqd;
     get_dq_spts_d = gdqd;
@@ -716,14 +727,17 @@ private:
   void set_face_fpts(int* ffpts, unsigned int ntface);   
   void set_fcelltypes(int* fctype, unsigned int ntface);
   void set_fposition(int* fpos, unsigned int ntface);
+  void set_face_numbers(unsigned int nmpif, unsigned int nbcf);
 
-  void set_data_reorg_map();
-  void set_interior_mapping(int* faceinfo, int* mapping, int nfpts);
-  void set_mpi_mapping(int* faceinfo, int* mapping, int nfpts);
+  void set_data_reorder_map(int* srted, int* unsrted, int ncells);
+  void set_interior_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
   void set_overset_mapping(int* faceinfo, int* mapping, int nfpts);
   void figure_out_interior_artbnd_target(int* fringe, int nfringe);
   void figure_out_mpi_artbnd_target(int* fringe, int nfringe);
   void figure_out_overset_artbnd_target(int* fringe, int nfringe);
+
+  void update_fringe_face_info(double* buffer, int nvar);
 };
 
 #endif

@@ -1396,11 +1396,22 @@ void tioga::set_fposition(int* fpos, unsigned int ntface) {
   mb->set_fposition(fpos, ntface);
 }
 
-void tioga::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
-  mb->set_interior_mapping(faceinfo, mapping, nfpts);
+void tioga::set_interior_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
+  mb->set_interior_mapping(basedata, faceinfo, mapping, nfpts);
 }
 
 void tioga::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
   mb->figure_out_interior_artbnd_target(fringe, nfringe);
 }
 
+void tioga::set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
+  mb->set_mpi_mapping(basedata, faceinfo, mapping, nfpts);
+}
+
+void tioga::figure_out_mpi_artbnd_target(int* fringe, int nfringe) {
+  mb->figure_out_mpi_artbnd_target(fringe, nfringe);
+}
+
+void tioga::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
+  mb->set_data_reorder_map(srted, unsrted, ncells);
+}

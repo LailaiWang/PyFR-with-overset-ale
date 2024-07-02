@@ -141,9 +141,17 @@ callbackFuncs tioga_get_callbacks(void);
 
 void tioga_set_soasz(unsigned int sz);
 void tioga_set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts);
+void tioga_set_face_numbers(unsigned int nmpif, unsigned int nbcf);
 void tioga_set_face_fpts(unsigned long long ffpts, unsigned int ntface);
 void tioga_set_fcelltypes(unsigned long long fctype, unsigned int ntface);
 void tioga_set_fposition(unsigned long long fpos, unsigned int ntface);
-void tioga_set_interior_mapping(unsigned long long faceinfo, unsigned long long mapping, int nfpts);
+void tioga_set_interior_mapping(unsigned long long basedata, 
+                                unsigned long long faceinfo,
+                                unsigned long long mapping, int nfpts);
 void tioga_figure_out_interior_artbnd_target(unsigned long long fringe, unsigned int nfringe);
+void tioga_set_mpi_mapping(unsigned long long basedata,
+                           unsigned long long faceinfo,
+                           unsigned long long mapping, int nfpts);
+void tioga_figure_out_mpi_artbnd_target(unsigned long long fringe, unsigned int nfringe);
+void tioga_set_data_reorder_map(unsigned long long srted, unsigned long long unsrted, unsigned int ncells);
 } /* extern "C" */

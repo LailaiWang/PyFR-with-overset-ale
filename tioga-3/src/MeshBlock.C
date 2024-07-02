@@ -1383,6 +1383,11 @@ void MeshBlock::set_maxnface_maxnfpts(unsigned int nface_in, unsigned int nfpts_
   maxnfpts = nfpts_in;
 }
 
+void MeshBlock::set_face_numbers(unsigned int nmpif, unsigned int nbcf) {
+  nmpifaces = nmpif;
+  nbcfaces = nbcf;
+}
+
 void MeshBlock::set_face_fpts(int* ffpts, unsigned int ntface) {
   face_fpts.resize(ntface);
   std::copy(ffpts, ffpts + ntface, face_fpts.begin());
@@ -1405,7 +1410,8 @@ void MeshBlock::set_fposition(int* fpos, unsigned int ntface) {
   }
 }
 
-void MeshBlock::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
+void MeshBlock::set_interior_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
+  interior_basedata = basedata;
   int etype, cidx, fpos, nid;
   for(int i=0;i<nfpts;++i) {
     etype = faceinfo[i*4+0]; // element type
@@ -1423,15 +1429,6 @@ void MeshBlock::set_interior_mapping(int* faceinfo, int* mapping, int nfpts) {
 
 void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
   
-  {
-    int pid = getpid();
-    printf("current pid is %d\n",pid);
-    int idebugger = 0;
-    while(idebugger) {
-
-    };
-  }
-
   if (nfringe == 0) return;
   // interior_mapping is for every flux points
   auto range = std::views::iota(0, nfringe);
@@ -1459,8 +1456,7 @@ void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   // for these interior fringe faces
   // here we need fcelltypes and fposition
-  //std::for_each(std::execution::par, range.begin(), range.end(),
-  std::for_each(range.begin(), range.end(),
+  std::for_each(std::execution::par, range.begin(), range.end(),
     [fringe, this, &rank](auto idx) {
       auto fid = fringe[idx];
       auto c0 = f2c[fid*2+0];
@@ -1488,11 +1484,21 @@ void MeshBlock::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
       }
     });
 
-  // now we copy this to device 
+    // now we copy this to device 
+    interior_target_mapping_d.resize(interior_target_mapping.size());
+    interior_target_mapping_d.assign(interior_target_mapping.data(), interior_target_mapping.size(), NULL);
+
+  {
+    int pid = getpid();
+    printf("current pid is %d\n",pid);
+    int idebugger = 1;
+    while(idebugger) {
+
+    };
+  }
 }
 
-/*
-void MeshBlock::set_mpi_mapping(int* faceinfo, int* mapping, int nv, int nfpts) {
+void MeshBlock::set_mpi_mapping(unsigned long long int basedata,  int* faceinfo, int* mapping, int nfpts) {
   //one pyfr partition could have different mpi inters, each mpi inters 
   //have its own memory allocated such that there are not necessarily continuous
   //moreover, the mpi variable are stored variable by variable 
@@ -1500,6 +1506,7 @@ void MeshBlock::set_mpi_mapping(int* faceinfo, int* mapping, int nv, int nfpts) 
   //for the different variables at the same flux point
   //Note that mapping here is interms of char instead of float/double in case the 
   //discontinuous memory is not float/double aligned
+  mpi_basedata = basedata;
   int etype, cidx, fpos, nid;
   for(int i=0;i<nfpts;++i) {
     etype = faceinfo[i*4+0]; // element type
@@ -1510,22 +1517,66 @@ void MeshBlock::set_mpi_mapping(int* faceinfo, int* mapping, int nv, int nfpts) 
     auto key = std::vector<int>{etype, cidx, fpos, nid};
     auto it = mpi_mapping.find(key);
     if(it == mpi_mapping.end()) {
-      mpi_mapping.insert({key, nid});
+      mpi_mapping.insert({key, mapping[i]});
     }
   }
 }
 
-void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells, int maxnfaces, int maxnfpts) {
+void MeshBlock::figure_out_mpi_artbnd_target(int* fringe, int nfringe) {
+  if (nfringe == 0) return;
+  auto range = std::views::iota(0, nfringe);
+  mpi_target_nfpts.resize(nfringe);
+  mpi_target_scan.resize(nfringe);
+    
+  std::for_each(std::execution::par, range.begin(), range.end(),
+    [fringe, this] (auto idx) {
+      auto fid = fringe[idx];
+      mpi_target_nfpts[idx] = face_fpts[fid];
+    });
+
+  std::exclusive_scan(std::execution::par, 
+      mpi_target_nfpts.begin(), mpi_target_nfpts.end(), 
+      mpi_target_scan.begin(), 0
+    );
+
+  auto tnfpts = mpi_target_scan[nfringe-1] + mpi_target_nfpts[nfringe-1];
+  mpi_target_mapping.resize(tnfpts);
+ 
+  mpi_tnfpts = tnfpts;// this one will be used later
+    
+  int rank =0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  std::for_each(std::execution::par, range.begin(), range.end(),
+    [fringe, this, &rank](auto idx) {
+      auto fid = fringe[idx];
+      auto c0 = f2c[fid*2+0];
+      auto c1 = f2c[fid*2+1];
+      auto ib0 = iblank_cell[c0];
+        
+      for(auto i=0;i<face_fpts[fid];++i) {
+        auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
+        auto it = mpi_mapping.find(key);
+        auto npid = mpi_target_scan[idx] + i;
+        mpi_target_mapping[npid] = it->second;
+      }
+    });
+    
+    mpi_target_mapping_d.resize(mpi_target_mapping.size());
+    mpi_target_mapping_d.assign(mpi_target_mapping.data(), mpi_target_mapping.size(), NULL);
+}
+
+void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
   // element type, face position, number of cells, nfpts
   // define this as 
   //srted_order[cell][fpos] // gives a [0-nfpts) [nfpts, maxnfpts) garbage
   //assuming just one type for now
   std::vector<std::vector<std::vector<int>>> srted_order(ncells, 
-    std::vector<std::vector<int>>(maxnfaces, std::vector<int>(maxnfpts,-1))
+    std::vector<std::vector<int>>(maxnface, std::vector<int>(maxnfpts,-1))
   );
 
   std::vector<std::vector<std::vector<int>>> unsrted_order(ncells, 
-    std::vector<std::vector<int>>(maxnfaces, std::vector<int>(maxnfpts,-1))
+    std::vector<std::vector<int>>(maxnface, std::vector<int>(maxnfpts,-1))
   );
   
   for(auto i=0;i<ncells;++i) {
@@ -1544,6 +1595,7 @@ void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells, int m
     }
   }
 
+  /*
   // we know in unsorted_order the id of fpts always in acending order
   // data being passed in is in unsrted order  
   std::vector<std:vector<std::unordered_map<int, int>>> unsrted_to_srted_map;
@@ -1568,8 +1620,10 @@ void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells, int m
     });
     
     data_reorder_map = unsrted_to_srted_map;
+    */
 }
 
+/*
 void MeshBlock::prepare_mpi_artbnd_target_data(double* data,int* fringe,int nvar,int nfringe) {
   // here we need to do some reordering of the data
   fringe_mpi_data.resize(fringe_mpi_tnfpts*nvar);
@@ -1586,43 +1640,6 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data,int* fringe,int nvar
   // then copy this data to the device
 }
 
-void MeshBlock::figure_out_mpi_artbnd_target(int* fringe, int nfringe) {
-  auto range = std::views::iota(0, nfringe);
-  mpi_target_nfpts.resize(nfringe);
-  mpi_target_scan.resize(nfringe);
-    
-  std::for_each(std::execution::par, range.begin(), range.end(),
-    [fringe, this] (auto idx) {
-        auto fid = fringe[idx];
-        mpi_target_nfpts[idx] = face_fpts[fid];
-    });
-
-  std::exclusive_scan(std::execution::par, 
-      mpi_target_nfpts.begin(), mpi_target_nfpts.end(), 
-      mpi_target_scan.begin(), 0
-    );
-
-  auto tnfpts = mpi_target_scan[nfringe-1] + mpi_target_nfpts[nfringe-1];
-  fringe_mpi_tnfpts = tnfpts;
-
-  mpi_target_mapping.resize(tnfpts);
-
-  std::for_each(std::execution::par, range.begin(), range.end(),
-    [fringe, this](auto idx) {
-      auto fid = fringe[idx];
-      auto c0 = f2c[fid*2+0];
-      auto c1 = f2c[fid*2+1];
-        
-      if(c1 >= 0) printf(" something is wrong on blaking mpi right cell\n");         
-
-      for(auto i=0;i<face_fpts[fid];++i) {
-        auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
-        auto it = mpi_mapping.find(key);
-        auto npid = mpi_target_scan[fid] + i;
-        mpi_target_mapping[npid] = it->second;
-      }
-    });
-}
 
 void MeshBlock::prepare_overset_artbnd_target_data(double* data, int nvar, int nfringe) {
   // here we need to do some reordering of the data 

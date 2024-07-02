@@ -405,6 +405,10 @@ extern "C" {
   void tioga_set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts) {
     tg->set_maxnface_maxnfpts(maxnface, maxnfpts);
   }
+  
+  void tioga_set_face_numbers(unsigned int nmpif, unsigned int nbcf) {
+    tg->set_face_numbers(nmpif, nbcf);
+  }
 
   void tioga_set_face_fpts(unsigned long long ffpts, unsigned int ntface) {
     int* fptr = reinterpret_cast<int*>(ffpts);
@@ -421,15 +425,36 @@ extern "C" {
     tg->set_fposition(posptr, ntface);
   }
 
-  void tioga_set_interior_mapping(unsigned long long faceinfo, unsigned long long mapping, int nfpts) {
-    int* infoptr = reinterpret_cast<int*>(faceinfo);
-    int* mptr = reinterpret_cast<int*>(mapping);
-    tg->set_interior_mapping(infoptr, mptr, nfpts);
+  void tioga_set_interior_mapping(unsigned long long basedata, 
+                                  unsigned long long faddr,
+                                  unsigned long long maddr, int nfpts) {
+    int* faceinfo = reinterpret_cast<int*>(faddr);
+    int* mapping = reinterpret_cast<int*>(maddr);
+    tg->set_interior_mapping(basedata, faceinfo, mapping, nfpts);
   }
 
   void tioga_figure_out_interior_artbnd_target(unsigned long long faddr, unsigned int nfringe) {
     int* fringe = reinterpret_cast<int*>(faddr);
     tg->figure_out_interior_artbnd_target(fringe, nfringe);
+  }
+
+  void tioga_set_mpi_mapping(unsigned long long basedata,
+                             unsigned long long faddr,
+                             unsigned long long maddr, int nfpts) {
+    int* faceinfo = reinterpret_cast<int*>(faddr);
+    int* mapping = reinterpret_cast<int*>(maddr);
+    tg->set_mpi_mapping(basedata, faceinfo, mapping, nfpts);
+  }
+
+  void tioga_figure_out_mpi_artbnd_target(unsigned long long faddr, unsigned int nfringe) {
+    int* fringe = reinterpret_cast<int*>(faddr);
+    tg->figure_out_mpi_artbnd_target(fringe, nfringe);
+  }
+  
+  void tioga_set_data_reorder_map(unsigned long long saddr, unsigned long long uaddr, unsigned int ncells) {
+    int* srted = reinterpret_cast<int*>(saddr);
+    int* unsrted = reinterpret_cast<int*>(uaddr);
+    tg->set_data_reorder_map(srted, unsrted, ncells);
   }
   
 }

@@ -384,11 +384,20 @@ class tioga
   void set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts) {
     mb->set_maxnface_maxnfpts(maxnface, maxnfpts);
   }
+ 
+  void set_face_numbers(unsigned int nmpif, unsigned int nbcf) {
+    mb->set_face_numbers(nmpif, nbcf);
+  }  
+
   void set_face_fpts(int* ffpts, unsigned int ntface);
   void set_fcelltypes(int* fctype, unsigned int ntface);
   void set_fposition(int* fpos, unsigned int ntface);
-  void set_interior_mapping(int* faceinfo, int* mapping, int nfpts);
+  void set_interior_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
   void figure_out_interior_artbnd_target(int* fringe, int nfringe);
+  void set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void figure_out_mpi_artbnd_target(int* fringe, int nfringe);
+
+  void set_data_reorder_map(int* srted, int* unsrted, int ncells);
 };
       
 #endif
