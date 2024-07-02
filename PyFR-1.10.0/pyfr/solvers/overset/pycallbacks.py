@@ -322,9 +322,37 @@ class Py_callbacks(tg.callbacks):
         self.backend = system.backend
         self.setup_interior_mapping()
         self.setup_mpi_mapping()
-
+        self.setup_structured_to_srted_mapping()
         # set up mpi artbnd status
         self.setup_mpi_artbnd_status_aux()
+
+    def setup_structured_to_srted_mapping(self):
+        grid = self.griddata
+        ncells, ctype, off = grid['ncells'], grid['celltypes'], grid['celloffset']
+        maxnfpts, maxnface = grid['maxnfpts'], grid['maxnface']
+        
+        ele_map = self.system.ele_map
+        
+        rf = lambda cidx : cidx - off[cidx]
+        get_ctype = lambda cidx: ctype[cidx]
+        get_nface  = lambda ctype : len(ele_map[ctype].basis.faces)
+        
+        # add necessary padding to these two
+        get_unsrted = (lambda ctype: [ ele_map[ctype].basis.facefpts[fpos] +
+              (maxnfpts - len(ele_map[ctype].basis.facefpts[fpos])) * [0] 
+              if fpos < get_nface(ctype) else maxnfpts * [0] for fpos in range(maxnface)
+            ])
+        get_srted = (lambda ctype,cidx: [list(ele_map[ctype]._srtd_face_fpts[fpos][rf(cidx)]) + 
+              (maxnfpts - len(list(ele_map[ctype]._srtd_face_fpts[fpos][rf(cidx)]))) * [0]
+              if fpos < get_nface(ctype) else maxnfpts * [0] for fpos in range(maxnface)
+            ])
+        
+        unsrted_info = [ get_unsrted(get_ctype(i)) for i in range(ncells)]
+        srted_info = [get_srted(get_ctype(i), i) for i in range(ncells)]
+        unsrted_info = np.array(unsrted_info).astype('int32').reshape(-1)
+        srted_info = np.array(srted_info).astype('int32').reshape(-1)
+        
+        tg.set_data_reorder_map(srted_info.ctypes.data, unsrted_info.ctypes.data, ncells)
 
     def setup_mpi_mapping(self):
         grid = self.griddata
@@ -411,7 +439,7 @@ class Py_callbacks(tg.callbacks):
         if int(fpts_u_left.basedata) != int(fpts_u_righ.basedata):
             raise RuntimeError("Interior left and right basedata not consistent")
         # need to copy this base data as well
-        basedata = fpts_u_left.basedata
+        basedata = int(fpts_u_left.basedata)
         tg.tioga_set_interior_mapping(basedata, sum_info.ctypes.data, sum_mapping.ctypes.data, sum_mapping.shape[0])
 
 
