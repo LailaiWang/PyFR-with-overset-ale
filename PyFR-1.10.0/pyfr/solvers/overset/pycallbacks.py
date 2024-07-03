@@ -352,7 +352,41 @@ class Py_callbacks(tg.callbacks):
         unsrted_info = np.array(unsrted_info).astype('int32').reshape(-1)
         srted_info = np.array(srted_info).astype('int32').reshape(-1)
         
-        tg.set_data_reorder_map(srted_info.ctypes.data, unsrted_info.ctypes.data, ncells)
+        tg.tioga_set_data_reorder_map(srted_info.ctypes.data, unsrted_info.ctypes.data, ncells)
+
+    def setup_bc_mapping(self):
+        grid = self.griddata
+        nfaces, nbcfaces = grid['nfaces'], grid['nbcfaces']
+        if nbcfaces == 0: return    
+    
+        f2c, fpos = grid['f2corg'], grid['faceposition'] 
+        ctype, off = grid['celltypes'], grid['celloffset']
+        
+        ctype_to_int_dict = {'hex': 8}
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        info_in_int = lambda fid: [ctype_to_int(ctype[f2c[fid][0]]),f2c[fid][0],fpos[fid][0]]
+        rf = lambda cidx : cidx - off[cidx]
+        info_in_tuple = lambda fid: (ctype[f2c[fid][0]],rf(f2c[fid][0]),fpos[fid][0],0)
+        
+        bc_side_in_int = [info_in_int(fid) for fid in range(nbcfaces)]
+        bc_side_in_tuple = [info_in_tuple(fid) for fid in range(nbcfaces)]
+
+        bc_fpts_artbnd = self._scal_view_artbnd(
+            bc_side_in_tuple, 'get_scal_fpts_artbnd_for_inter'
+        )
+
+        get_nfpts = lambda etype, pos : self.system.ele_map[etype].basis.nfacefpts[pos]
+        bc_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in bc_side_in_tuple]
+
+        pad = lambda a,n: np.concatenate((np.tile(a,(n,1)),np.array(range(n)).reshape(-1,1)),axis=1)
+
+        bc_side_in_int  = [ pad(a,n) for a, n in zip(bc_side_in_int, bc_side_nfpts)]
+        bc_side_in_int = np.array(bc_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
+        
+        bc_mapping = bc_fpts_artbnd.mapping.get().squeeze(0)
+
+        basedata = int(bc_fpts_artbnd.basedata)
+        tg.tioga_set_bc_mapping(basedata, bc_side_in_int.ctypes.data, bc_mapping.ctypes.data, bc_mapping.shape[0])
 
     def setup_mpi_mapping(self):
         grid = self.griddata

@@ -51,7 +51,6 @@ class Overset(object):
         self.facevidxcell = face_vidx_incell()
         
         self.griddata = self._prepare_griddata()
-        self.callbacks = Py_callbacks(self.system, self.griddata)
         self._init_overset()
         self._preprocess()
         self._performConnectivity()
@@ -827,6 +826,7 @@ class Overset(object):
             mpifaces, mpifaces_r_rank, mpifaces_r_fidx, nfacetypes, nfv, nf, f2v);
         
         # simplified callbacks
+        self.callbacks = Py_callbacks(self.system, self.griddata)
         callbacks = self.callbacks
         
         tg.tioga_set_callbacks_ptr(callbacks)
