@@ -161,27 +161,40 @@ private:
   std::unordered_map<std::vector<int>, int, vector_hash> mpi_mapping;
   std::unordered_map<std::vector<int>, int, vector_hash> overset_mapping;
 
+  std::vector<std::pair<int,int>> interior_ab_faces; //pair first->global id second loc id
+  std::vector<std::pair<int,int>> mpi_ab_faces;
+  std::vector<std::pair<int,int>> overset_ab_faces;
+
+  unsigned long long int interior_basedata;
+  int interior_tnfpts;
   std::vector<int> interior_target_nfpts; // fringe nfpts per face
   std::vector<int> interior_target_scan; // staring idx of fpts on each face
   std::vector<int> interior_target_mapping; // mapping of very fpts 
 
-  unsigned long long int interior_basedata;
   dvec<int> interior_target_mapping_d; // interior mapping
   dvec<double> interior_data_d; // memory buffer to interior ab
 
-  
   unsigned long long int mpi_basedata; // address
-  std::vector<int> mpi_points_offset;
-  std::vector<int> mpi_vars_offset;
-    
-  int mpi_tnfpts;
+  int mpi_tnfpts; // total number of mpi nfpts
   std::vector<int> mpi_target_nfpts;
   std::vector<int> mpi_target_scan;
   std::vector<int> mpi_target_mapping;
   dvec<int> mpi_target_mapping_d; // interior mapping
+  std::vector<double> mpi_data_h;
   dvec<double> mpi_data_d; // memory buffer to interior ab
 
-  //std::vector<std:vector<std::unordered_map<int, int>>> data_reorder_map;
+  unsigned long long int overset_basedata;
+  int overset_tnfpts;
+  std::vector<int> overset_target_nfpts;
+  std::vector<int> overset_target_scan;
+  std::vector<int> overset_target_mapping;
+  dvec<int> overset_target_mapping_d;
+  std::vector<double> overset_data_h;
+  dvec<double> overset_data_d;
+
+  std::vector<std::vector<std::vector<int>>> srted_order;
+  std::vector<std::vector<std::vector<int>>> unsrted_order;
+  std::vector<std::vector<std::unordered_map<int, int>>> face_unsrted_to_srted_map;
     
   //
   // Alternating digital tree library
@@ -732,12 +745,14 @@ private:
   void set_data_reorder_map(int* srted, int* unsrted, int ncells);
   void set_interior_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
   void set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
-  void set_overset_mapping(int* faceinfo, int* mapping, int nfpts);
-  void figure_out_interior_artbnd_target(int* fringe, int nfringe);
-  void figure_out_mpi_artbnd_target(int* fringe, int nfringe);
-  void figure_out_overset_artbnd_target(int* fringe, int nfringe);
+  void set_overset_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void figure_out_interior_artbnd_target();
+  void figure_out_mpi_artbnd_target();
+  void figure_out_overset_artbnd_target();
 
   void update_fringe_face_info(double* buffer, int nvar);
+  void prepare_mpi_artbnd_target_data(double* data, int nvar);
+  void prepare_overset_artbnd_target_data(double* data, int nvar);
 };
 
 #endif

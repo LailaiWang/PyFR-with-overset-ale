@@ -1761,43 +1761,37 @@ void MeshBlock::updatePointData(double *q,double *qtmp,int nvar,int interptype)
 void MeshBlock::update_fringe_face_info(double* buffer, int nvar) {
   // use this function to replace interior face related information
   // we first identify interior faces
-  {
-    int pid = getpid();
-    printf("current pid is %d n mpifaces is %d nbcfaces is %d\n",pid, nmpifaces, nbcfaces);
-    int idebugger = 1;
-    while(idebugger) {
-
-    };
-  }
-
-  std::vector<int> interior_ab_faces; interior_ab_faces.reserve(nreceptorFaces);
-  std::vector<int> mpi_ab_faces; mpi_ab_faces.reserve(nreceptorFaces);
-  std::vector<int> ov_ab_faces; ov_ab_faces.reserve(nreceptorFaces);
+  interior_ab_faces.resize(0);
+  mpi_ab_faces.resize(0);
+  overset_ab_faces.resize(0);
   for(int i=0; i < nreceptorFaces;++i) {
     auto fid = ftag[i];
     if (fid >= nbcfaces + nmpifaces) {
-      interior_ab_faces.push_back(fid);
+      interior_ab_faces.push_back(std::pair<int,int>{fid,i});
     } else if (fid >= nbcfaces && fid <nbcfaces + nmpifaces) {
-      mpi_ab_faces.push_back(fid);
+      mpi_ab_faces.push_back(std::pair<int,int>{fid,i});
     } else if (fid < nbcfaces) {
-      ov_ab_faces.push_back(fid);
+      overset_ab_faces.push_back(std::pair<int,int>{fid,i});
     }
   }
 
   if(mpi_ab_faces.size() != 0) {
-    figure_out_mpi_artbnd_target(mpi_ab_faces.data(), mpi_ab_faces.size());
+    figure_out_mpi_artbnd_target();
   } else {
     mpi_tnfpts = 0;
   }
 
   if(interior_ab_faces.size() != 0) {
-    figure_out_interior_artbnd_target(interior_ab_faces.data(), interior_ab_faces.size());
+    figure_out_interior_artbnd_target();
+  } else {
+    interior_tnfpts = 0;
   }
 
-
-  if(ov_ab_faces.size() != 0) {
-
-  } 
+  if(overset_ab_faces.size() != 0) {
+    figure_out_overset_artbnd_target();
+  } else {
+    overset_tnfpts = 0;
+  }
 }
 
 void MeshBlock::updateFringePointData(double *qtmp, int nvar)
@@ -1806,13 +1800,11 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
 
 #ifdef _GPU
   
-  //printf("gpu updatefringePointData nreceptorFaces %d nreceptorCells %d\n", nreceptorFaces, nreceptorCells);
-
   // calling face data to device, qtmp stored the data
   if (nreceptorFaces > 0) {
     // adding here to replace existing call back
     update_fringe_face_info(qtmp, nvar);
-    face_data_to_device(ftag, nreceptorFaces, 0, qtmp);
+    face_data_to_device(ftag, nreceptorFaces, 0, qtmp); // call this to get the information
   }
 
   if (nreceptorCells > 0)

@@ -1401,7 +1401,7 @@ void tioga::set_interior_mapping(unsigned long long int basedata, int* faceinfo,
 }
 
 void tioga::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
-  mb->figure_out_interior_artbnd_target(fringe, nfringe);
+  mb->figure_out_interior_artbnd_target();
 }
 
 void tioga::set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
@@ -1409,9 +1409,17 @@ void tioga::set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int*
 }
 
 void tioga::figure_out_mpi_artbnd_target(int* fringe, int nfringe) {
-  mb->figure_out_mpi_artbnd_target(fringe, nfringe);
+  mb->figure_out_mpi_artbnd_target();
 }
 
 void tioga::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
   mb->set_data_reorder_map(srted, unsrted, ncells);
+}
+
+void tioga::set_overset_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
+  mb->set_overset_mapping(basedata, faceinfo, mapping, nfpts);
+}
+
+void tioga::figure_out_overset_artbnd_target(int* fringe, int nfringe) {
+  mb->figure_out_overset_artbnd_target();
 }

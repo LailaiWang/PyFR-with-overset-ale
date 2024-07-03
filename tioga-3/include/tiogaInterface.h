@@ -154,4 +154,8 @@ void tioga_set_mpi_mapping(unsigned long long basedata,
                            unsigned long long mapping, int nfpts);
 void tioga_figure_out_mpi_artbnd_target(unsigned long long fringe, unsigned int nfringe);
 void tioga_set_data_reorder_map(unsigned long long srted, unsigned long long unsrted, unsigned int ncells);
+void tioga_set_bc_mapping(unsigned long long basedata,
+                           unsigned long long faceinfo,
+                           unsigned long long mapping, int nfpts);
+void tioga_figure_out_bc_artbnd_target(unsigned long long fringe, unsigned int nfringe);
 } /* extern "C" */

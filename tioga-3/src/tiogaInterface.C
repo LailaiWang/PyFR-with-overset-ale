@@ -456,5 +456,18 @@ extern "C" {
     int* unsrted = reinterpret_cast<int*>(uaddr);
     tg->set_data_reorder_map(srted, unsrted, ncells);
   }
+
+  void tioga_set_bc_mapping(unsigned long long basedata,
+                             unsigned long long faddr,
+                             unsigned long long maddr, int nfpts) {
+    int* faceinfo = reinterpret_cast<int*>(faddr);
+    int* mapping = reinterpret_cast<int*>(maddr);
+    tg->set_overset_mapping(basedata, faceinfo, mapping, nfpts);
+  }
+
+  void tioga_figure_out_bc_artbnd_target(unsigned long long faddr, unsigned int nfringe) {
+    int* fringe = reinterpret_cast<int*>(faddr);
+    tg->figure_out_overset_artbnd_target(fringe, nfringe);
+  }
   
 }
