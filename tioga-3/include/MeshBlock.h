@@ -48,6 +48,7 @@
 #endif
 
 extern void reset_mpi_face_artbnd_status_wrapper(double*, int*, double, unsigned int, unsigned int, unsigned int, unsigned int, int);
+extern void unpack_fringe_u_wrapper(double*, double*, int*, unsigned int, unsigned int, unsigned int, unsigned int, int);
 
 struct vector_hash {
   int operator()(const std::vector<int> &V) const {
@@ -168,7 +169,7 @@ private:
   std::vector<std::pair<int,int>> overset_ab_faces;
 
   unsigned long long int interior_basedata;
-  int interior_tnfpts;
+  int interior_tnfpts{0};
   std::vector<int> interior_target_nfpts; // fringe nfpts per face
   std::vector<int> interior_target_scan; // staring idx of fpts on each face
   std::vector<int> interior_target_mapping; // mapping of very fpts 
@@ -177,7 +178,7 @@ private:
   dvec<double> interior_data_d; // memory buffer to interior ab
 
   unsigned long long int mpi_basedata; // address
-  int mpi_tnfpts; // total number of mpi nfpts
+  int mpi_tnfpts{0}; // total number of mpi nfpts
   int mpi_entire_tnfpts;
   std::vector<int> mpi_target_nfpts;
   std::vector<int> mpi_target_scan;
@@ -189,7 +190,8 @@ private:
   dvec<double> mpi_data_d; // memory buffer to interior ab
 
   unsigned long long int overset_basedata;
-  int overset_tnfpts;
+  unsigned long long int overset_rhs_basedata;
+  int overset_tnfpts{0};
   std::vector<int> overset_target_nfpts;
   std::vector<int> overset_target_scan;
   std::vector<int> overset_target_mapping;
@@ -749,12 +751,16 @@ private:
 
   void set_data_reorder_map(int* srted, int* unsrted, int ncells);
   void set_interior_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void set_interior_gradient_mapping();
   void set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void set_overset_rhs_basedata(unsigned long long int basedata);
   void set_overset_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
   void figure_out_interior_artbnd_target();
   void figure_out_mpi_artbnd_target();
   void figure_out_overset_artbnd_target();
 
+  void prepare_interior_artbnd_target_data(double* data, int nvar);
+  void prepare_interior_artbnd_target_data_gradient(double* data, int nvar);
   void prepare_mpi_artbnd_target_data(double* data, int nvar);
   void prepare_overset_artbnd_target_data(double* data, int nvar);
 
@@ -763,6 +769,7 @@ private:
   void reset_mpi_face_artbnd_status_pointwise(unsigned int nvar);
   void reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
 
+  void unpack_interior_artbnd_u_pointwise(unsigned int nvar);
 };
 
 #endif

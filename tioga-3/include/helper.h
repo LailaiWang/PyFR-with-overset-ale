@@ -50,7 +50,7 @@ void unpack_unblank_u_wrapper(
 // for fringe faces
 void unpack_fringe_u_wrapper(
     double *U_fringe, double* U, 
-    unsigned int* fringe_fpts, 
+    int* fringe_fpts, 
     unsigned int nFringe,
     unsigned int nFpts, unsigned int nVars, 
     unsigned int soasz, int stream = -1);

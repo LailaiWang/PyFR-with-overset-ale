@@ -474,7 +474,7 @@ void unpack_fringe_grad_wrapper(
 __global__
 void unpack_fringe_u(
     double* U_fringe, double* U,
-    unsigned int* fringe_fpts,
+    int* fringe_fpts,
     unsigned int nFringe,
     unsigned int nFpts, unsigned int nVars, unsigned int soasz)
 {
@@ -504,12 +504,12 @@ void unpack_fringe_u(
 
 void unpack_fringe_u_wrapper(
     double* U_fringe, double* U,
-    unsigned int* fringe_fpts,
+    int* fringe_fpts,
     unsigned int nFringe, 
     unsigned int nFpts, unsigned int nVars,
     unsigned int soasz, int stream)
 {
-  int threads = 128;
+  int threads = 256;
   //int blocks = (nFringe * nFpts * nVars + threads - 1) / threads;
   int blocks = ( nFpts  + threads - 1) / threads;
 

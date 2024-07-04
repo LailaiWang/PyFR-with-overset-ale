@@ -1793,6 +1793,10 @@ void MeshBlock::update_fringe_face_info(unsigned int flag) {
   } else {
     overset_tnfpts = 0;
   }
+  // now everything is sorted out 
+  // we reset mpi related information here
+  //reset_entire_mpi_face_artbnd_status_pointwise(1);
+  //reset_mpi_face_artbnd_status_pointwise(1);
 }
 
 void MeshBlock::updateFringePointData(double *qtmp, int nvar)

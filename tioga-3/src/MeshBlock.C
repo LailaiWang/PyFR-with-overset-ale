@@ -1428,14 +1428,6 @@ void MeshBlock::set_interior_mapping(unsigned long long int basedata, int* facei
 }
 
 void MeshBlock::figure_out_interior_artbnd_target() {
-  {
-    int pid = getpid();
-    printf("current pid is %d\n",pid);
-    int idebugger = 0;
-    while(idebugger) {
-
-    };
-  }
   int nfringe = interior_ab_faces.size();
   if (nfringe == 0) return;
   // interior_mapping is for every flux points
@@ -1524,6 +1516,10 @@ void MeshBlock::set_mpi_mapping(unsigned long long int basedata,  int* faceinfo,
   mpi_entire_tnfpts = nfpts;
   mpi_entire_mapping_h = std::vector<int>(mapping, mapping + nfpts);
   mpi_entire_mapping_d.assign(mpi_entire_mapping_h.data(), mpi_entire_mapping_h.size(), NULL);
+}
+
+void MeshBlock::set_overset_rhs_basedata(unsigned long long int basedata) {
+   overset_rhs_basedata = basedata;
 }
 
 void MeshBlock::set_overset_mapping(unsigned long long int basedata,  int* faceinfo, int* mapping, int nfpts) {
@@ -1707,16 +1703,14 @@ void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
 void MeshBlock::reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
   double* status = reinterpret_cast<double*>(mpi_basedata);
   int* mapping = mpi_entire_mapping_d.data();
-  printf("reset entire through here\n");
-  reset_mpi_face_artbnd_status_wrapper(status,mapping,1.0,0,mpi_entire_tnfpts,nvar,soasz,-1);
+  reset_mpi_face_artbnd_status_wrapper(status,mapping,1.0,0,mpi_entire_tnfpts,nvar,soasz,3);
 }
 
 void MeshBlock::reset_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
   double* status = reinterpret_cast<double*>(mpi_basedata);
   int* mapping = mpi_target_mapping_d.data();
   // nface is not used
-  printf("reset through here\n");
-  reset_mpi_face_artbnd_status_wrapper(status, mapping, 1.0, 0,  mpi_tnfpts, nvar, soasz, -1);
+  reset_mpi_face_artbnd_status_wrapper(status, mapping, 1.0, 0,  mpi_tnfpts, nvar, soasz, 3);
 }
 
 void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
@@ -1745,6 +1739,7 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
     }
   });
   // then copy this data to the device
+  mpi_data_d.resize(mpi_data_h.size());
   mpi_data_d.assign(mpi_data_h.data(), mpi_data_h.size(), NULL);
   {
     int pid = getpid();
@@ -1777,10 +1772,46 @@ void MeshBlock::prepare_overset_artbnd_target_data(double* data, int nvar) {
         auto srtid = srted[i];
         auto unsrtid = lmap[srtid];
         for(auto k=0;k<nvar;++k) {
-            overset_data_h[sidx*nvar + i*nvar + k] = data[sidx*nvar + unsrtid * nvar + k];
+            overset_data_h[k * overset_tnfpts + sidx + i] = data[sidx*nvar + unsrtid * nvar + k];
         }
     }
   });
+  int idebugger = 0;
+  int pid = getpid();
+  printf("current pid is %d \n", pid);
+    
+  while(idebugger) {
+
+  }
   // then copy this data to the device
-  overset_data_d.assign(overset_data_h.data(), overset_data_h.size(), NULL);
+  // overset_data_d.resize(overset_data_h.size());
+  // overset_data_d.assign(overset_data_h.data(), overset_data_h.size(), NULL);
+
+  // overset data is directly copied to the desination
+  // we are assuming the overset grid is not cut by any other grid for now
+  double* dst = reinterpret_cast<double*>(overset_rhs_basedata);
+  cuda_copy_h2d(dst, overset_data_h.data(), overset_data_h.size());
+}
+
+
+void MeshBlock::prepare_interior_artbnd_target_data(double* data, int nvar) {
+  // now, we want to prepare the data  for interior artbnd
+  // data, mpi_tnfpts * nvar are the data for mpi fringe faces
+  if(interior_tnfpts == 0) return;
+  interior_data_d.resize(interior_tnfpts * nvar); 
+  interior_data_d.assign(data + mpi_tnfpts * nvar, interior_tnfpts * nvar, NULL);
+  unpack_interior_artbnd_u_pointwise(nvar);
+}
+
+void MeshBlock::prepare_interior_artbnd_target_data_gradient(double* data, int nvar) {
+
+
+}
+
+void MeshBlock::unpack_interior_artbnd_u_pointwise(unsigned int nvar) {
+  if(interior_tnfpts == 0) return;
+  double* usrc = interior_data_d.data();
+  double* udst = reinterpret_cast<double*>(interior_basedata);
+  int* mapping = interior_target_mapping_d.data();
+  unpack_fringe_u_wrapper(usrc, udst, mapping, 0, interior_tnfpts, nvar, soasz, 3); 
 }

@@ -457,6 +457,10 @@ extern "C" {
     tg->set_data_reorder_map(srted, unsrted, ncells);
   }
 
+  void tioga_set_bc_rhs_basedata(unsigned long long int basedata) {
+    tg->set_overset_rhs_basedata(basedata);
+  }
+  
   void tioga_set_bc_mapping(unsigned long long basedata,
                              unsigned long long faddr,
                              unsigned long long maddr, int nfpts) {
@@ -481,4 +485,12 @@ extern "C" {
   void tioga_reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
     tg->reset_entire_mpi_face_artbnd_status_pointwise(nvar);
   } 
+
+  void tioga_prepare_interior_artbnd_target_data(double* data, int nvar) {
+    tg->prepare_interior_artbnd_target_data(data, nvar);
+  }
+
+  void tioga_prepare_overset_artbnd_target_data(double* data, int nvar) {
+    tg->prepare_overset_artbnd_target_data(data, nvar);
+  }
 }

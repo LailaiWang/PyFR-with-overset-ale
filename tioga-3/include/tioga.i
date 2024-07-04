@@ -53,6 +53,7 @@ void tioga_set_mpi_mapping(
     int nfpts);
 void tioga_figure_out_mpi_artbnd_target(unsigned long long fringe, int nfringe);
 void tioga_set_data_reorder_map(unsigned long long srted, unsigned long long unsrted, unsigned int ncells);
+void tioga_set_bc_rhs_basedata(unsigned long long basedata);
 void tioga_set_bc_mapping(
     unsigned long long basedata, 
     unsigned long long faceinfo, 
@@ -62,7 +63,8 @@ void tioga_figure_out_bc_artbnd_target(unsigned long long fringe, int nfringe);
 void tioga_update_fringe_face_info(unsigned int flag);
 void tioga_reset_mpi_face_artbnd_status_pointwise(unsigned int nvar);
 void tioga_reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
-
+void tioga_prepare_interior_artbnd_target_data(double* data, int nvar);
+void tioga_prepare_overset_artbnd_target_data(double* data, int nvar);
 void tg_print_data(unsigned long long int datastart, unsigned long long int offset,
                    unsigned int nums, int dtype);
 void get_nodal_basis_wrapper(int* cellIDs, double* rst, double* weights,
@@ -90,7 +92,7 @@ void pack_fringe_coords_wrapper(
 
 void unpack_fringe_u_wrapper(
     double *U_fringe, double* U, 
-    unsigned int* fringe_fpts,
+    int* fringe_fpts,
     unsigned int nFringe,
     unsigned int nFpts, unsigned int nVars, 
     unsigned int soasz, int stream = -1);
@@ -171,12 +173,15 @@ void addrToCudaStream(unsigned long long int);
 %ignore tioga_figure_out_interior_artbnd_target;
 %ignore tioga_set_mpi_mapping;
 %ignore tioga_figure_out_mpi_artbnd_target;
+%ignore tioga_set_bc_rhs_basedata;
 %ignore tioga_set_bc_mapping;
 %ignore tioga_figure_out_bc_artbnd_target;
 %ignore tioga_set_data_reorder_map;
 %ignore tioga_update_fringe_face_info;
 %ignore tioga_reset_mpi_face_artbnd_status_pointwise;
 %ignore tioga_reset_entire_mpi_face_artbnd_status_pointwise;
+%ignore tioga_prepare_interior_artbnd_target_data;
+%ignore tioga_prepare_overset_artbnd_target_data;
 %ignore tg_print_data;
 %ignore get_nodal_basis_wrapper;
 %ignore pack_cell_coords_wrapper;
