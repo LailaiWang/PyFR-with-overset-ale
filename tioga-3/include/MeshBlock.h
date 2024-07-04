@@ -47,6 +47,8 @@
 #include "dMeshBlock.h"
 #endif
 
+extern void reset_mpi_face_artbnd_status_wrapper(double*, int*, double, unsigned int, unsigned int, unsigned int, unsigned int, int);
+
 struct vector_hash {
   int operator()(const std::vector<int> &V) const {
     int hash = V.size();
@@ -176,10 +178,13 @@ private:
 
   unsigned long long int mpi_basedata; // address
   int mpi_tnfpts; // total number of mpi nfpts
+  int mpi_entire_tnfpts;
   std::vector<int> mpi_target_nfpts;
   std::vector<int> mpi_target_scan;
   std::vector<int> mpi_target_mapping;
   dvec<int> mpi_target_mapping_d; // interior mapping
+  std::vector<int> mpi_entire_mapping_h;
+  dvec<int> mpi_entire_mapping_d;
   std::vector<double> mpi_data_h;
   dvec<double> mpi_data_d; // memory buffer to interior ab
 
@@ -750,9 +755,14 @@ private:
   void figure_out_mpi_artbnd_target();
   void figure_out_overset_artbnd_target();
 
-  void update_fringe_face_info(double* buffer, int nvar);
   void prepare_mpi_artbnd_target_data(double* data, int nvar);
   void prepare_overset_artbnd_target_data(double* data, int nvar);
+
+  void update_fringe_face_info(unsigned int flag);
+
+  void reset_mpi_face_artbnd_status_pointwise(unsigned int nvar);
+  void reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
+
 };
 
 #endif

@@ -469,5 +469,16 @@ extern "C" {
     int* fringe = reinterpret_cast<int*>(faddr);
     tg->figure_out_overset_artbnd_target(fringe, nfringe);
   }
-  
+
+  void tioga_update_fringe_face_info(unsigned int flag) {
+    tg->update_fringe_face_info(flag);
+  }
+ 
+  void tioga_reset_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+    tg->reset_mpi_face_artbnd_status_pointwise(nvar);
+  }
+ 
+  void tioga_reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+    tg->reset_entire_mpi_face_artbnd_status_pointwise(nvar);
+  } 
 }

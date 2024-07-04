@@ -72,7 +72,7 @@ void pack_fringe_coords_wrapper(
 
 void reset_mpi_face_artbnd_status_wrapper(
     double* status, 
-    unsigned int* mapping, 
+    int* mapping, 
     double val,
     unsigned int nface,
     unsigned int nfpts, unsigned int nvars, 

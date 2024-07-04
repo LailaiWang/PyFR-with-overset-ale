@@ -1428,7 +1428,15 @@ void MeshBlock::set_interior_mapping(unsigned long long int basedata, int* facei
 }
 
 void MeshBlock::figure_out_interior_artbnd_target() {
-  int nfringe = interior_mapping.size();
+  {
+    int pid = getpid();
+    printf("current pid is %d\n",pid);
+    int idebugger = 0;
+    while(idebugger) {
+
+    };
+  }
+  int nfringe = interior_ab_faces.size();
   if (nfringe == 0) return;
   // interior_mapping is for every flux points
   auto range = std::views::iota(0, nfringe);
@@ -1513,6 +1521,9 @@ void MeshBlock::set_mpi_mapping(unsigned long long int basedata,  int* faceinfo,
       mpi_mapping.insert({key, mapping[i]});
     }
   }
+  mpi_entire_tnfpts = nfpts;
+  mpi_entire_mapping_h = std::vector<int>(mapping, mapping + nfpts);
+  mpi_entire_mapping_d.assign(mpi_entire_mapping_h.data(), mpi_entire_mapping_h.size(), NULL);
 }
 
 void MeshBlock::set_overset_mapping(unsigned long long int basedata,  int* faceinfo, int* mapping, int nfpts) {
@@ -1574,6 +1585,7 @@ void MeshBlock::figure_out_mpi_artbnd_target() {
     
     mpi_target_mapping_d.resize(mpi_target_mapping.size());
     mpi_target_mapping_d.assign(mpi_target_mapping.data(), mpi_target_mapping.size(), NULL);
+    
 }
 
 
@@ -1618,15 +1630,15 @@ void MeshBlock::figure_out_overset_artbnd_target() {
       }
     });
     
-    overset_target_mapping_d.resize(mpi_target_mapping.size());
-    overset_target_mapping_d.assign(mpi_target_mapping.data(), mpi_target_mapping.size(), NULL);
+    overset_target_mapping_d.resize(overset_target_mapping.size());
+    overset_target_mapping_d.assign(overset_target_mapping.data(), overset_target_mapping.size(), NULL);
 }
 
 void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
   {
     int pid = getpid();
     printf("current pid is %d\n",pid);
-    int idebugger = 1;
+    int idebugger = 0;
     while(idebugger) {
 
     };
@@ -1692,6 +1704,21 @@ void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
  
 }
 
+void MeshBlock::reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+  double* status = reinterpret_cast<double*>(mpi_basedata);
+  int* mapping = mpi_entire_mapping_d.data();
+  printf("reset entire through here\n");
+  reset_mpi_face_artbnd_status_wrapper(status,mapping,1.0,0,mpi_entire_tnfpts,nvar,soasz,-1);
+}
+
+void MeshBlock::reset_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+  double* status = reinterpret_cast<double*>(mpi_basedata);
+  int* mapping = mpi_target_mapping_d.data();
+  // nface is not used
+  printf("reset through here\n");
+  reset_mpi_face_artbnd_status_wrapper(status, mapping, 1.0, 0,  mpi_tnfpts, nvar, soasz, -1);
+}
+
 void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
   // here we need to do some reordering of the data
   // we know for now the mpi faces are in the first mpi_tnfpts for cases we support
@@ -1722,7 +1749,7 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
   {
     int pid = getpid();
     printf("current pid is %d\n",pid);
-    int idebugger = 1;
+    int idebugger = 0;
     while(idebugger) {
 
     };

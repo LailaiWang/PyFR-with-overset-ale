@@ -1423,3 +1423,14 @@ void tioga::set_overset_mapping(unsigned long long int basedata, int* faceinfo, 
 void tioga::figure_out_overset_artbnd_target(int* fringe, int nfringe) {
   mb->figure_out_overset_artbnd_target();
 }
+
+void tioga::update_fringe_face_info(unsigned int flag) {
+  mb->update_fringe_face_info(flag);
+}
+
+void tioga::reset_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+  mb->reset_mpi_face_artbnd_status_pointwise(nvar);
+}
+void tioga::reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+  mb->reset_entire_mpi_face_artbnd_status_pointwise(nvar);
+}

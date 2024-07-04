@@ -158,4 +158,8 @@ void tioga_set_bc_mapping(unsigned long long basedata,
                            unsigned long long faceinfo,
                            unsigned long long mapping, int nfpts);
 void tioga_figure_out_bc_artbnd_target(unsigned long long fringe, unsigned int nfringe);
+
+void tioga_update_fringe_face_info(unsigned int flag);
+void tioga_reset_mpi_face_artbnd_status_pointwise(unsigned int nvar);
+void tioga_reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
 } /* extern "C" */

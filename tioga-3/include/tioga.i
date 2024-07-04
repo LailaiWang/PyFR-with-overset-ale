@@ -59,6 +59,9 @@ void tioga_set_bc_mapping(
     unsigned long long mapping, 
     int nfpts);
 void tioga_figure_out_bc_artbnd_target(unsigned long long fringe, int nfringe);
+void tioga_update_fringe_face_info(unsigned int flag);
+void tioga_reset_mpi_face_artbnd_status_pointwise(unsigned int nvar);
+void tioga_reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
 
 void tg_print_data(unsigned long long int datastart, unsigned long long int offset,
                    unsigned int nums, int dtype);
@@ -125,7 +128,7 @@ void move_grid_flat_wrapper(
 
 void reset_mpi_face_artbnd_status_wrapper(
     double* status, 
-    unsigned int* mapping, 
+    int* mapping, 
     double val,
     unsigned int nface,
     unsigned int nfpts, unsigned int nvars, 
@@ -171,6 +174,9 @@ void addrToCudaStream(unsigned long long int);
 %ignore tioga_set_bc_mapping;
 %ignore tioga_figure_out_bc_artbnd_target;
 %ignore tioga_set_data_reorder_map;
+%ignore tioga_update_fringe_face_info;
+%ignore tioga_reset_mpi_face_artbnd_status_pointwise;
+%ignore tioga_reset_entire_mpi_face_artbnd_status_pointwise;
 %ignore tg_print_data;
 %ignore get_nodal_basis_wrapper;
 %ignore pack_cell_coords_wrapper;

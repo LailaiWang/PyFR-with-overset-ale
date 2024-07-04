@@ -527,7 +527,7 @@ void unpack_fringe_u_wrapper(
 __global__
 void reset_mpi_face_artbnd_status(
     double* status,
-    unsigned int* mapping, 
+    int* mapping, 
     double val,
     unsigned int nface,
     unsigned int nfpts,
@@ -545,7 +545,7 @@ void reset_mpi_face_artbnd_status(
 
 void reset_mpi_face_artbnd_status_wrapper(
     double* status, 
-    unsigned int* mapping,
+    int* mapping,
     double val, 
     unsigned int nface,
     unsigned int nfpts, unsigned int nvars, unsigned int soasz, int stream) {
@@ -827,3 +827,4 @@ void pointwise_copy_to_mpi_rhs_wrapper(
   }
 
 }
+

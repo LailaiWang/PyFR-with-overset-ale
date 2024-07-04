@@ -1758,7 +1758,8 @@ void MeshBlock::updatePointData(double *q,double *qtmp,int nvar,int interptype)
     }
 }
 
-void MeshBlock::update_fringe_face_info(double* buffer, int nvar) {
+void MeshBlock::update_fringe_face_info(unsigned int flag) {
+  if (flag != 0) return; // flag == 0 is always encoutnered first
   // use this function to replace interior face related information
   // we first identify interior faces
   interior_ab_faces.resize(0);
@@ -1802,8 +1803,7 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
   
   // calling face data to device, qtmp stored the data
   if (nreceptorFaces > 0) {
-    // adding here to replace existing call back
-    update_fringe_face_info(qtmp, nvar);
+    // update_fringe_face_info will be called once per time step 
     face_data_to_device(ftag, nreceptorFaces, 0, qtmp); // call this to get the information
   }
 
@@ -1859,3 +1859,4 @@ void MeshBlock::sendFringeDataGPU(int gradFlag)
 {
   face_data_to_device(ftag, nreceptorFaces, gradFlag, NULL);
 }
+
