@@ -315,13 +315,13 @@ def gmsh_to_structured_hex(order):
 class Py_callbacks(tg.callbacks):
     def __init__(self, system, griddata):
         tg.callbacks.__init__(self)
-
         self.system = system
         self.gid = system.gid
         self.griddata = griddata
         self.backend = system.backend
         self.setup_interior_mapping()
         self.setup_mpi_mapping()
+        self.setup_bc_mapping()
         self.setup_structured_to_srted_mapping()
         # set up mpi artbnd status
         self.setup_mpi_artbnd_status_aux()
@@ -780,7 +780,7 @@ class Py_callbacks(tg.callbacks):
         # tioga function to reset the status value to -1
         tg.reset_mpi_face_artbnd_status_wrapper(
             addrToFloatPtr(int(self._init_fpts_artbnd._mats[0].basedata)),
-            addrToUintPtr(self._init_fpts_artbnd.mapping.data),
+            addrToIntPtr(self._init_fpts_artbnd.mapping.data),
             -1.0,
             nmpifaces, self.init_nfpts_mpi, 1, self.backend.soasz, 3
         )
@@ -788,6 +788,10 @@ class Py_callbacks(tg.callbacks):
     def fringe_data_to_device(self, fringeids, nfringe, gradflag, data):
         # say highOrder.C
         if nfringe == 0: return
+        
+        if self.system.istage == 0: # we only need to find the information for first stage
+            tg.tioga_update_fringe_face_info(gradflag)
+        
         if gradflag == 0: # passing u
             self.fringe_u_device(fringeids, nfringe, data)
         else: # passing du
@@ -803,7 +807,7 @@ class Py_callbacks(tg.callbacks):
             # use initial info to reset
             tg.reset_mpi_face_artbnd_status_wrapper(
                 addrToFloatPtr(int(self._init_fpts_artbnd._mats[0].basedata)),
-                addrToUintPtr(self._init_fpts_artbnd.mapping.data),
+                addrToIntPtr(self._init_fpts_artbnd.mapping.data),
                 -1.0,
                 nmpifaces, self.init_nfpts_mpi, 1, self.backend.soasz, 3
             )
@@ -858,12 +862,14 @@ class Py_callbacks(tg.callbacks):
             )
             
             # now we call the function to set these to one
-            tg.reset_mpi_face_artbnd_status_wrapper(
-                addrToFloatPtr(int(self._lmpi_fpts_artbnd._mats[0].basedata)),
-                addrToUintPtr(self._lmpi_fpts_artbnd.mapping.data),
-                1.0,
-                len(faceinfo_mpi), self.tot_nfpts_mpi, 1, self.backend.soasz, 3
-            )
+            #tg.reset_mpi_face_artbnd_status_wrapper(
+            #    addrToFloatPtr(int(self._lmpi_fpts_artbnd._mats[0].basedata)),
+            #    addrToIntPtr(self._lmpi_fpts_artbnd.mapping.data),
+            #    1.0,
+            #    len(faceinfo_mpi), self.tot_nfpts_mpi, 1, self.backend.soasz, 3
+            #)
+
+            tg.tioga_reset_mpi_face_artbnd_status_pointwise(1)
 
             datatest = np.array(
                 [ptrAt(data,i) for i in range(self.tot_nfpts_mpi*self.system.nvars)]

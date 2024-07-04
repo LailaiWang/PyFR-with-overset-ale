@@ -21,6 +21,8 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         istage = next(i for i, _ in enumerate(tstage) if np.isclose(_, t, 1e-4*self.dtcurr))
         fpdtype = self.backend.fpdtype
         
+        self.istage = istage
+
         # do the overset related stuff first
         if self.mvgrid and self.overset:
             # check t 
