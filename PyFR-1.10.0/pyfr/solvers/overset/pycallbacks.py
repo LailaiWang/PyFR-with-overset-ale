@@ -321,6 +321,7 @@ class Py_callbacks(tg.callbacks):
         self.backend = system.backend
         self.setup_interior_mapping()
         self.setup_mpi_mapping()
+        self.setup_bc_rhs_basedata()
         self.setup_bc_mapping()
         self.setup_structured_to_srted_mapping()
         # set up mpi artbnd status
@@ -353,6 +354,14 @@ class Py_callbacks(tg.callbacks):
         srted_info = np.array(srted_info).astype('int32').reshape(-1)
         
         tg.tioga_set_data_reorder_map(srted_info.ctypes.data, unsrted_info.ctypes.data, ncells)
+
+    def setup_bc_rhs_basedata(self):
+        # set this for overset grid
+        mpi_inters = self.system._mpi_inters
+        if mpi_inters != [] and mpi_inters[-1]._rhsrank == None:
+            basedata = mpi_inters[-1]._scal_rhs.data
+            tg.tioga_set_bc_rhs_basedata(basedata)
+            
 
     def setup_bc_mapping(self):
         grid = self.griddata
@@ -805,12 +814,13 @@ class Py_callbacks(tg.callbacks):
 
         if nmpifaces != 0:
             # use initial info to reset
-            tg.reset_mpi_face_artbnd_status_wrapper(
-                addrToFloatPtr(int(self._init_fpts_artbnd._mats[0].basedata)),
-                addrToIntPtr(self._init_fpts_artbnd.mapping.data),
-                -1.0,
-                nmpifaces, self.init_nfpts_mpi, 1, self.backend.soasz, 3
-            )
+            #tg.reset_mpi_face_artbnd_status_wrapper(
+            #    addrToFloatPtr(int(self._init_fpts_artbnd._mats[0].basedata)),
+            #    addrToIntPtr(self._init_fpts_artbnd.mapping.data),
+            #    -1.0,
+            #    nmpifaces, self.init_nfpts_mpi, 1, self.backend.soasz, 3
+            #)
+            tg.tioga_reset_entire_mpi_face_artbnd_status_pointwise(1)
         
         # we first collect all fids here
         fids = [(ptrAt(fringeids, i),i) for i in range(nfringe)]
@@ -965,6 +975,8 @@ class Py_callbacks(tg.callbacks):
         self.tot_nfpts = tot_nfpts
 
         if faceinfo != []:
+            tg.tioga_prepare_interior_artbnd_target_data(data, self.system.nvars)
+            '''
             # Copy data in IJK order to PyFR such that we need the unsorted fpts
             self._scal_fpts_u = self._scal_view_fpts_u(
                 faceinfo, 'get_scal_unsrted_fpts_for_inter')
@@ -981,11 +993,12 @@ class Py_callbacks(tg.callbacks):
             tg.unpack_fringe_u_wrapper (
                 addrToFloatPtr(self.fringe_u_fpts_d),
                 addrToFloatPtr(int(self._scal_fpts_u._mats[0].basedata)),
-                addrToUintPtr(self._scal_fpts_u.mapping.data),
+                addrToIntPtr(self._scal_fpts_u.mapping.data),
                 nfringe, tot_nfpts, self.system.nvars, self.backend.soasz, 3
             )
-
-        
+            '''
+        tg.tioga_prepare_overset_artbnd_target_data(data, self.system.nvars)       
+        '''
         # then deal with overset artbnd
         tot_nfpts_ov = 0
         faceinfo_ov = []
@@ -1046,7 +1059,7 @@ class Py_callbacks(tg.callbacks):
                 addrToFloatPtr(cc.__array_interface__['data'][0]),
                 int(nbytes)
             )
-
+        '''
     def fringe_du_device(self, fringeids, nfringe, data):
         # known from previous step fringe_u_device
         tot_nfpts = self.tot_nfpts
