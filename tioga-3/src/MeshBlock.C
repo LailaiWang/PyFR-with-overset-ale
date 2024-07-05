@@ -1771,7 +1771,7 @@ void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
           auto it = std::lower_bound(pool.begin(), pool.begin() + nfpts, sid);
           auto id = std::distance(pool.begin(), it);
           if(id >= nfpts) printf("something is wrong on finding the reorder key\n");
-          lmap[j] = id;
+          lmap[sid] = id;
         }
         unsrted_to_srted_map[idx][i] = lmap;
       }
@@ -1814,7 +1814,12 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
     // now swap the values
     for(auto i=0;i<nfpt;++i) {
         auto srtid = srted[i];
-        auto unsrtid = lmap[srtid];
+        //auto unsrtid = lmap[srtid];
+
+        auto unsrtid = face_unsrted_to_srted_map[c0][fp][srtid];
+        printf("i is %d srtid is %d unsrted is %d map is %d\n", 
+            i, srtid, unsrted_order[c0][fp][i], unsrtid
+        );
         for(auto k=0;k<nvar;++k) {
             mpi_data_h[sidx*nvar + i*nvar + k] = data[sidx*nvar + unsrtid * nvar + k];
         }
@@ -1826,12 +1831,15 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
 
   {
     int pid = getpid();
-    printf("current pid is %d\n",pid);
+    printf("current pid is %d hanging at prepare mpi\n",pid);
     int idebugger = 0;
     while(idebugger) {
 
     };
   }
+  for(auto i=0;i<mpi_tnfpts*nvar;++i) printf("original data %lf\n", data[i]);
+  for(auto i: mpi_data_h) printf("data %lf\n", i);
+    
   // now copy the data to the destination we want
   double* dst = reinterpret_cast<double*>(mpi_rhs_basedata);
   double* src = mpi_data_d.data(); 

@@ -511,4 +511,8 @@ extern "C" {
   void tioga_prepare_overset_artbnd_target_data(double* data, int nvar) {
     tg->prepare_overset_artbnd_target_data(data, nvar);
   }
+ 
+  void tioga_prepare_mpi_artbnd_target_data(double* data, int nvar) {
+    tg->prepare_mpi_artbnd_target_data(data, nvar);
+  }
 }

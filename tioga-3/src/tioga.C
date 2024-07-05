@@ -1458,3 +1458,8 @@ void tioga::prepare_interior_artbnd_target_data_gradient(double* data, int nvar,
 void tioga::prepare_overset_artbnd_target_data(double* data, int nvar) {
   mb->prepare_overset_artbnd_target_data(data, nvar);
 }
+
+void tioga::prepare_mpi_artbnd_target_data(double* data, int nvar) {
+  mb->prepare_mpi_artbnd_target_data(data, nvar);
+}
+

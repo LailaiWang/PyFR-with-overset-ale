@@ -75,6 +75,7 @@ void tioga_reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
 void tioga_prepare_interior_artbnd_target_data(double* data, int nvar);
 void tioga_prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim);
 void tioga_prepare_overset_artbnd_target_data(double* data, int nvar);
+void tioga_prepare_mpi_artbnd_target_data(double* data, int nvar);
 void tg_print_data(unsigned long long int datastart, unsigned long long int offset,
                    unsigned int nums, int dtype);
 void get_nodal_basis_wrapper(int* cellIDs, double* rst, double* weights,
@@ -194,6 +195,7 @@ void addrToCudaStream(unsigned long long int);
 %ignore tioga_prepare_interior_artbnd_target_data;
 %ignore tioga_prepare_interior_artbnd_target_data_gradient;
 %ignore tioga_prepare_overset_artbnd_target_data;
+%ignore tioga_prepare_mpi_artbnd_target_data;
 %ignore tg_print_data;
 %ignore get_nodal_basis_wrapper;
 %ignore pack_cell_coords_wrapper;
