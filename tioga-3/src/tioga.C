@@ -1396,8 +1396,12 @@ void tioga::set_fposition(int* fpos, unsigned int ntface) {
   mb->set_fposition(fpos, ntface);
 }
 
-void tioga::set_interior_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
-  mb->set_interior_mapping(basedata, faceinfo, mapping, nfpts);
+void tioga::set_interior_mapping(unsigned long long int basedata,
+                                 unsigned long long int grad_basedata,
+                                 int* faceinfo, int* mapping,
+                                 int* grad_mapping, int* grad_strides,
+                                 int nfpts) {
+  mb->set_interior_mapping(basedata,grad_basedata,faceinfo,mapping,grad_mapping,grad_strides,nfpts);
 }
 
 void tioga::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
@@ -1441,6 +1445,10 @@ void tioga::reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
 
 void tioga::prepare_interior_artbnd_target_data(double* data, int nvar) {
   mb->prepare_interior_artbnd_target_data(data, nvar);
+}
+
+void tioga::prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim) {
+  mb->prepare_interior_artbnd_target_data_gradient(data, nvar, dim);
 }
 
 void tioga::prepare_overset_artbnd_target_data(double* data, int nvar) {

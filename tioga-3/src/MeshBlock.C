@@ -1410,8 +1410,16 @@ void MeshBlock::set_fposition(int* fpos, unsigned int ntface) {
   }
 }
 
-void MeshBlock::set_interior_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
+void MeshBlock::set_interior_mapping(unsigned long long int basedata, 
+                                     unsigned long long int grad_basedata,
+                                     int* faceinfo, 
+                                     int* mapping,
+                                     int* grad_mapping,
+                                     int* grad_strides,
+                                     int nfpts) {
   interior_basedata = basedata;
+  interior_grad_basedata = grad_basedata;
+
   int etype, cidx, fpos, nid;
   for(int i=0;i<nfpts;++i) {
     etype = faceinfo[i*4+0]; // element type
@@ -1420,9 +1428,25 @@ void MeshBlock::set_interior_mapping(unsigned long long int basedata, int* facei
     nid = faceinfo[i*4+3];   // node idx
 
     auto key = std::vector<int>{etype, cidx, fpos, nid};
-    auto it = interior_mapping.find(key);
-    if(it == interior_mapping.end()) {
-      interior_mapping.insert({key, mapping[i]});
+    {
+        auto it = interior_mapping.find(key);
+        if(it == interior_mapping.end()) {
+            interior_mapping.insert({key, mapping[i]});
+        }
+    }
+    
+    {
+        auto it = interior_grad_mapping.find(key);
+        if(it == interior_grad_mapping.end()) {
+            interior_grad_mapping.insert({key, grad_mapping[i]});
+        }
+    }
+
+    {
+        auto it = interior_grad_strides.find(key);
+        if(it == interior_grad_strides.end()) {
+            interior_grad_strides.insert({key, grad_mapping[i]});
+        }
     }
   }
 }
@@ -1451,6 +1475,8 @@ void MeshBlock::figure_out_interior_artbnd_target() {
   // total number of fpts
   auto tnfpts = interior_target_scan[nfringe-1] + interior_target_nfpts[nfringe-1];
   interior_target_mapping.resize(tnfpts);
+  interior_target_grad_mapping.resize(tnfpts);
+  interior_target_grad_strides.resize(tnfpts);
   interior_tnfpts = tnfpts;
 
   int rank =0;
@@ -1471,16 +1497,36 @@ void MeshBlock::figure_out_interior_artbnd_target() {
       if(ib0 == 0) {
         for(auto i=0;i<face_fpts[fid];++i) {
           auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
-          auto it = interior_mapping.find(key);
           auto npid = interior_target_scan[idx] + i;
-          interior_target_mapping[npid] = it->second;
+          {
+            auto it = interior_mapping.find(key);
+            interior_target_mapping[npid] = it->second;
+          }
+          {
+            auto it = interior_grad_mapping.find(key);
+            interior_target_grad_mapping[npid] = it->second;
+          }
+          {
+            auto it = interior_grad_strides.find(key);
+            interior_target_grad_strides[npid] = it->second;
+          }
         }
       } else {
         for(auto i=0;i<face_fpts[fid];++i) {
           auto key = std::vector<int>{fcelltypes[fid][1], c1, fposition[fid][1], i};
-          auto it = interior_mapping.find(key);
           auto npid = interior_target_scan[idx] + i;
-          interior_target_mapping[npid] = it->second;
+          {
+            auto it = interior_mapping.find(key);
+            interior_target_mapping[npid] = it->second;
+          }
+          {
+            auto it = interior_grad_mapping.find(key);
+            interior_target_grad_mapping[npid] = it->second;
+          }
+          {
+            auto it = interior_grad_strides.find(key);
+            interior_target_grad_strides[npid] = it->second;
+          }
         }
       }
     });
@@ -1488,6 +1534,12 @@ void MeshBlock::figure_out_interior_artbnd_target() {
     // now we copy this to device 
     interior_target_mapping_d.resize(interior_target_mapping.size());
     interior_target_mapping_d.assign(interior_target_mapping.data(), interior_target_mapping.size(), NULL);
+
+    interior_target_grad_mapping_d.resize(interior_target_grad_mapping.size());
+    interior_target_grad_mapping_d.assign(interior_target_grad_mapping.data(), interior_target_grad_mapping.size(), NULL);
+
+    interior_target_grad_strides_d.resize(interior_target_grad_strides.size());
+    interior_target_grad_strides_d.assign(interior_target_grad_strides.data(), interior_target_grad_strides.size(), NULL);
 
 }
 
@@ -1701,15 +1753,16 @@ void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
 }
 
 void MeshBlock::reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+  if(nmpifaces == 0) return;
   double* status = reinterpret_cast<double*>(mpi_basedata);
   int* mapping = mpi_entire_mapping_d.data();
   reset_mpi_face_artbnd_status_wrapper(status,mapping,1.0,0,mpi_entire_tnfpts,nvar,soasz,3);
 }
 
 void MeshBlock::reset_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+  if(mpi_tnfpts == 0) return;
   double* status = reinterpret_cast<double*>(mpi_basedata);
   int* mapping = mpi_target_mapping_d.data();
-  // nface is not used
   reset_mpi_face_artbnd_status_wrapper(status, mapping, 1.0, 0,  mpi_tnfpts, nvar, soasz, 3);
 }
 
@@ -1803,9 +1856,11 @@ void MeshBlock::prepare_interior_artbnd_target_data(double* data, int nvar) {
   unpack_interior_artbnd_u_pointwise(nvar);
 }
 
-void MeshBlock::prepare_interior_artbnd_target_data_gradient(double* data, int nvar) {
-
-
+void MeshBlock::prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim) {
+  if(interior_tnfpts == 0) return;
+  interior_data_grad_d.resize(interior_tnfpts * nvar * dim);
+  interior_data_grad_d.assign(data + mpi_tnfpts*nvar*dim, interior_tnfpts*nvar*dim, NULL);
+  unpack_interior_artbnd_du_pointwise(nvar, dim);
 }
 
 void MeshBlock::unpack_interior_artbnd_u_pointwise(unsigned int nvar) {
@@ -1814,4 +1869,13 @@ void MeshBlock::unpack_interior_artbnd_u_pointwise(unsigned int nvar) {
   double* udst = reinterpret_cast<double*>(interior_basedata);
   int* mapping = interior_target_mapping_d.data();
   unpack_fringe_u_wrapper(usrc, udst, mapping, 0, interior_tnfpts, nvar, soasz, 3); 
+}
+
+void MeshBlock::unpack_interior_artbnd_du_pointwise(unsigned int nvar, unsigned int dim) {
+  if(interior_tnfpts == 0) return;
+  double* usrc = interior_data_grad_d.data();
+  double* udst = reinterpret_cast<double*>(interior_grad_basedata);
+  int* mapping = interior_target_grad_mapping_d.data();
+  int* strides = interior_target_grad_strides_d.data();
+  unpack_fringe_grad_wrapper(usrc, udst, mapping, strides, 0, interior_tnfpts, nvar, dim, soasz, 3);
 }

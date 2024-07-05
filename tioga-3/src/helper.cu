@@ -393,21 +393,12 @@ void pack_fringe_coords_wrapper(
 __global__
 void unpack_fringe_grad(
     double* dU_fringe, double* dU, 
-    unsigned int* fringe_fpts,
-    unsigned int* dim_stride,
+    int* fringe_fpts,
+    int* dim_stride,
     unsigned int nFringe,
     unsigned int nFpts,
     unsigned int nVars, unsigned int nDims,
     unsigned int soasz) {
-  
-  // do not use face since fringe faces could be of different types
-  //const unsigned int tot_ind = (blockDim.x * blockIdx.x + threadIdx.x);
-  //const unsigned int var = tot_ind % nVars;
-  //const unsigned int pt = tot_ind / nVars;
-  //const unsigned int fpt = (tot_ind / nVars) % nFpts;
-  //const unsigned int face = tot_ind / (nFpts * nVars);
-  //if (fpt >= nFpts || face >= nFringe || var >= nVars || pt >= nFpts)
-  //  return;
   
   const unsigned int tot_ind = (blockDim.x * blockIdx.x + threadIdx.x);
   const unsigned int var = tot_ind % nVars;
@@ -419,11 +410,6 @@ void unpack_fringe_grad(
   unsigned int gft  = fringe_fpts[pt];
   unsigned int ds = dim_stride[pt];
   
-  //datashape of dU is [ndims, nfpts, neled2, nvars, soasz]
-
-  //const unsigned int gfpt = fringe_fpts(fpt, face);
-  //const unsigned int side = fringe_side(fpt, face);
-
   for (unsigned int dim = 0; dim < nDims; dim++) {
     //dU(side, dim, var, gfpt) = dU_fringe(face, fpt, dim, var);
      dU[dim*ds+gft+var*soasz] =   dU_fringe[pt*nDims*nVars+dim*nVars+var];
@@ -432,38 +418,22 @@ void unpack_fringe_grad(
 
 void unpack_fringe_grad_wrapper(
     double* dU_fringe, double* dU,
-    unsigned int* fringe_fpts,
-    unsigned int* dim_stride,
+    int* fringe_fpts,
+    int* dim_stride,
     unsigned int nFringe,
     unsigned int nFpts, unsigned int nVars, unsigned int nDims,
     unsigned int soasz, int stream) {
 
-  int threads  = 128;
-  //int blocks = (nFringe * nFpts * nVars + threads - 1) / threads;
-  // here nFpts is the total number of fpts
+  constexpr int threads  = 256;
   int blocks = (nFpts*nVars + threads-1)/threads;
 
   if (stream == -1)
   {
-    //if (nDims == 2)
-    //  unpack_fringe_grad<2><<<blocks, threads>>>(dU_fringe, dU, fringe_fpts,
-    //                                     nFringe, nFpts, nVars, soasz);
-
-    //else if (nDims == 3)
-    //  unpack_fringe_grad<3><<<blocks, threads>>>(dU_fringe, dU, fringe_fpts,
-    //                                     nFringe, nFpts, nVars, soasz);
       unpack_fringe_grad<<<blocks, threads>>>(dU_fringe, dU, fringe_fpts, dim_stride,
                                  nFringe, nFpts, nVars, nDims, soasz);
   }
   else
   {
-    //if (nDims == 2)
-    //  unpack_fringe_grad<2><<<blocks, threads, 0, stream_handles[stream]>>>
-    //      (dU_fringe, dU, fringe_fpts, nFringe, nFpts, nVars, soasz);
-
-    //else if (nDims == 3)
-    //  unpack_fringe_grad<3><<<blocks, threads, 0, stream_handles[stream]>>>
-    //      (dU_fringe, dU, fringe_fpts, nFringe, nFpts, nVars, soasz);
       unpack_fringe_grad<<<blocks, threads, 0, stream_handles[stream]>>>
           (dU_fringe, dU, fringe_fpts, dim_stride, nFringe, nFpts, nVars, nDims, soasz);
   }

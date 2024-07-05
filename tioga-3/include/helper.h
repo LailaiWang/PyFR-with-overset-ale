@@ -57,8 +57,8 @@ void unpack_fringe_u_wrapper(
 
 void unpack_fringe_grad_wrapper(
     double* dU_fringe, double* dU,
-    unsigned int* fringe_fpts,
-    unsigned int* dim_stride,
+    int* fringe_fpts,
+    int* dim_stride,
     unsigned int nFringe,
     unsigned int nFpts, unsigned int nVars, unsigned int nDims,
     unsigned int soasz, int stream = -1);

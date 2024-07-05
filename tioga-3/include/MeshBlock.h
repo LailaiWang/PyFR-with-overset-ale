@@ -49,6 +49,8 @@
 
 extern void reset_mpi_face_artbnd_status_wrapper(double*, int*, double, unsigned int, unsigned int, unsigned int, unsigned int, int);
 extern void unpack_fringe_u_wrapper(double*, double*, int*, unsigned int, unsigned int, unsigned int, unsigned int, int);
+extern void unpack_fringe_grad_wrapper(double*, double*, int*, int*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, int);
+
 
 struct vector_hash {
   int operator()(const std::vector<int> &V) const {
@@ -161,6 +163,9 @@ private:
   std::vector<std::vector<int>> fposition;  // left and right face position
 
   std::unordered_map<std::vector<int>, int, vector_hash> interior_mapping;
+  std::unordered_map<std::vector<int>, int, vector_hash> interior_grad_mapping;
+  std::unordered_map<std::vector<int>, int, vector_hash> interior_grad_strides;
+
   std::unordered_map<std::vector<int>, int, vector_hash> mpi_mapping;
   std::unordered_map<std::vector<int>, int, vector_hash> overset_mapping;
 
@@ -169,13 +174,20 @@ private:
   std::vector<std::pair<int,int>> overset_ab_faces;
 
   unsigned long long int interior_basedata;
+  unsigned long long int interior_grad_basedata;
   int interior_tnfpts{0};
   std::vector<int> interior_target_nfpts; // fringe nfpts per face
   std::vector<int> interior_target_scan; // staring idx of fpts on each face
   std::vector<int> interior_target_mapping; // mapping of very fpts 
+  
+  std::vector<int> interior_target_grad_mapping;
+  std::vector<int> interior_target_grad_strides;
 
   dvec<int> interior_target_mapping_d; // interior mapping
+  dvec<int> interior_target_grad_mapping_d;
+  dvec<int> interior_target_grad_strides_d;
   dvec<double> interior_data_d; // memory buffer to interior ab
+  dvec<double> interior_data_grad_d;
 
   unsigned long long int mpi_basedata; // address
   int mpi_tnfpts{0}; // total number of mpi nfpts
@@ -750,7 +762,11 @@ private:
   void set_face_numbers(unsigned int nmpif, unsigned int nbcf);
 
   void set_data_reorder_map(int* srted, int* unsrted, int ncells);
-  void set_interior_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void set_interior_mapping(unsigned long long int basedata, 
+                            unsigned long long int grad_basedata,
+                            int* faceinfo, int* mapping, 
+                            int* grad_mapping, int* grad_strides,
+                            int nfpts);
   void set_interior_gradient_mapping();
   void set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
   void set_overset_rhs_basedata(unsigned long long int basedata);
@@ -760,7 +776,7 @@ private:
   void figure_out_overset_artbnd_target();
 
   void prepare_interior_artbnd_target_data(double* data, int nvar);
-  void prepare_interior_artbnd_target_data_gradient(double* data, int nvar);
+  void prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim);
   void prepare_mpi_artbnd_target_data(double* data, int nvar);
   void prepare_overset_artbnd_target_data(double* data, int nvar);
 
@@ -770,6 +786,7 @@ private:
   void reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
 
   void unpack_interior_artbnd_u_pointwise(unsigned int nvar);
+  void unpack_interior_artbnd_du_pointwise(unsigned int nvar, unsigned int dim);
 };
 
 #endif

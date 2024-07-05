@@ -426,11 +426,17 @@ extern "C" {
   }
 
   void tioga_set_interior_mapping(unsigned long long basedata, 
+                                  unsigned long long grad_basedata,
                                   unsigned long long faddr,
-                                  unsigned long long maddr, int nfpts) {
+                                  unsigned long long maddr, 
+                                  unsigned long long gmaddr,
+                                  unsigned long long gsaddr,
+                                  int nfpts) {
     int* faceinfo = reinterpret_cast<int*>(faddr);
     int* mapping = reinterpret_cast<int*>(maddr);
-    tg->set_interior_mapping(basedata, faceinfo, mapping, nfpts);
+    int* grad_mapping = reinterpret_cast<int*>(gmaddr);
+    int* grad_strides = reinterpret_cast<int*>(gsaddr);
+    tg->set_interior_mapping(basedata,grad_basedata,faceinfo,mapping,grad_mapping,grad_strides,nfpts);
   }
 
   void tioga_figure_out_interior_artbnd_target(unsigned long long faddr, unsigned int nfringe) {
@@ -488,6 +494,10 @@ extern "C" {
 
   void tioga_prepare_interior_artbnd_target_data(double* data, int nvar) {
     tg->prepare_interior_artbnd_target_data(data, nvar);
+  }
+
+  void tioga_prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim) {
+    tg->prepare_interior_artbnd_target_data_gradient(data, nvar, dim);
   }
 
   void tioga_prepare_overset_artbnd_target_data(double* data, int nvar) {

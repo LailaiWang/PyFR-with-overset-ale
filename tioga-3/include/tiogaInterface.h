@@ -146,8 +146,12 @@ void tioga_set_face_fpts(unsigned long long ffpts, unsigned int ntface);
 void tioga_set_fcelltypes(unsigned long long fctype, unsigned int ntface);
 void tioga_set_fposition(unsigned long long fpos, unsigned int ntface);
 void tioga_set_interior_mapping(unsigned long long basedata, 
+                                unsigned long long grad_basedata,
                                 unsigned long long faceinfo,
-                                unsigned long long mapping, int nfpts);
+                                unsigned long long mapping, 
+                                unsigned long long grad_mapping,
+                                unsigned long long grad_strides,
+                                int nfpts);
 void tioga_figure_out_interior_artbnd_target(unsigned long long fringe, unsigned int nfringe);
 void tioga_set_mpi_mapping(unsigned long long basedata,
                            unsigned long long faceinfo,
@@ -164,5 +168,6 @@ void tioga_update_fringe_face_info(unsigned int flag);
 void tioga_reset_mpi_face_artbnd_status_pointwise(unsigned int nvar);
 void tioga_reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
 void tioga_prepare_interior_artbnd_target_data(double* data, int nvar);
+void tioga_prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim);
 void tioga_prepare_overset_artbnd_target_data(double* data, int nvar);
 } /* extern "C" */

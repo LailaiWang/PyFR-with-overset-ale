@@ -41,9 +41,12 @@ void tioga_set_face_fpts(unsigned long long ffpts, unsigned int ntface);
 void tioga_set_fcelltypes(unsigned long long fctype, unsigned int ntface);
 void tioga_set_fposition(unsigned long long fpos, unsigned int ntface);
 void tioga_set_interior_mapping(
-    unsigned long long basedata, 
+    unsigned long long basedata,
+    unsigned long long grad_basedata, 
     unsigned long long faceinfo, 
     unsigned long long mapping, 
+    unsigned long long grad_mapping,
+    unsigned long long grad_strides,
     int nfpts);
 void tioga_figure_out_interior_artbnd_target(unsigned long long fringe, int nfringe);
 void tioga_set_mpi_mapping(
@@ -64,6 +67,7 @@ void tioga_update_fringe_face_info(unsigned int flag);
 void tioga_reset_mpi_face_artbnd_status_pointwise(unsigned int nvar);
 void tioga_reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
 void tioga_prepare_interior_artbnd_target_data(double* data, int nvar);
+void tioga_prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim);
 void tioga_prepare_overset_artbnd_target_data(double* data, int nvar);
 void tg_print_data(unsigned long long int datastart, unsigned long long int offset,
                    unsigned int nums, int dtype);
@@ -99,8 +103,8 @@ void unpack_fringe_u_wrapper(
 
 void unpack_fringe_grad_wrapper(
     double* dU_fringe, double* dU,
-    unsigned int* fringe_fpts, 
-    unsigned int* dim_stride,
+    int* fringe_fpts, 
+    int* dim_stride,
     unsigned int nFringe,
     unsigned int nFpts, unsigned int nVars, unsigned int nDims,
     unsigned int soasz, int stream = -1);
@@ -181,6 +185,7 @@ void addrToCudaStream(unsigned long long int);
 %ignore tioga_reset_mpi_face_artbnd_status_pointwise;
 %ignore tioga_reset_entire_mpi_face_artbnd_status_pointwise;
 %ignore tioga_prepare_interior_artbnd_target_data;
+%ignore tioga_prepare_interior_artbnd_target_data_gradient;
 %ignore tioga_prepare_overset_artbnd_target_data;
 %ignore tg_print_data;
 %ignore get_nodal_basis_wrapper;
