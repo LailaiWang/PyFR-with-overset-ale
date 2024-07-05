@@ -399,6 +399,7 @@ class tioga
                             int nfpts);
   void figure_out_interior_artbnd_target(int* fringe, int nfringe);
   void set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void set_mpi_rhs_mapping(unsigned long long int basedata, int* mapping, int* strides, int nfpts);
   void figure_out_mpi_artbnd_target(int* fringe, int nfringe);
   void set_data_reorder_map(int* srted, int* unsrted, int ncells);
   void set_overset_rhs_basedata(unsigned long long int basedata);

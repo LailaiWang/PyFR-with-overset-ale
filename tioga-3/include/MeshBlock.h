@@ -50,7 +50,7 @@
 extern void reset_mpi_face_artbnd_status_wrapper(double*, int*, double, unsigned int, unsigned int, unsigned int, unsigned int, int);
 extern void unpack_fringe_u_wrapper(double*, double*, int*, unsigned int, unsigned int, unsigned int, unsigned int, int);
 extern void unpack_fringe_grad_wrapper(double*, double*, int*, int*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, int);
-
+extern void pointwise_copy_to_mpi_rhs_wrapper(double*, int*, int*, double*, int*, unsigned int, unsigned int, int);
 
 struct vector_hash {
   int operator()(const std::vector<int> &V) const {
@@ -190,16 +190,24 @@ private:
   dvec<double> interior_data_grad_d;
 
   unsigned long long int mpi_basedata; // address
+  unsigned long long int mpi_rhs_basedata;
   int mpi_tnfpts{0}; // total number of mpi nfpts
   int mpi_entire_tnfpts;
   std::vector<int> mpi_target_nfpts;
   std::vector<int> mpi_target_scan;
   std::vector<int> mpi_target_mapping;
-  dvec<int> mpi_target_mapping_d; // interior mapping
+  dvec<int> mpi_target_mapping_d; 
   std::vector<int> mpi_entire_mapping_h;
   dvec<int> mpi_entire_mapping_d;
   std::vector<double> mpi_data_h;
   dvec<double> mpi_data_d; // memory buffer to interior ab
+
+  std::vector<int> mpi_entire_rhs_mapping;
+  std::vector<int> mpi_entire_rhs_strides;
+  std::vector<int> mpi_target_rhs_fptsid;
+  dvec<int> mpi_entire_rhs_mapping_d;
+  dvec<int> mpi_entire_rhs_strides_d;
+  dvec<int> mpi_target_rhs_fptsid_d;
 
   unsigned long long int overset_basedata;
   unsigned long long int overset_rhs_basedata;
@@ -768,6 +776,7 @@ private:
                             int* grad_mapping, int* grad_strides,
                             int nfpts);
   void set_interior_gradient_mapping();
+  void set_mpi_rhs_mapping(unsigned long long int basedata, int* mapping, int* strides, int nfpts);
   void set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
   void set_overset_rhs_basedata(unsigned long long int basedata);
   void set_overset_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);

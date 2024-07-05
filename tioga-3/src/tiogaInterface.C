@@ -452,6 +452,14 @@ extern "C" {
     tg->set_mpi_mapping(basedata, faceinfo, mapping, nfpts);
   }
 
+  void tioga_set_mpi_rhs_mapping(unsigned long long basedata,
+                                 unsigned long long maddr,
+                                 unsigned long long saddr, int nfpts) {
+    int* mapping = reinterpret_cast<int*>(maddr);
+    int* strides = reinterpret_cast<int*>(saddr);
+    tg->set_mpi_rhs_mapping(basedata, mapping, strides, nfpts);
+  }
+
   void tioga_figure_out_mpi_artbnd_target(unsigned long long faddr, unsigned int nfringe) {
     int* fringe = reinterpret_cast<int*>(faddr);
     tg->figure_out_mpi_artbnd_target(fringe, nfringe);

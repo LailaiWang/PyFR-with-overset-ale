@@ -1570,6 +1570,23 @@ void MeshBlock::set_mpi_mapping(unsigned long long int basedata,  int* faceinfo,
   mpi_entire_mapping_d.assign(mpi_entire_mapping_h.data(), mpi_entire_mapping_h.size(), NULL);
 }
 
+void MeshBlock::set_mpi_rhs_mapping(unsigned long long int basedata,int* mapping,int* strides, int nfpts) {
+  if(nfpts != mpi_entire_tnfpts) {
+    printf("something is wrong with missmatching nfpts for mpi rhs\n");
+  }
+  mpi_entire_rhs_mapping.resize(nfpts);
+  mpi_entire_rhs_strides.resize(nfpts);
+  mpi_entire_rhs_mapping_d.resize(nfpts);
+  mpi_entire_rhs_strides_d.resize(nfpts);
+
+  std::copy(mapping, mapping + nfpts, mpi_entire_rhs_mapping.data());
+  std::copy(strides, strides + nfpts, mpi_entire_rhs_strides.data()); 
+  
+  mpi_entire_rhs_mapping_d.assign(mpi_entire_rhs_mapping.data(), mpi_entire_rhs_mapping.size(), NULL);
+  mpi_entire_rhs_strides_d.assign(mpi_entire_rhs_strides.data(), mpi_entire_rhs_strides.size(), NULL);
+
+}
+
 void MeshBlock::set_overset_rhs_basedata(unsigned long long int basedata) {
    overset_rhs_basedata = basedata;
 }
@@ -1631,9 +1648,21 @@ void MeshBlock::figure_out_mpi_artbnd_target() {
       }
     });
     
-    mpi_target_mapping_d.resize(mpi_target_mapping.size());
-    mpi_target_mapping_d.assign(mpi_target_mapping.data(), mpi_target_mapping.size(), NULL);
-    
+  mpi_target_mapping_d.resize(mpi_target_mapping.size());
+  mpi_target_mapping_d.assign(mpi_target_mapping.data(), mpi_target_mapping.size(), NULL);
+  
+  // starting from here we figure out the indices of current mpi fpts
+  mpi_target_rhs_fptsid.resize(mpi_tnfpts);
+  std::for_each(std::execution::par, range.begin(), range.end(),
+    [this, &rank] (auto idx) {
+        auto fid = mpi_ab_faces[idx].first;
+        for(auto i=0;i<face_fpts[fid];++i) {
+            auto npid = mpi_target_scan[idx] + i;
+            mpi_target_rhs_fptsid[npid] = npid; // get the id for current fpts
+        }
+    });
+  mpi_target_rhs_fptsid_d.resize(mpi_tnfpts);
+  mpi_target_rhs_fptsid_d.assign(mpi_target_rhs_fptsid.data(), mpi_target_rhs_fptsid.size(), NULL);
 }
 
 
@@ -1781,7 +1810,7 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
     auto  c0 = f2c[fid*2+0];
     auto  fp = fposition[fid][0]; // face position
     auto& lmap = face_unsrted_to_srted_map[c0][fp];
-    auto& srted = unsrted_order[c0][fp];  // srted ids for current face
+    auto& srted = srted_order[c0][fp];  // srted ids for current face
     // now swap the values
     for(auto i=0;i<nfpt;++i) {
         auto srtid = srted[i];
@@ -1794,6 +1823,7 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
   // then copy this data to the device
   mpi_data_d.resize(mpi_data_h.size());
   mpi_data_d.assign(mpi_data_h.data(), mpi_data_h.size(), NULL);
+
   {
     int pid = getpid();
     printf("current pid is %d\n",pid);
@@ -1802,6 +1832,16 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
 
     };
   }
+  // now copy the data to the destination we want
+  double* dst = reinterpret_cast<double*>(mpi_rhs_basedata);
+  double* src = mpi_data_d.data(); 
+ 
+  int* mapping = mpi_entire_rhs_mapping_d.data();
+  int* strides = mpi_entire_rhs_strides_d.data();
+  
+  int* fptsids = mpi_target_rhs_fptsid_d.data();
+  
+  pointwise_copy_to_mpi_rhs_wrapper(dst, mapping, strides, src, fptsids, mpi_tnfpts, nvar, 3);
 }
 
 void MeshBlock::prepare_overset_artbnd_target_data(double* data, int nvar) {

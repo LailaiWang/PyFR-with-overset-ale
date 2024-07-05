@@ -1412,6 +1412,10 @@ void tioga::set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int*
   mb->set_mpi_mapping(basedata, faceinfo, mapping, nfpts);
 }
 
+void tioga::set_mpi_rhs_mapping(unsigned long long int basedata, int* mapping, int* strides, int nfpts) {
+  mb->set_mpi_rhs_mapping(basedata, mapping, strides, nfpts);
+}
+
 void tioga::figure_out_mpi_artbnd_target(int* fringe, int nfringe) {
   mb->figure_out_mpi_artbnd_target();
 }

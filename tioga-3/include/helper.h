@@ -110,6 +110,14 @@ void copy_to_mpi_rhs_wrapper(
     unsigned int nvar, unsigned int nface, int stream = -1
 );
  
+
+void pointwise_copy_to_mpi_rhs_wrapper(
+    double* base, int* mapping, int* strides,
+    double* src, int* fptsids,   
+    unsigned int nfpts, unsigned int nvar,
+    int stream = -1
+    );
+
 /// functions for gmres etc
 void pmg_helper(void (*pmgfunc) ());
 #endif
