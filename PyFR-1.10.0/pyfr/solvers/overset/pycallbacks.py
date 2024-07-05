@@ -455,6 +455,10 @@ class Py_callbacks(tg.callbacks):
             left_side_in_tuple, 'get_scal_unsrted_fpts_for_inter'
         )
 
+        fpts_du_left = self._vect_view_fpts_du(
+            left_side_in_tuple, 'get_vect_unsrted_fpts_for_inter'
+        )
+
         get_nfpts = lambda etype, pos : self.system.ele_map[etype].basis.nfacefpts[pos]
         left_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in left_side_in_tuple]
 
@@ -462,6 +466,9 @@ class Py_callbacks(tg.callbacks):
         left_side_in_int  = [ pad(a,n) for a, n in zip(left_side_in_int, left_side_nfpts)]
         left_side_in_int = np.array(left_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
         left_mapping = fpts_u_left.mapping.get().squeeze(0).astype('int32')
+        left_grad_mapping = fpts_du_left.mapping.get().squeeze(0).astype('int32')
+        left_grad_strides = fpts_du_left.rstrides.get().squeeze(0).astype('int32')
+        
         # now lets do the same thing for right side
         righ_side_in_int = [info_in_int(fid, 1) for fid in range(nbcfaces+nmpifaces, nfaces)]
         righ_side_in_tuple = [info_in_tuple(fid, 1) for fid in range(nbcfaces+nmpifaces, nfaces)]
@@ -469,21 +476,36 @@ class Py_callbacks(tg.callbacks):
         fpts_u_righ = self._scal_view_fpts_u(
             righ_side_in_tuple, 'get_scal_unsrted_fpts_for_inter'
         )
+      
+        fpts_du_righ = self._vect_view_fpts_du(
+            righ_side_in_tuple, 'get_vect_unsrted_fpts_for_inter'
+        )
+        
         righ_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in righ_side_in_tuple]
         righ_side_in_int  = [ pad(a,n) for a, n in zip(righ_side_in_int, righ_side_nfpts)]
         righ_side_in_int = np.array(righ_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
         righ_mapping = fpts_u_righ.mapping.get().squeeze(0).astype('int32')
-        
+        righ_grad_mapping = fpts_du_righ.mapping.get().squeeze(0).astype('int32')
+        righ_grad_strides = fpts_du_righ.rstrides.get().squeeze(0).astype('int32')
+
         sum_info = np.concatenate((left_side_in_int, righ_side_in_int)).astype('int32')
         # this could exceed int
         sum_mapping = np.concatenate((left_mapping, righ_mapping)).astype('int32')
         # now we set the information on tioga
+        sum_grad_mapping = np.concatenate((left_grad_mapping, righ_grad_mapping)).astype('int32')        
+        sum_grad_strides = np.concatenate((left_grad_strides, righ_grad_strides)).astype('int32')
 
         if int(fpts_u_left.basedata) != int(fpts_u_righ.basedata):
             raise RuntimeError("Interior left and right basedata not consistent")
         # need to copy this base data as well
         basedata = int(fpts_u_left.basedata)
-        tg.tioga_set_interior_mapping(basedata, sum_info.ctypes.data, sum_mapping.ctypes.data, sum_mapping.shape[0])
+        if int(fpts_du_left.basedata) != int(fpts_du_righ.basedata):
+            raise RuntimeError("Interior left and right grad basedata not consistent")
+        grad_basedata = int(fpts_du_left.basedata)
+        tg.tioga_set_interior_mapping(
+            basedata, grad_basedata, sum_info.ctypes.data, sum_mapping.ctypes.data, 
+            sum_grad_mapping.ctypes.data, sum_grad_strides.ctypes.data, sum_mapping.shape[0]
+        )
 
 
     # int* cellid int* nnodes # of solution points basis.upts
@@ -807,20 +829,10 @@ class Py_callbacks(tg.callbacks):
             self.fringe_du_device(fringeids, nfringe, data)
     
     def fringe_u_device(self, fringeids, nfringe, data):
-        if nfringe == 0: return 0
-
         nbcfaces = self.griddata['nbcfaces']
         nmpifaces = self.griddata['nmpifaces']
 
-        if nmpifaces != 0:
-            # use initial info to reset
-            #tg.reset_mpi_face_artbnd_status_wrapper(
-            #    addrToFloatPtr(int(self._init_fpts_artbnd._mats[0].basedata)),
-            #    addrToIntPtr(self._init_fpts_artbnd.mapping.data),
-            #    -1.0,
-            #    nmpifaces, self.init_nfpts_mpi, 1, self.backend.soasz, 3
-            #)
-            tg.tioga_reset_entire_mpi_face_artbnd_status_pointwise(1)
+        tg.tioga_reset_entire_mpi_face_artbnd_status_pointwise(1)
         
         # we first collect all fids here
         fids = [(ptrAt(fringeids, i),i) for i in range(nfringe)]
@@ -867,17 +879,6 @@ class Py_callbacks(tg.callbacks):
         self.tot_nfpts_mpi = tot_nfpts_mpi
 
         if faceinfo_mpi != []:
-            self._lmpi_fpts_artbnd = self._scal_view_artbnd(
-                self.fringe_faceinfo_mpi, 'get_scal_fpts_artbnd_for_inter'
-            )
-            
-            # now we call the function to set these to one
-            #tg.reset_mpi_face_artbnd_status_wrapper(
-            #    addrToFloatPtr(int(self._lmpi_fpts_artbnd._mats[0].basedata)),
-            #    addrToIntPtr(self._lmpi_fpts_artbnd.mapping.data),
-            #    1.0,
-            #    len(faceinfo_mpi), self.tot_nfpts_mpi, 1, self.backend.soasz, 3
-            #)
 
             tg.tioga_reset_mpi_face_artbnd_status_pointwise(1)
 
@@ -938,67 +939,9 @@ class Py_callbacks(tg.callbacks):
                 fids_mpi_zero.shape[0]
             )
                
-        # then deal with  inner artbnd
-        tot_nfpts = 0
-        faceinfo = []
-        side_int = []
-        side_idx = [0]
-        faceinfo_test = []
+        tg.tioga_prepare_interior_artbnd_target_data(data, self.system.nvars)
 
-        for fid, i in fids_inter:
-            cidx1, cidx2 = self.griddata['f2corg'][fid]
-            fpos1, fpos2 = self.griddata['faceposition'][fid]
-            etyp1 = self.griddata['celltypes'][cidx1]
-            etyp2 = self.griddata['celltypes'][cidx2] 
-            if cidx2 >= 0:
-                side = 1 if self.griddata['iblank_cell'][cidx1] == 1 else 0
-                # for multiple element types in one partition
-                if self.griddata['iblank_cell'][cidx1] == self.griddata['iblank_cell'][cidx2] :
-                    raise RuntimeError("this should not happen")
-                perface = (
-                    (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
-                    if side == 0 else 
-                    (etyp2, cidx2 - self.griddata['celloffset'][cidx2], fpos2, 0)
-                )
-                faceinfo.append(perface)
-                side_int.append(side)
-            
-                # always use left face
-                nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
-                tot_nfpts = tot_nfpts + nfpts
-                side_idx.append(tot_nfpts)
-            else:
-                raise RuntimeError('interior cell negtive right neighbor')       
-        
-        # save for later use
-        self.fringe_faceinfo = faceinfo
-        self.tot_nfpts = tot_nfpts
-
-        if faceinfo != []:
-            tg.tioga_prepare_interior_artbnd_target_data(data, self.system.nvars)
-            '''
-            # Copy data in IJK order to PyFR such that we need the unsorted fpts
-            self._scal_fpts_u = self._scal_view_fpts_u(
-                faceinfo, 'get_scal_unsrted_fpts_for_inter')
-            # copy data to device
-            nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
-            nbytes = nbytes*self.system.nvars
-
-            # mpi always comes first adding one offset
-            tg.tg_copy_to_device( 
-                self.fringe_u_fpts_d, data, int(nbytes), self.tot_nfpts_mpi*self.system.nvars
-            )
-            
-            # datashape of eles._scal_fpts is [nfpts, neled2, nvars, soasz]
-            tg.unpack_fringe_u_wrapper (
-                addrToFloatPtr(self.fringe_u_fpts_d),
-                addrToFloatPtr(int(self._scal_fpts_u._mats[0].basedata)),
-                addrToIntPtr(self._scal_fpts_u.mapping.data),
-                nfringe, tot_nfpts, self.system.nvars, self.backend.soasz, 3
-            )
-            '''
-        tg.tioga_prepare_overset_artbnd_target_data(data, self.system.nvars)       
-        '''
+        #tg.tioga_prepare_overset_artbnd_target_data(data, self.system.nvars)       
         # then deal with overset artbnd
         tot_nfpts_ov = 0
         faceinfo_ov = []
@@ -1059,34 +1002,12 @@ class Py_callbacks(tg.callbacks):
                 addrToFloatPtr(cc.__array_interface__['data'][0]),
                 int(nbytes)
             )
-        '''
+
     def fringe_du_device(self, fringeids, nfringe, data):
-        # known from previous step fringe_u_device
-        tot_nfpts = self.tot_nfpts
-        tot_nfpts_mpi = self.tot_nfpts_mpi
-        if tot_nfpts == 0: return
-        faceinfo = self.fringe_faceinfo
-        # copy data to device
-        self.fringe_du_fpts_d = self.griddata['fringe_du_fpts_d']
-        nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
-        nbytes = nbytes*self.system.nvars*self.system.ndims
-        # need to skip mpi related
-        tg.tg_copy_to_device(self.fringe_du_fpts_d, data, int(nbytes), tot_nfpts_mpi*self.system.nvars*self.system.ndims)
-        self._vect_fpts_du = self._vect_view_fpts_du(
-                faceinfo, 'get_vect_unsrted_fpts_for_inter')
-        # copy to the place
-        matrix_entry = self.system.ele_map['hex-g{}'.format(self.gid)]._vect_fpts
-        datashape = matrix_entry.datashape
-        dim_stride = datashape[1]*datashape[2]*datashape[3]*datashape[4]
-        # datashape of eles._scal_fpts is [nfpts, neled2, nvars, soasz]
-        tg.unpack_fringe_grad_wrapper (
-            addrToFloatPtr(self.fringe_du_fpts_d),
-            addrToFloatPtr(int(matrix_entry.basedata)),
-            addrToUintPtr(self._vect_fpts_du.mapping.data),
-            addrToUintPtr(self._vect_fpts_du.rstrides.data),
-            nfringe, tot_nfpts, self.system.nvars, self.system.ndims,
-            self.backend.soasz, 3
+        tg.tioga_prepare_interior_artbnd_target_data_gradient(
+            data, self.system.nvars, self.system.ndims
         )
+        
 
     def get_face_nodes_gpu(self, faceids, nfaces, nptsface, xyz):
         # these faces are 
