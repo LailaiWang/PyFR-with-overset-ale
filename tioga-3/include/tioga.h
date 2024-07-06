@@ -413,6 +413,8 @@ class tioga
   void prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim);
   void prepare_overset_artbnd_target_data(double* data, int nvar);
   void prepare_mpi_artbnd_target_data(double* data, int nvar);
+
+  void set_facecoords_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
 };
       
 #endif

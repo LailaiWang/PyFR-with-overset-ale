@@ -1463,3 +1463,6 @@ void tioga::prepare_mpi_artbnd_target_data(double* data, int nvar) {
   mb->prepare_mpi_artbnd_target_data(data, nvar);
 }
 
+void tioga::set_facecoords_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
+  mb->set_facecoords_mapping(basedata, faceinfo, mapping, nfpts);
+}

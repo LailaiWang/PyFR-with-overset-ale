@@ -76,6 +76,11 @@ void tioga_prepare_interior_artbnd_target_data(double* data, int nvar);
 void tioga_prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim);
 void tioga_prepare_overset_artbnd_target_data(double* data, int nvar);
 void tioga_prepare_mpi_artbnd_target_data(double* data, int nvar);
+
+void tioga_set_facecoords_mapping(unsigned long long base, 
+                                  unsigned long long faceinfo,
+                                  unsigned long long mapping, int nfpts);
+
 void tg_print_data(unsigned long long int datastart, unsigned long long int offset,
                    unsigned int nums, int dtype);
 void get_nodal_basis_wrapper(int* cellIDs, double* rst, double* weights,
@@ -96,7 +101,7 @@ void unpack_unblank_u_wrapper(
     unsigned int soasz, unsigned int neled2, int stream = -1);
 
 void pack_fringe_coords_wrapper(
-    unsigned int* fringe_fpts, double* xyz,
+    int* fringe_fpts, double* xyz,
     double* coord_fpts, 
     int nPts, int nDims, 
     unsigned int soasz, int stream = -1);

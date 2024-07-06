@@ -64,7 +64,7 @@ void unpack_fringe_grad_wrapper(
     unsigned int soasz, int stream = -1);
 
 void pack_fringe_coords_wrapper(
-    unsigned int* fringe_fpts, 
+    int* fringe_fpts, 
     double* xyz,
     double* coord_fpts, 
     int nPts, int nDims,

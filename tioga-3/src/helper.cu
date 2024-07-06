@@ -344,7 +344,7 @@ void unpack_unblank_u_wrapper(
 //template<int nDims>
 __global__
 void pack_fringe_coords(
-    unsigned int* fringe_fpts, 
+    int* fringe_fpts, 
     double* xyz, double* coord_fpts, 
     int nPts, unsigned int soasz, int nDims) {
 
@@ -363,25 +363,17 @@ void pack_fringe_coords(
 }
 
 void pack_fringe_coords_wrapper(
-    unsigned int* fringe_fpts,
+    int* fringe_fpts,
     double* xyz, double* coord_fpts, 
     int nPts, int nDims, unsigned int soasz, int stream) {
 
-  int threads = 128;
+  constexpr int threads = 256;
   int blocks = (nPts + threads - 1) / threads;
 
   if (stream == -1) {
-    //if (nDims == 2)
-    //  pack_fringe_coords<2><<<blocks, threads>>>(fringe_fpts,xyz,coord_fpts,nPts,soasz);
-    //else {
       pack_fringe_coords<<<blocks, threads>>>(fringe_fpts,xyz,
         coord_fpts,nPts,soasz,nDims);
-    //}
   } else {
-    //if (nDims == 2)
-    //  pack_fringe_coords<2><<<blocks, threads, 0, stream_handles[stream]>>>(fringe_fpts,
-    //      xyz,coord_fpts,nPts,soasz);
-    //else
       pack_fringe_coords<<<blocks, threads, 0, stream_handles[stream]>>>(fringe_fpts,
           xyz,coord_fpts,nPts,soasz,nDims);
   }

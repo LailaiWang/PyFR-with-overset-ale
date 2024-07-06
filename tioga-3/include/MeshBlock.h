@@ -51,6 +51,7 @@ extern void reset_mpi_face_artbnd_status_wrapper(double*, int*, double, unsigned
 extern void unpack_fringe_u_wrapper(double*, double*, int*, unsigned int, unsigned int, unsigned int, unsigned int, int);
 extern void unpack_fringe_grad_wrapper(double*, double*, int*, int*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, int);
 extern void pointwise_copy_to_mpi_rhs_wrapper(double*, int*, int*, double*, int*, unsigned int, unsigned int, int);
+extern void pack_fringe_coords_wrapper(int*, double*, double*, int, int, unsigned int ,int);
 
 struct vector_hash {
   int operator()(const std::vector<int> &V) const {
@@ -168,10 +169,19 @@ private:
 
   std::unordered_map<std::vector<int>, int, vector_hash> mpi_mapping;
   std::unordered_map<std::vector<int>, int, vector_hash> overset_mapping;
+  std::unordered_map<std::vector<int>, int, vector_hash> fcoords_mapping;
 
   std::vector<std::pair<int,int>> interior_ab_faces; //pair first->global id second loc id
   std::vector<std::pair<int,int>> mpi_ab_faces;
   std::vector<std::pair<int,int>> overset_ab_faces;
+  
+  unsigned long long int fcoords_basedata;
+  int fcoords_tnfpts{0};
+  std::vector<int> fcoords_target_nfpts;
+  std::vector<int> fcoords_target_scan;
+  std::vector<int> fcoords_target_mapping;
+  dvec<int> fcoords_target_mapping_d;
+  dvec<double> fcoords_data_d;
 
   unsigned long long int interior_basedata;
   unsigned long long int interior_grad_basedata;
@@ -780,9 +790,11 @@ private:
   void set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
   void set_overset_rhs_basedata(unsigned long long int basedata);
   void set_overset_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void set_facecoords_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
   void figure_out_interior_artbnd_target();
   void figure_out_mpi_artbnd_target();
   void figure_out_overset_artbnd_target();
+  void figure_out_facecoords_target();
 
   void prepare_interior_artbnd_target_data(double* data, int nvar);
   void prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim);
@@ -796,6 +808,8 @@ private:
 
   void unpack_interior_artbnd_u_pointwise(unsigned int nvar);
   void unpack_interior_artbnd_du_pointwise(unsigned int nvar, unsigned int dim);
+  
+  void pack_fringe_facecoords_pointwise(double* rxyz);
 };
 
 #endif

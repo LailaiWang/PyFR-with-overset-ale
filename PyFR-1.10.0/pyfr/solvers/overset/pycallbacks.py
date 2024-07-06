@@ -325,6 +325,7 @@ class Py_callbacks(tg.callbacks):
         self.setup_bc_rhs_basedata()
         self.setup_bc_mapping()
         self.setup_structured_to_srted_mapping()
+        self.setup_facecoords_mapping()
         # set up mpi artbnd status
         self.setup_mpi_artbnd_status_aux()
 
@@ -452,7 +453,41 @@ class Py_callbacks(tg.callbacks):
 
         basedata = int(mpi_fpts_artbnd.basedata)
         tg.tioga_set_mpi_mapping(basedata, mpi_side_in_int.ctypes.data, mpi_mapping.ctypes.data, mpi_mapping.shape[0])
+     
+    def setup_facecoords_mapping(self):   
+        grid = self.griddata
+        nfaces, nbcfaces, nmpifaces = grid['nfaces'], grid['nbcfaces'], grid['nmpifaces']
+        f2c, fpos = grid['f2corg'], grid['faceposition']
+        ctype, off = grid['celltypes'], grid['celloffset']
         
+        # now only support this for hex
+        ctype_to_int_dict = {'hex': 8}
+        # define some lambdas
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        info_in_int = lambda fid, i: [ctype_to_int(ctype[f2c[fid][i]]),f2c[fid][i],fpos[fid][i]]
+        rf = lambda cidx : cidx - off[cidx] # cell idx in its own type is needed for tuple
+        info_in_tuple = lambda fid, i: (ctype[f2c[fid][i]],rf(f2c[fid][i]),fpos[fid][i],0)
+        
+        # get left and right separately
+        left_side_in_int = [info_in_int(fid, 0) for fid in range(nfaces)]
+        left_side_in_tuple = [info_in_tuple(fid, 0) for fid in range(nfaces)]
+        
+        # new generate the information
+        fpts_ploc_left = self._scal_view_fpts_ploc(
+            left_side_in_tuple, 'get_scal_unsrted_fpts_ploc_for_inter'
+        )
+
+        get_nfpts = lambda etype, pos : self.system.ele_map[etype].basis.nfacefpts[pos]
+        left_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in left_side_in_tuple]
+
+        pad = lambda a,n: np.concatenate((np.tile(a,(n,1)),np.array(range(n)).reshape(-1,1)),axis=1)
+        left_side_in_int  = [ pad(a,n) for a, n in zip(left_side_in_int, left_side_nfpts)]
+        left_side_in_int = np.array(left_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
+        left_mapping = fpts_ploc_left.mapping.get().squeeze(0).astype('int32')
+        basedata = int(fpts_ploc_left.basedata)
+        tg.tioga_set_facecoords_mapping(
+            basedata, left_side_in_int.ctypes.data, left_mapping.ctypes.data, left_mapping.shape[0]
+        )
                    
     def setup_interior_mapping(self):
         grid = self.griddata
@@ -536,19 +571,6 @@ class Py_callbacks(tg.callbacks):
         etype = self.griddata['celltypes'][cidx]
         n = self.system.ele_map[etype].basis.nupts
         writeAt(nnodes,0,int(n))
-
-    # int* faceid, int *nnodes # fpt
-    def get_nodes_per_face(self, faceid, nnodes):
-        fidx = ptrAt(faceid,0)
-        cidx1, cidx2  = self.griddata['f2corg'][fidx]
-        fpos1, fpos2  = self.griddata['faceposition'][fidx] 
-        etyp1  = self.griddata['celltypes'][cidx1]
-        etyp2  = self.griddata['celltypes'][cidx2] if cidx2 != -1 else etyp1
-        n1 = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
-        n2 = self.system.ele_map[etyp2].basis.nfacefpts[fpos2]
-        if n1 != n2: raise RuntimeError('callback: nodes_per_face inconsistency')
-        # write data to corresponding address
-        writeAt(nnodes, 0, int(n1))
 
     # int* cellid, int* nnodes, double* xyz
     def get_receptor_nodes(self, cellid, nnodes, xyz):
@@ -864,6 +886,7 @@ class Py_callbacks(tg.callbacks):
 
     def get_face_nodes_gpu(self, faceids, nfaces, nptsface, xyz):
         # these faces are 
+        print('call through pyfr')
         if nfaces == 0: return
         tot_nfpts = 0
         for i in range(nfaces):
@@ -890,12 +913,12 @@ class Py_callbacks(tg.callbacks):
         # datashape of ploc_at_ncon('fpts') is [nfpts, neled2, dim, soasz]
         # pointwise operation
         tg.pack_fringe_coords_wrapper(
-            addrToUintPtr(self._scal_fpts_ploc.mapping.data), # offset PyFR martix
+            addrToIntPtr(self._scal_fpts_ploc.mapping.data), # offset PyFR martix
             addrToFloatPtr(self.fringe_coords_d), # a flat matrx 
             addrToFloatPtr(int(self._scal_fpts_ploc._mats[0].basedata)),# starting addrs
             tot_nfpts, self.system.ndims, self.backend.soasz, 3
         )
-        
+        print(f'destination {int(self._scal_fpts_ploc._mats[0].basedata)}')
         nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
         nbytes = nbytes*self.system.ndims
         tg.tg_copy_to_host(self.fringe_coords_d, xyz, nbytes)

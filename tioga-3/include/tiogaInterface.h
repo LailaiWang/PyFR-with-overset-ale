@@ -174,4 +174,5 @@ void tioga_prepare_interior_artbnd_target_data(double* data, int nvar);
 void tioga_prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim);
 void tioga_prepare_overset_artbnd_target_data(double* data, int nvar);
 void tioga_prepare_mpi_artbnd_target_data(double* data, int nvar);
+void tioga_set_facecoords_mapping(unsigned long long basedata, unsigned long long faceinfo, unsigned long long mapping, int nfpts);
 } /* extern "C" */

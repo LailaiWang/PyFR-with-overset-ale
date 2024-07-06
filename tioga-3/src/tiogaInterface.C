@@ -515,4 +515,10 @@ extern "C" {
   void tioga_prepare_mpi_artbnd_target_data(double* data, int nvar) {
     tg->prepare_mpi_artbnd_target_data(data, nvar);
   }
+  
+  void tioga_set_facecoords_mapping(unsigned long long int base, unsigned long long int faddr, unsigned long long int maddr, int nfpts) {
+    int* faceinfo = reinterpret_cast<int*>(faddr);
+    int* mapping = reinterpret_cast<int*>(maddr);
+    tg->set_facecoords_mapping(base, faceinfo, mapping, nfpts);
+  }
 }

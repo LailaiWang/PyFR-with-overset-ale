@@ -1026,7 +1026,8 @@ void MeshBlock::getFringeNodes(bool unblanking)
 
     for (int i = 0; i < nreceptorFaces; i++)
     {
-      get_nodes_per_face(&(ftag[i]),&(pointsPerFace[i]));
+      //get_nodes_per_face(&(ftag[i]),&(pointsPerFace[i]));
+      pointsPerFace[i] = face_fpts[ftag[i]]; 
       nFacePoints += pointsPerFace[i];
       maxPointsPerFace = max(maxPointsPerFace,pointsPerFace[i]);
     }
@@ -1035,28 +1036,20 @@ void MeshBlock::getFringeNodes(bool unblanking)
     ntotalPoints = nFacePoints;
 
 #ifdef _GPU
-    //printf("before get_face_nodes_gpu ntotalPoints is %d\n",ntotalPoints);
+#ifdef _GET_FACE_NODES_GPU
     get_face_nodes_gpu(ftag,nreceptorFaces,pointsPerFace,rxyz.data());
-    ////// for testing purpose //////////////////////////
-    // validated
+#else
+    get_face_nodes_gpu(ftag,nreceptorFaces,pointsPerFace,rxyz.data());
     /*
-    int world_rank; 
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    if(world_rank == 0) {
-        FILE *fp = fopen("fringe_nodes.dat","w");
-        for(int i=0;i<nreceptorFaces;i++) {
-            for(int j=0;j<pointsPerFace[i];j++) {
-                fprintf(fp, "%lf %lf %lf\n",
-                            rxyz[i*16*3+j*3+0],
-                            rxyz[i*16*3+j*3+1],
-                            rxyz[i*16*3+j*3+2]
-                            );
-            }
-        }
-        fclose(fp);
-    }
+    int pid = getpid();
+    printf("current pid is %d hang at pack fringe facecoords\n",pid);
+    int idebugger = 1;
+    while(idebugger) {
+
+    };
+    pack_fringe_facecoords_pointwise(rxyz.data());
     */
-    ////////////////////////////////////////////////////////////
+#endif
 #else
     // Find the position of each flux point using callback function
     //
@@ -1648,9 +1641,6 @@ void MeshBlock::interpSolution_gpu(double *q_out_d, int nvar)
   {
     int estride, sstride, vstride;
     qtd_h[n] = get_q_spts_d(estride, sstride, vstride, n);
-    //strides_h[3*n] = estride;
-    //strides_h[3*n+1] = sstride;
-    //strides_h[3*n+2] = vstride;
     strides_h[4*n] = estride;
     strides_h[4*n+1] = sstride;
     strides_h[4*n+2] = vstride;
@@ -1793,6 +1783,7 @@ void MeshBlock::update_fringe_face_info(unsigned int flag) {
   } else {
     overset_tnfpts = 0;
   }
+
   // now everything is sorted out 
   // we reset mpi related information here
   //reset_entire_mpi_face_artbnd_status_pointwise(1);
