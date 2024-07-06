@@ -321,6 +321,7 @@ class Py_callbacks(tg.callbacks):
         self.backend = system.backend
         self.setup_interior_mapping()
         self.setup_mpi_mapping()
+        self.setup_mpi_rhs_mapping()
         self.setup_bc_rhs_basedata()
         self.setup_bc_mapping()
         self.setup_structured_to_srted_mapping()
@@ -396,6 +397,27 @@ class Py_callbacks(tg.callbacks):
 
         basedata = int(bc_fpts_artbnd.basedata)
         tg.tioga_set_bc_mapping(basedata, bc_side_in_int.ctypes.data, bc_mapping.ctypes.data, bc_mapping.shape[0])
+
+    def setup_mpi_rhs_mapping(self):
+        mpi_inters = self.system._mpi_inters
+        if mpi_inters == []: return
+        
+        grid = self.griddata
+        rhs_basedata = self.system._mpi_inters[0]._scal_rhs.data
+        face_mapping = grid['mpientry'] # entry for each face
+        mpi_nfpts = grid['mnfpts'] # fpts per mpi face
+        face_strides = grid['mbaseface'] # stride for each variable
+        nmpifaces = grid['nmpifaces']
+        
+        itemsize = np.dtype(self.system.backend.fpdtype).itemsize
+        # note that facemapping is in bytes
+        # now we populate it for each flux points
+        fpts_rhs_mapping = [ list(face_mapping[i] + itemsize*np.arange(mpi_nfpts[i])) for i in range(nmpifaces)]
+        fpts_rhs_strides = [ [face_strides[i]] * mpi_nfpts[i] for i in range(nmpifaces)] 
+        fpts_rhs_mapping = np.array(fpts_rhs_mapping).astype('int32').reshape(-1)
+        fpts_rhs_strides = np.array(fpts_rhs_strides).astype('int32').reshape(-1)
+        
+        tg.tioga_set_mpi_rhs_mapping(rhs_basedata, fpts_rhs_mapping.ctypes.data, fpts_rhs_strides.ctypes.data, fpts_rhs_mapping.shape[0])        
 
     def setup_mpi_mapping(self):
         grid = self.griddata
@@ -817,11 +839,12 @@ class Py_callbacks(tg.callbacks):
         )
 
     def fringe_data_to_device(self, fringeids, nfringe, gradflag, data):
-        # say highOrder.C
         if nfringe == 0: return
         
         if self.system.istage == 0: # we only need to find the information for first stage
             tg.tioga_update_fringe_face_info(gradflag)
+            tg.tioga_reset_entire_mpi_face_artbnd_status_pointwise(1)
+            tg.tioga_reset_mpi_face_artbnd_status_pointwise(1)
         
         if gradflag == 0: # passing u
             self.fringe_u_device(fringeids, nfringe, data)
@@ -829,180 +852,10 @@ class Py_callbacks(tg.callbacks):
             self.fringe_du_device(fringeids, nfringe, data)
     
     def fringe_u_device(self, fringeids, nfringe, data):
-        nbcfaces = self.griddata['nbcfaces']
-        nmpifaces = self.griddata['nmpifaces']
-
-        tg.tioga_reset_entire_mpi_face_artbnd_status_pointwise(1)
-        
-        # we first collect all fids here
-        fids = [(ptrAt(fringeids, i),i) for i in range(nfringe)]
-        # interior faces
-        fids_inter = [ (fid, i) for fid, i in fids if fid >= nbcfaces + nmpifaces]
-        # note that within nbcfaces overset faces will be included if there is any
-        # beyond the range, there are all legit mpi faces and interior faces
-        fids_mpi = [(fid, i) for fid, i in fids if nbcfaces <= fid < nbcfaces + nmpifaces]
-        # subtract the offset
-        fids_mpi_zero = np.array([fid - nbcfaces  for fid, i in fids if nbcfaces <= fid < nbcfaces + nmpifaces]).astype('int32') 
-        #print('fids_mpi_zero,',fids_mpi_zero)
-        fids_bc = [(fid, i) for fid, i in fids if fid < nbcfaces]        
-
-        self.fringe_u_fpts_d = self.griddata['fringe_u_fpts_d']
-        # now deal with MPI artificial boundaries
-        tot_nfpts_mpi = 0
-        faceinfo_mpi = []
-        facefpts_mpi_range = [0]
-        mpi_nfpts = []
-        for fid, i in fids_mpi:
-            cidx1, cidx2 = self.griddata['f2corg'][fid]    
-            fpos1, fpos2 = self.griddata['faceposition'][fid]
-            etyp1 = self.griddata['celltypes'][cidx1]
-            etyp2 = self.griddata['celltypes'][cidx2] 
-            
-            if cidx2 < 0:
-                # always use left face
-                perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
-                faceinfo_mpi.append(perface)
-            
-                # always use left face
-                nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
-                tot_nfpts_mpi = tot_nfpts_mpi + nfpts
-                mpi_nfpts.append(nfpts)
-                facefpts_mpi_range.append(tot_nfpts_mpi)
-            else:
-                raise RuntimeError("Something is wrong with fringe bc")
-        # we are certain data is continuously float aligned
-        mpi_nfpts = np.array(mpi_nfpts) * self.system.nvars
-        if mpi_nfpts.size !=0: mpi_nfpts = np.cumsum(mpi_nfpts) - mpi_nfpts[0]
-        mpi_nfpts = mpi_nfpts.astype('int32')
-
-        self.fringe_faceinfo_mpi = faceinfo_mpi  
-        self.tot_nfpts_mpi = tot_nfpts_mpi
-
-        if faceinfo_mpi != []:
-
-            tg.tioga_reset_mpi_face_artbnd_status_pointwise(1)
-
-            datatest = np.array(
-                [ptrAt(data,i) for i in range(self.tot_nfpts_mpi*self.system.nvars)]
-            ).astype(self.backend.fpdtype)
-
-            datatest = datatest.reshape(-1,self.system.nvars)
-
-            for idx, face in enumerate(faceinfo_mpi):
-                etype, typecidx, fpos, _ = face
-                srted_ord = self.system.ele_map[etype]._srtd_face_fpts[fpos][typecidx]
-                unsrted_ord = self.system.ele_map[etype].basis.facefpts[fpos]
-                # swap data according to the node ordering
-                nodesmap = []
-                for n in srted_ord:
-                    nodesmap.append(unsrted_ord.index(n))
-                # swap data 
-                a = datatest[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]]
-                datatest[facefpts_mpi_range[idx]:facefpts_mpi_range[idx+1]] = a[nodesmap]
-
-            # we first copy the current fids_mpi_zero to device
-            curmpientry = self.griddata['curmpientry_d'] # global face ids
-            tg.tg_copy_to_device(
-                curmpientry, 
-                addrToFloatPtr(fids_mpi_zero.__array_interface__['data'][0]), 
-                fids_mpi_zero.nbytes
-            )
-            curnfpts = self.griddata['curnfpts_d'] # source offset
-            tg.tg_copy_to_device(
-                curnfpts, 
-                addrToFloatPtr(mpi_nfpts.__array_interface__['data'][0]),
-                mpi_nfpts.nbytes
-            )
-
-            cc = datatest.reshape(-1) 
-            
-            tg.tg_copy_to_device(
-                self.fringe_u_fpts_d,
-                addrToFloatPtr(cc.__array_interface__['data'][0]),
-                cc.nbytes
-            )
-            mpientry = self.griddata['mpientry_d']
-            mpinfpts = self.griddata['mnfpts_d'] # fpts per face global
-            mbaseface = self.griddata['mbaseface_d']
-            
-            base_entry = self.system._mpi_inters[0]._scal_rhs.data
-         
-            tg.copy_to_mpi_rhs_wrapper(
-                addrToFloatPtr(base_entry), # base of destination
-                addrToFloatPtr(self.fringe_u_fpts_d),  # source
-                addrToUintPtr(mpientry), # doffset global
-                addrToUintPtr(curmpientry),  # current fidx
-                addrToUintPtr(curnfpts),  #
-                addrToUintPtr(mpinfpts), # number of fpts per face global
-                addrToUintPtr(mbaseface),
-                self.system.nvars,
-                fids_mpi_zero.shape[0]
-            )
-               
+        tg.tioga_prepare_mpi_artbnd_target_data(data, self.system.nvars)            
         tg.tioga_prepare_interior_artbnd_target_data(data, self.system.nvars)
-
-        #tg.tioga_prepare_overset_artbnd_target_data(data, self.system.nvars)       
-        # then deal with overset artbnd
-        tot_nfpts_ov = 0
-        faceinfo_ov = []
-        facefpts_ov_range = [0]
-        for fid, i in fids_bc:
-            cidx1, cidx2 = self.griddata['f2corg'][fid]
-            fpos1, fpos2 = self.griddata['faceposition'][fid]
-            etyp1 = self.griddata['celltypes'][cidx1]
-            etyp2 = self.griddata['celltypes'][cidx2] 
-            
-            if cidx2 < 0:
-                # always use left info here
-                perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
-                faceinfo_ov.append(perface)
-            
-                # always use left face
-                nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
-                tot_nfpts_ov = tot_nfpts_ov + nfpts
-                facefpts_ov_range.append(tot_nfpts_ov)
-            else:
-                raise RuntimeError("Something is wrong with fringe bc")
-
-        # save for later use
-        self.fringe_faceinfo_ov = faceinfo_ov
-        # save for later use
-        self.tot_nfpts_ov = tot_nfpts_ov
-
-        if faceinfo_ov != []:
-            #offset = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
-            #offset = offset*self.system.nvars
-            nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts_ov
-            nbytes = nbytes*self.system.nvars
-            
-            # this is good enough if two overset grids are not cutting each other
-            datatest = np.array(
-                [ptrAt(data,i) for i in range(tot_nfpts_ov*5)]
-            ).astype(self.backend.fpdtype)
-
-            datatest = datatest.reshape(-1,self.system.nvars)
-
-            for idx, face in enumerate(faceinfo_ov):
-                etype, typecidx, fpos, _ = face
-                srted_ord = self.system.ele_map[etype]._srtd_face_fpts[fpos][typecidx]
-                unsrted_ord = self.system.ele_map[etype].basis.facefpts[fpos]
-                # swap data according to the node ordering
-                nodesmap = []
-                for n in srted_ord:
-                    nodesmap.append(unsrted_ord.index(n))
-                # swap data 
-                a = datatest[facefpts_ov_range[idx]:facefpts_ov_range[idx+1]]
-                datatest[facefpts_ov_range[idx]:facefpts_ov_range[idx+1]] = a[nodesmap]
-
-            cc = datatest.swapaxes(0,1).reshape(-1)
-            # overset-mpi is the last one
-            matrix_entry = self.system._mpi_inters[-1]._scal_rhs
-            tg.tg_copy_to_device(
-                matrix_entry.data,
-                addrToFloatPtr(cc.__array_interface__['data'][0]),
-                int(nbytes)
-            )
-
+        tg.tioga_prepare_overset_artbnd_target_data(data, self.system.nvars)       
+ 
     def fringe_du_device(self, fringeids, nfringe, data):
         tg.tioga_prepare_interior_artbnd_target_data_gradient(
             data, self.system.nvars, self.system.ndims

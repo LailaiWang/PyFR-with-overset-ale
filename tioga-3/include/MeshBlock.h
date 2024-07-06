@@ -192,7 +192,7 @@ private:
   unsigned long long int mpi_basedata; // address
   unsigned long long int mpi_rhs_basedata;
   int mpi_tnfpts{0}; // total number of mpi nfpts
-  int mpi_entire_tnfpts;
+  int mpi_entire_tnfpts{0};
   std::vector<int> mpi_target_nfpts;
   std::vector<int> mpi_target_scan;
   std::vector<int> mpi_target_mapping;

@@ -1572,8 +1572,15 @@ void MeshBlock::set_mpi_mapping(unsigned long long int basedata,  int* faceinfo,
 
 void MeshBlock::set_mpi_rhs_mapping(unsigned long long int basedata,int* mapping,int* strides, int nfpts) {
   if(nfpts != mpi_entire_tnfpts) {
-    printf("something is wrong with missmatching nfpts for mpi rhs\n");
+    printf("something is wrong with missmatching nfpts for mpi rhs nfpts %d mpi_entire_tnfpts %d\n", nfpts, mpi_entire_tnfpts);
+    int pid = getpid();
+    printf("current pid is %d hang at inconsistent mpi\n",pid);
+    int idebugger = 0;
+    while(idebugger) {
+
+    };
   }
+  mpi_rhs_basedata = basedata;
   mpi_entire_rhs_mapping.resize(nfpts);
   mpi_entire_rhs_strides.resize(nfpts);
   mpi_entire_rhs_mapping_d.resize(nfpts);
@@ -1809,17 +1816,12 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
     auto  fid = mpi_ab_faces[idx].first; // global id
     auto  c0 = f2c[fid*2+0];
     auto  fp = fposition[fid][0]; // face position
-    auto& lmap = face_unsrted_to_srted_map[c0][fp];
     auto& srted = srted_order[c0][fp];  // srted ids for current face
     // now swap the values
     for(auto i=0;i<nfpt;++i) {
         auto srtid = srted[i];
         //auto unsrtid = lmap[srtid];
-
         auto unsrtid = face_unsrted_to_srted_map[c0][fp][srtid];
-        printf("i is %d srtid is %d unsrted is %d map is %d\n", 
-            i, srtid, unsrted_order[c0][fp][i], unsrtid
-        );
         for(auto k=0;k<nvar;++k) {
             mpi_data_h[sidx*nvar + i*nvar + k] = data[sidx*nvar + unsrtid * nvar + k];
         }
@@ -1831,14 +1833,13 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
 
   {
     int pid = getpid();
-    printf("current pid is %d hanging at prepare mpi\n",pid);
     int idebugger = 0;
     while(idebugger) {
 
     };
   }
-  for(auto i=0;i<mpi_tnfpts*nvar;++i) printf("original data %lf\n", data[i]);
-  for(auto i: mpi_data_h) printf("data %lf\n", i);
+  //for(auto i=0;i<mpi_tnfpts*nvar;++i) printf("original data %12.8e\n", data[i]);
+  //for(auto i: mpi_data_h) printf("data %12.8e\n", i);
     
   // now copy the data to the destination we want
   double* dst = reinterpret_cast<double*>(mpi_rhs_basedata);
@@ -1848,7 +1849,6 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
   int* strides = mpi_entire_rhs_strides_d.data();
   
   int* fptsids = mpi_target_rhs_fptsid_d.data();
-  
   pointwise_copy_to_mpi_rhs_wrapper(dst, mapping, strides, src, fptsids, mpi_tnfpts, nvar, 3);
 }
 
@@ -1866,24 +1866,16 @@ void MeshBlock::prepare_overset_artbnd_target_data(double* data, int nvar) {
     auto  fid = overset_ab_faces[idx].first; // global id
     auto  c0 = f2c[fid*2+0];
     auto  fp = fposition[fid][0]; // face position
-    auto& lmap = face_unsrted_to_srted_map[c0][fp];
-    auto& srted = unsrted_order[c0][fp];  // srted ids for current face
+    auto& srted = srted_order[c0][fp];  // srted ids for current face
     // now swap the values
     for(auto i=0;i<nfpt;++i) {
         auto srtid = srted[i];
-        auto unsrtid = lmap[srtid];
+        auto unsrtid = face_unsrted_to_srted_map[c0][fp][srtid];
         for(auto k=0;k<nvar;++k) {
-            overset_data_h[k * overset_tnfpts + sidx + i] = data[sidx*nvar + unsrtid * nvar + k];
+            overset_data_h[k*overset_tnfpts+sidx+i] = data[sidx*nvar + unsrtid * nvar + k];
         }
     }
   });
-  int idebugger = 0;
-  int pid = getpid();
-  printf("current pid is %d \n", pid);
-    
-  while(idebugger) {
-
-  }
   // then copy this data to the device
   // overset_data_d.resize(overset_data_h.size());
   // overset_data_d.assign(overset_data_h.data(), overset_data_h.size(), NULL);
@@ -1896,10 +1888,15 @@ void MeshBlock::prepare_overset_artbnd_target_data(double* data, int nvar) {
 
 
 void MeshBlock::prepare_interior_artbnd_target_data(double* data, int nvar) {
+  int idebugger = 0;
+  int pid = getpid();
+  while(idebugger) {
+
+  }
   // now, we want to prepare the data  for interior artbnd
   // data, mpi_tnfpts * nvar are the data for mpi fringe faces
   if(interior_tnfpts == 0) return;
-  interior_data_d.resize(interior_tnfpts * nvar); 
+  //interior_data_d.resize(interior_tnfpts * nvar); 
   interior_data_d.assign(data + mpi_tnfpts * nvar, interior_tnfpts * nvar, NULL);
   unpack_interior_artbnd_u_pointwise(nvar);
 }

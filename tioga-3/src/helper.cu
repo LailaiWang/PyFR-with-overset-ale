@@ -738,13 +738,11 @@ void pointwise_copy_to_mpi_rhs(
   unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x;
   if(tid >= nfpts) return;
   int pid = fptsid[tid];
-  int str = strides[tid];
   char* cdest = ((char*) base) + mapping[pid];  // second addressing is in 
   double* dest = (double*) cdest;// this is for first variable of the face
-  
   // note that in destination, the data are stored variable by variable 
   for(int k=0;k<nvar;++k) { 
-    double* vdest = dest + k*str; // fbase is offset interms of double
+    double* vdest = dest + k*strides[pid]; // fbase is offset interms of double
     *vdest = src[tid*nvar + k];
   }
 
