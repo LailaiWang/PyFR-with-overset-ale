@@ -1037,24 +1037,6 @@ class Py_callbacks(tg.callbacks):
         writeAt(var_stride, 0, vs)
         return int(elesdata.data)
         
-    def get_dq_spts_gpu(self, ele_stride, spt_stride, var_stride, dim_stride, ele_type):
-        etype = 'hex-g{}'.format(self.gid)
-        eles = self.system.ele_map[etype]
-        elesdata = eles._vect_upts
-        ndim, nspt, neled1, nvars, neled2 = elesdata.datashape
-        es =  nvars*neled2
-        ss =  neled1*nvars*neled2 
-        vs =  neled2
-        ds =  neled1*nvars*neled2*nspt
-        writeAt(ele_stride, 0, int(es))
-        writeAt(spt_stride, 0, int(ss))
-        writeAt(var_stride, 0, int(vs))
-        writeAt(dim_stride, 0, int(ds))
-        return int(elesdata.data)
-
-    def get_nweights_gpu(self, cellid):
-        eles, _ = self.find_eles_instance(cellid)
-        return int(eles.basis.nupts)
 
     def _view(self, inter, meth, vshape=tuple()):
         # no permute

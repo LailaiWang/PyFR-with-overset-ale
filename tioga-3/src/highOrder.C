@@ -1221,7 +1221,13 @@ void MeshBlock::processPointDonorsGPU(void)
   {
     if (donorId2[i] < 0 || iblank_cell[donorId2[i]] != NORMAL) continue;
 
+    // get the weights
+#ifdef _GET_N_WEIGHTS
     interpList2[ninterp2].nweights = get_n_weights(donorId2[i]);
+#else
+    int ctype = celltypes[donorId2[i]];
+    interpList2[ninterp2].nweights = cell_nupts_per_type[ctype];
+#endif   
     interpList2[ninterp2].receptorInfo[0] = isearch[2*i];   // procID
     interpList2[ninterp2].receptorInfo[1] = isearch[2*i+1]; // pointID
     interpList2[ninterp2].donorID = donorId2[i];
@@ -1641,19 +1647,24 @@ void MeshBlock::interpGradient_gpu(double *dq_out_d, int nvar)
 
   for (int n = 0; n < ntypes; n++)
   {
+#ifdef _GET_DQ_SPTS_D
     int estride, sstride, vstride, dstride;
-    //printf("before get_dq_spts_d\n");
     qtd_h[n] = get_dq_spts_d(estride, sstride, vstride, dstride, n);
-    //printf("after get_dq_spts_d\n");
-    //strides_h[4*n] = estride;
-    //strides_h[4*n+1] = sstride;
-    //strides_h[4*n+2] = vstride;
-    //strides_h[4*n+3] = dstride;
     strides_h[5*n] = estride;
     strides_h[5*n+1] = sstride;
     strides_h[5*n+2] = vstride;
     strides_h[5*n+3] = dstride;
     strides_h[5*n+4] = soasz;
+#else
+    int ctype = 8;
+    auto& strides = cell_du_strides_per_type[ctype];
+    qtd_h[n] = reinterpret_cast<double*>(cell_du_basedata_per_type[ctype]);
+    strides_h[5*n] = strides[0];
+    strides_h[5*n+1] = strides[1];
+    strides_h[5*n+2] = strides[2];
+    strides_h[5*n+3] = strides[3];
+    strides_h[5*n+4] = soasz;
+#endif
   }
 
   dvec<double*> dqtd_d; dqtd_d.resize(ntypes);
