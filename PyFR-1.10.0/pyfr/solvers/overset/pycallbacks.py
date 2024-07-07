@@ -326,6 +326,7 @@ class Py_callbacks(tg.callbacks):
         self.setup_bc_mapping()
         self.setup_structured_to_srted_mapping()
         self.setup_facecoords_mapping()
+        self.setup_cell_info_by_type()
         # set up mpi artbnd status
         self.setup_mpi_artbnd_status_aux()
 
@@ -488,6 +489,47 @@ class Py_callbacks(tg.callbacks):
         tg.tioga_set_facecoords_mapping(
             basedata, left_side_in_int.ctypes.data, left_mapping.ctypes.data, left_mapping.shape[0]
         )
+    
+    def setup_cell_info_by_type(self):
+        grid = self.griddata
+        ele_map = self.system.ele_map
+        ctype, off  = grid['celltypes'], grid['celloffset']
+        ntypes, ncells = grid['ncelltypes'], grid['ncells']
+        # now only support this for hex
+        ctype_to_int_dict = {'hex': 8}
+        # define some lambdas
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        celltypes  = np.array([ ctype_to_int(a) for a in ctype]).astype('int32')
+        nupts_per_type = np.array( 
+                [[ctype_to_int(etype), eles.basis.nupts] for etype, eles in ele_map.items()]
+            ).astype('int32').reshape(-1)
+        
+        get_strides = lambda s: [s[2]*s[3],s[1]*s[2]*s[3],s[3]]
+        get_datashape = lambda eles : eles.scal_upts_inb._curr_mat.datashape
+        # now get strides for state variable
+        ustrides = np.array(
+                [[ctype_to_int(etype)] + get_strides(get_datashape(eles)) for etype, eles in ele_map.items() ]
+            ).astype('int32').reshape(-1)
+        get_du_strides = lambda s: [s[3]*s[4], s[2]*s[3]*s[4], s[4], s[1]*s[2]*s[3]*s[4]]
+        get_du_datashape = lambda eles: eles._vect_upts.datashape
+        dustrides = np.array(
+                [[ctype_to_int(etype)] + get_du_strides(get_du_datashape(eles)) for etype, eles in ele_map.items() ]
+            ).astype('int32').reshape(-1)
+        # memory address for u is subject to change at different stages of RK methods,
+        # we need to get it dynamically
+        # this is memory address use int64
+        du_basedata = np.array([
+            [ctype_to_int(etype),int(eles._vect_upts.data)] for etype, eles in ele_map.items()]
+            ).astype('int64').reshape(-1)
+        # now get strides for gradient variables
+        tg.tioga_set_cell_info_by_type(
+                ntypes, ncells,
+                celltypes.ctypes.data, 
+                nupts_per_type.ctypes.data, 
+                ustrides.ctypes.data, dustrides.ctypes.data, 
+                du_basedata.ctypes.data
+            )
+        test = 1
                    
     def setup_interior_mapping(self):
         grid = self.griddata
@@ -563,14 +605,6 @@ class Py_callbacks(tg.callbacks):
             basedata, grad_basedata, sum_info.ctypes.data, sum_mapping.ctypes.data, 
             sum_grad_mapping.ctypes.data, sum_grad_strides.ctypes.data, sum_mapping.shape[0]
         )
-
-
-    # int* cellid int* nnodes # of solution points basis.upts
-    def get_nodes_per_cell(self, cellid, nnodes):
-        cidx = ptrAt(cellid,0)
-        etype = self.griddata['celltypes'][cidx]
-        n = self.system.ele_map[etype].basis.nupts
-        writeAt(nnodes,0,int(n))
 
     # int* cellid, int* nnodes, double* xyz
     def get_receptor_nodes(self, cellid, nnodes, xyz):
@@ -862,7 +896,6 @@ class Py_callbacks(tg.callbacks):
 
     def fringe_data_to_device(self, fringeids, nfringe, gradflag, data):
         if nfringe == 0: return
-        
         if self.system.istage == 0: # we only need to find the information for first stage
             tg.tioga_update_fringe_face_info(gradflag)
             tg.tioga_reset_entire_mpi_face_artbnd_status_pointwise(1)

@@ -1039,14 +1039,9 @@ void MeshBlock::getFringeNodes(bool unblanking)
 #ifdef _GET_FACE_NODES_GPU
     get_face_nodes_gpu(ftag,nreceptorFaces,pointsPerFace,rxyz.data());
 #else
-    //get_face_nodes_gpu(ftag,nreceptorFaces,pointsPerFace,rxyz.data());
     pack_fringe_facecoords_pointwise(rxyz.data());
 #endif
 #else
-    // Find the position of each flux point using callback function
-    //
-    // kludge rxyzCart now
-    //  
     if (rxyzCart) free(rxyzCart);
     rxyzCart=(double *)malloc(sizeof(double)*nFacePoints*3);
     if (donorIdCart) free(donorIdCart);
@@ -1065,9 +1060,6 @@ void MeshBlock::getFringeNodes(bool unblanking)
 
   if (ihigh)
   {
-    //printf("do unblanking only %d \n", unblanking);
-    /* Add in interior nodes from fringe elements (i.e. unblank cells, or
-     * non-AB fringe cells) */
     if (iartbnd)
     {
       free(ctag);
@@ -1077,18 +1069,6 @@ void MeshBlock::getFringeNodes(bool unblanking)
       for (auto &ic : unblanks) {
         ctag[nreceptorCells++] = ic;
       }
-      ////////////for testing purpose ///////////////////
-      // need to delete validated for callback functions
-      /*
-      nreceptorCells = 10;
-      if(ctag) free(ctag);
-      ctag = (int*) malloc(sizeof(int)*10);
-      for(int i=0;i<10;i++) {
-        ctag[i] = i;
-      }
-      printf("done artificial\n");
-      */
-      ///////////////////////////////////////////////////
     }
     else
     {
@@ -1109,7 +1089,12 @@ void MeshBlock::getFringeNodes(bool unblanking)
 
     for (int i = 0; i < nreceptorCells; i++)
     {
+#ifdef _GET_NODES_PER_CELL
       get_nodes_per_cell(&(ctag[i]),&(pointsPerCell[i]));
+#else
+      int ctype = celltypes[ctag[i]];
+      pointsPerCell[i] = cell_nupts_per_type[ctype];
+#endif
       nCellPoints += pointsPerCell[i];
       maxPointsPerCell = max(maxPointsPerCell,pointsPerCell[i]);
     }
@@ -1117,11 +1102,6 @@ void MeshBlock::getFringeNodes(bool unblanking)
     ntotalPoints = nCellPoints + nFacePoints;
     rxyz.resize(ntotalPoints*3);
 #ifdef _GPU
-    /////// for testing purpose //////////////////
-    //int world_rank;
-    //MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    //printf("before get_cell_nodes_gpu %d on cpu %d ncells %d\n", unblanking, world_rank, nreceptorCells);
-    /////// for testing purpose //////////////////
     get_cell_nodes_gpu(ctag,nreceptorCells,pointsPerCell,&(rxyz[3*nFacePoints]));
 #else
     int m = nFacePoints*3;
@@ -1131,9 +1111,6 @@ void MeshBlock::getFringeNodes(bool unblanking)
       m += (3*pointsPerCell[i]);
     }
 
-    //
-    // kludge rxyzCart now
-    //
     if (rxyzCart) free(rxyzCart);
     rxyzCart = (double *)malloc(sizeof(double)*ntotalPoints*3);
     if (donorIdCart) free(donorIdCart);
@@ -1790,7 +1767,6 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
   
   // calling face data to device, qtmp stored the data
   if (nreceptorFaces > 0) {
-    // update_fringe_face_info will be called once per time step 
     face_data_to_device(ftag, nreceptorFaces, 0, qtmp); // call this to get the information
   }
 
@@ -1806,9 +1782,6 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
     {
       for (int j = 0; j < pointsPerFace[i]; j++)
         for (int n = 0; n < nvar; n++) {
-          //double &b = get_q_fpt(ftag[i],j,n);
-          //b = qtmp[fpt_start+j*nvar+n];
-          //printf("get_q_fpt b is %f\n",b);
           get_q_fpt(ftag[i], j, n) = qtmp[fpt_start+j*nvar+n];
         }
     }

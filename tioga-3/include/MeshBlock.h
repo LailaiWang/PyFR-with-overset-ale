@@ -236,6 +236,11 @@ private:
   std::vector<std::vector<std::vector<int>>> unsrted_order;
   std::vector<std::vector<std::unordered_map<int, int>>> face_unsrted_to_srted_map;
     
+  std::vector<int> celltypes; // 8 -> hex
+  std::unordered_map<int, int> cell_nupts_per_type;
+  std::unordered_map<int, std::vector<int>> cell_u_strides_per_type;
+  std::unordered_map<int, std::vector<int>> cell_du_strides_per_type;
+  std::unordered_map<int, unsigned long long int> cell_du_basedata_per_type;
   //
   // Alternating digital tree library
   //
@@ -813,6 +818,10 @@ private:
   void unpack_interior_artbnd_du_pointwise(unsigned int nvar, unsigned int dim);
   
   void pack_fringe_facecoords_pointwise(double* rxyz);
+  void set_cell_info_by_type(unsigned int nctypes, unsigned int nc,
+                             int* ctypes, int* nupts_per_type,
+                             int* ustrides, int* dustrides, unsigned long long* du_basedata
+                            );
 };
 
 #endif

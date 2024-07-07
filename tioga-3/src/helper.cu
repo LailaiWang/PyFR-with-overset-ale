@@ -256,22 +256,12 @@ void pack_cell_coords_wrapper(
 
   if (stream == -1)
   {
-    //if (nDims == 2)
-    //  pack_cell_coords<2><<<blocks, threads>>>(cellIDs,xyz,coord_spts,nCells,nSpts);
-    //else
-    //  pack_cell_coords<3><<<blocks, threads>>>(cellIDs,xyz,coord_spts,nCells,nSpts);
     pack_cell_coords<<<blocks, threads>>>(ucellIDs, ecellIDs, xyz, 
                                           coord_spts, nCells, nSpts, nDims,
                                           soasz, neled2);
   }
   else
   {
-    //if (nDims == 2)
-    //  pack_cell_coords<2><<<blocks, threads, 0, stream_handles[stream]>>>(cellIDs,
-    //      xyz,coord_spts,nCells,nSpts);
-    //else
-    //  pack_cell_coords<3><<<blocks, threads, 0, stream_handles[stream]>>>(cellIDs,
-    //      xyz,coord_spts,nCells,nSpts);
     pack_cell_coords<<<blocks, threads, 0, stream_handles[stream]>>>(ucellIDs, ecellIDs,
         xyz, coord_spts, nCells, nSpts, nDims, soasz, neled2);
   }

@@ -2016,3 +2016,44 @@ void MeshBlock::pack_fringe_facecoords_pointwise(double* rxyz) {
   cuda_copy_d2h(dst, rxyz, fcoords_tnfpts*dim);
 }
 
+void MeshBlock::set_cell_info_by_type(unsigned int nctypes, unsigned int nc, 
+                             int* ctypes, int* nupts_per_type,
+                             int* ustrides, int* dustrides, unsigned long long* du_basedata
+                            ) {
+  if(nctypes != ntypes) {
+    printf("something is wong with cell types: in %d native %d\n", nctypes, ntypes);
+  }
+  if(nc != ncells) {
+    printf("something is wong with cell num: in %d native %d\n", nc, ncells);
+  }
+  celltypes.resize(nc);
+  std::copy(ctypes, ctypes+ncells, celltypes.data());
+  for(auto i=0;i<nctypes;++i) {
+    auto type = nupts_per_type[i*2+0];
+    auto nupts = nupts_per_type[i*2+1];
+    cell_nupts_per_type.insert(std::pair<int,int>{type, nupts});
+  }
+  for(auto i=0;i<nctypes;++i) {
+    auto type = ustrides[i*4+0];
+    auto es = ustrides[i*4+1];
+    auto ss = ustrides[i*4+2];
+    auto vs = ustrides[i*4+3];
+    cell_u_strides_per_type.insert({type, std::vector<int>{es,ss,vs}});
+  }
+
+  for(auto i=0;i<nctypes;++i) {
+    auto type = dustrides[i*5+0];
+    auto es = dustrides[i*5+1];
+    auto ss = dustrides[i*5+2];
+    auto vs = dustrides[i*5+3];
+    auto ds = dustrides[i*5+4];
+    cell_du_strides_per_type.insert({type, std::vector<int>{es,ss,vs,ds}});
+  }
+  
+  for(auto i=0;i<nctypes;++i) {
+    auto type = (int) du_basedata[2*i+0];
+    auto basedata = du_basedata[2*i+1];
+    cell_du_basedata_per_type.insert({type, basedata});
+  }
+}
+

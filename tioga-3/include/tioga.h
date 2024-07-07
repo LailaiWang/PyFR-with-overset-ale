@@ -415,6 +415,11 @@ class tioga
   void prepare_mpi_artbnd_target_data(double* data, int nvar);
 
   void set_facecoords_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
+                             int* celltypes, int* nupts_per_type,
+                             int* ustrides, int* dustrides, unsigned long long* du_basedata
+                            );
+
 };
       
 #endif

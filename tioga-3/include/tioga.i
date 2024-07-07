@@ -80,6 +80,12 @@ void tioga_prepare_mpi_artbnd_target_data(double* data, int nvar);
 void tioga_set_facecoords_mapping(unsigned long long base, 
                                   unsigned long long faceinfo,
                                   unsigned long long mapping, int nfpts);
+void tioga_set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
+                unsigned long long celltypes, unsigned long long nupts_per_type,
+                unsigned long long ustrides, unsigned long long dustrides,
+                unsigned long long du_basedata
+            );
+
 
 void tg_print_data(unsigned long long int datastart, unsigned long long int offset,
                    unsigned int nums, int dtype);
@@ -201,6 +207,8 @@ void addrToCudaStream(unsigned long long int);
 %ignore tioga_prepare_interior_artbnd_target_data_gradient;
 %ignore tioga_prepare_overset_artbnd_target_data;
 %ignore tioga_prepare_mpi_artbnd_target_data;
+%ignore tioga_set_facecoords_mapping;
+%ignore tioga_set_cell_info_ty_type;
 %ignore tg_print_data;
 %ignore get_nodal_basis_wrapper;
 %ignore pack_cell_coords_wrapper;

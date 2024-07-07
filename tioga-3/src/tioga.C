@@ -1466,3 +1466,10 @@ void tioga::prepare_mpi_artbnd_target_data(double* data, int nvar) {
 void tioga::set_facecoords_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
   mb->set_facecoords_mapping(basedata, faceinfo, mapping, nfpts);
 }
+
+void tioga::set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
+                             int* celltypes, int* nupts_per_type,
+                             int* ustrides, int* dustrides, unsigned long long* du_basedata
+                            ) {
+  mb->set_cell_info_by_type(nctypes, ncells, celltypes, nupts_per_type, ustrides, dustrides, du_basedata);
+}
