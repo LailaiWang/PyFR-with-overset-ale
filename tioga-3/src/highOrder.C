@@ -1039,16 +1039,8 @@ void MeshBlock::getFringeNodes(bool unblanking)
 #ifdef _GET_FACE_NODES_GPU
     get_face_nodes_gpu(ftag,nreceptorFaces,pointsPerFace,rxyz.data());
 #else
-    get_face_nodes_gpu(ftag,nreceptorFaces,pointsPerFace,rxyz.data());
-    /*
-    int pid = getpid();
-    printf("current pid is %d hang at pack fringe facecoords\n",pid);
-    int idebugger = 1;
-    while(idebugger) {
-
-    };
+    //get_face_nodes_gpu(ftag,nreceptorFaces,pointsPerFace,rxyz.data());
     pack_fringe_facecoords_pointwise(rxyz.data());
-    */
 #endif
 #else
     // Find the position of each flux point using callback function

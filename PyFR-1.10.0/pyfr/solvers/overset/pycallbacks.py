@@ -883,47 +883,6 @@ class Py_callbacks(tg.callbacks):
             data, self.system.nvars, self.system.ndims
         )
         
-
-    def get_face_nodes_gpu(self, faceids, nfaces, nptsface, xyz):
-        # these faces are 
-        print('call through pyfr')
-        if nfaces == 0: return
-        tot_nfpts = 0
-        for i in range(nfaces):
-            tot_nfpts = tot_nfpts + ptrAt(nptsface, i)
-        # first build up the interface information
-        faceinfo = []
-        for i in range(nfaces):
-            fid = ptrAt(faceids,i)
-            # using faceid to get the nfpts
-            cidx1, cidx2 = self.griddata['f2corg'][fid]
-            if cidx2 <0: cidx2 = cidx1
-            fpos1, fpos2 = self.griddata['faceposition'][fid]
-            etyp1    = self.griddata['celltypes'][cidx1]
-            etyp2    = self.griddata['celltypes'][cidx2] 
-            
-            perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0)
-            faceinfo.append(perface)
-
-        # note there need to use unsorted face idx
-        # check base/element.py
-        self._scal_fpts_ploc = self._scal_view_fpts_ploc(
-                faceinfo, 'get_scal_unsrted_fpts_ploc_for_inter')
-        self.fringe_coords_d = self.griddata['fringe_coords_d']
-        # datashape of ploc_at_ncon('fpts') is [nfpts, neled2, dim, soasz]
-        # pointwise operation
-        tg.pack_fringe_coords_wrapper(
-            addrToIntPtr(self._scal_fpts_ploc.mapping.data), # offset PyFR martix
-            addrToFloatPtr(self.fringe_coords_d), # a flat matrx 
-            addrToFloatPtr(int(self._scal_fpts_ploc._mats[0].basedata)),# starting addrs
-            tot_nfpts, self.system.ndims, self.backend.soasz, 3
-        )
-        print(f'destination {int(self._scal_fpts_ploc._mats[0].basedata)}')
-        nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
-        nbytes = nbytes*self.system.ndims
-        tg.tg_copy_to_host(self.fringe_coords_d, xyz, nbytes)
-
-    # cell data used for unblanking, infuse data into unblanked cells
     # unblank_to_device
     def cell_data_to_device(self, cellids, ncells, gradflag, data):
         if ncells == 0: return 

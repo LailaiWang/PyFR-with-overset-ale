@@ -1613,6 +1613,16 @@ void MeshBlock::set_mpi_rhs_mapping(unsigned long long int basedata,int* mapping
   mpi_entire_rhs_mapping_d.assign(mpi_entire_rhs_mapping.data(), mpi_entire_rhs_mapping.size(), NULL);
   mpi_entire_rhs_strides_d.assign(mpi_entire_rhs_strides.data(), mpi_entire_rhs_strides.size(), NULL);
 
+  auto erange = std::views::iota(nbcfaces, nbcfaces+nmpifaces);
+  mpi_entire_nfpts.resize(nmpifaces);
+  std::for_each(std::execution::par, erange.begin(), erange.end(), 
+    [this](auto idx) {
+       mpi_entire_nfpts[idx-nbcfaces] = face_fpts[idx];
+    });
+  mpi_entire_scan.resize(nmpifaces);
+  std::exclusive_scan(std::execution::par, mpi_entire_nfpts.begin(), mpi_entire_nfpts.end(),
+        mpi_entire_scan.begin(), 0
+    );
 }
 
 void MeshBlock::set_overset_rhs_basedata(unsigned long long int basedata) {
@@ -1725,11 +1735,22 @@ void MeshBlock::figure_out_mpi_artbnd_target() {
         auto fid = mpi_ab_faces[idx].first;
         for(auto i=0;i<face_fpts[fid];++i) {
             auto npid = mpi_target_scan[idx] + i;
-            mpi_target_rhs_fptsid[npid] = npid; // get the id for current fpts
+            auto gpid = mpi_entire_scan[fid - nbcfaces] + i;
+            //printf("npid is %d i is %d tartget sca %d entire scan %d fid is %d\n", npid, i, mpi_target_scan[idx], mpi_entire_scan[fid - nbcfaces], fid - nbcfaces);
+            mpi_target_rhs_fptsid[npid] = gpid; // get the id for current fpts
         }
     });
   mpi_target_rhs_fptsid_d.resize(mpi_tnfpts);
   mpi_target_rhs_fptsid_d.assign(mpi_target_rhs_fptsid.data(), mpi_target_rhs_fptsid.size(), NULL);
+
+
+  {
+    int pid = getpid();
+    int idebugger = 0;
+    while(idebugger) {
+
+    };
+  }
 }
 
 

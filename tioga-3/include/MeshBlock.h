@@ -211,6 +211,9 @@ private:
   dvec<int> mpi_entire_mapping_d;
   std::vector<double> mpi_data_h;
   dvec<double> mpi_data_d; // memory buffer to interior ab
+  
+  std::vector<int> mpi_entire_nfpts;
+  std::vector<int> mpi_entire_scan;
 
   std::vector<int> mpi_entire_rhs_mapping;
   std::vector<int> mpi_entire_rhs_strides;
