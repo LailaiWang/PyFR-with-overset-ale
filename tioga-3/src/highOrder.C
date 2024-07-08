@@ -1102,7 +1102,12 @@ void MeshBlock::getFringeNodes(bool unblanking)
     ntotalPoints = nCellPoints + nFacePoints;
     rxyz.resize(ntotalPoints*3);
 #ifdef _GPU
+#ifdef _GET_CELL_NODES_GPU
     get_cell_nodes_gpu(ctag,nreceptorCells,pointsPerCell,&(rxyz[3*nFacePoints]));
+#else
+    get_cell_nodes_gpu(ctag,nreceptorCells,pointsPerCell,&(rxyz[3*nFacePoints]));
+    pointwise_pack_cell_coords(nCellPoints, &(rxyz[3*nFacePoints]));
+#endif
 #else
     int m = nFacePoints*3;
     for (int i = 0; i < nreceptorCells; i++)

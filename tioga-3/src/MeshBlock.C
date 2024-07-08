@@ -2075,6 +2075,13 @@ void MeshBlock::set_cell_info_by_type(unsigned int nctypes, unsigned int nc,
 
 void MeshBlock::pointwise_pack_cell_coords(int ntotal, double* rxyz) {
   // consider only one type
+  if(nreceptorCells == 0) return;
+    int pid = getpid();
+    printf("current pid is %d hang at pack cell coords\n",pid);
+    int idebugger = 0;
+    while(idebugger) {
+
+    };
   constexpr int dim = 3;
   cell_target_coords_scan.resize(nreceptorCells);
   std::exclusive_scan(pointsPerCell, pointsPerCell+nreceptorCells,
@@ -2092,6 +2099,11 @@ void MeshBlock::pointwise_pack_cell_coords(int ntotal, double* rxyz) {
   double* src = reinterpret_cast<double*>(cell_coords_basedata_per_type[ctype]);
   int nspts = cell_nupts_per_type[ctype];
   int neled2 = cell_coords_strides_per_type[ctype][1];
+  //printf("tigao side %lld %d %d %d\n", cell_coords_basedata_per_type[ctype], neled2,
+  //      nreceptorCells, nspts
+  //  );
+  //for(auto i : cell_target_coords_scan) printf(" %d", i); printf("\n");
+  //for(int i=0;i<nreceptorCells;++i) printf(" %d", ctag[i]); printf("\n");
   pack_cell_coords_wrapper(loc, eid, dst, src, nreceptorCells, nspts, dim, soasz, neled2, 3 );
   // now copy data to host
   cuda_copy_d2h(dst, rxyz, ntotal * dim);

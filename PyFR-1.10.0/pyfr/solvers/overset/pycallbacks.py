@@ -521,13 +521,24 @@ class Py_callbacks(tg.callbacks):
         du_basedata = np.array([
             [ctype_to_int(etype),int(eles._vect_upts.data)] for etype, eles in ele_map.items()]
             ).astype('int64').reshape(-1)
+
+        cstrides = np.array([
+
+            [ctype_to_int(etype)] + eles.ploc_at_ncon('upts').datashape for etype, eles in ele_map.items()
+            ]).astype('int32').reshape(-1)
+        
+        coords_basedata = np.array([
+            [ctype_to_int(etype),int(eles.ploc_at_ncon('upts').data)] for etype, eles in ele_map.items()
+            ]). astype('int64').reshape(-1)
+            
         # now get strides for gradient variables
         tg.tioga_set_cell_info_by_type(
                 ntypes, ncells,
                 celltypes.ctypes.data, 
                 nupts_per_type.ctypes.data, 
                 ustrides.ctypes.data, dustrides.ctypes.data, 
-                du_basedata.ctypes.data
+                du_basedata.ctypes.data, 
+                cstrides.ctypes.data, coords_basedata.ctypes.data
             )
         test = 1
                    
@@ -1005,13 +1016,16 @@ class Py_callbacks(tg.callbacks):
                 self.unblank_ids_loc[etype],addrToIntPtr(ptr_loc), int(nbytes_l)
             )
 
+        '''
         # for each type do the copy
         for etype in unblank_ids_ele.keys():
             ele_coords = self.system.ele_map[etype].ploc_at_ncon('upts')
             nspts = self.system.ele_map[etype].basis.nupts
             ncells = unblank_ids_ele[etype].shape[1]
             neled2 = ele_coords.datashape[1]
-
+            print(f'data {ele_coords.data} neled2 is {neled2} ncells {ncells} nspts {nspts} ')
+            print('loc', unblank_ids_loc)
+            print('ele', unblank_ids_ele)
             tg.pack_cell_coords_wrapper(
                 addrToIntPtr(self.unblank_ids_loc[etype]),
                 addrToIntPtr(self.unblank_ids_ele[etype]),
@@ -1023,7 +1037,8 @@ class Py_callbacks(tg.callbacks):
         # copy data from device to xyz
         nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nspts*self.system.ndims
         tg.tg_copy_to_host(self.unblank_coords_d, xyz, int(nbytes))
-        
+        '''
+
     def get_q_spts_gpu(self, ele_stride, spt_stride, var_stride, ele_type):
         etype = 'hex-g{}'.format(self.gid)
         eles = self.system.ele_map[etype]
