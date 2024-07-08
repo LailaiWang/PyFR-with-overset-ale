@@ -178,6 +178,7 @@ void tioga_set_facecoords_mapping(unsigned long long basedata, unsigned long lon
 void tioga_set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
         unsigned long long celltypes, unsigned long long nupts_per_type, 
         unsigned long long ustrides, unsigned long long dustrides, 
-        unsigned long long du_basedata   
+        unsigned long long du_basedata,
+        unsigned long long cstrides, unsigned long long c_basedata
     );
 } /* extern "C" */

@@ -222,8 +222,6 @@ void pack_cell_coords(
   // element type has are different
 
   const unsigned int idx = blockDim.x * blockIdx.x + threadIdx.x;
-  //const unsigned int spt = (blockDim.x * blockIdx.x + threadIdx.x) % nSpts;
-  //const unsigned int ele = (blockDim.x * blockIdx.x + threadIdx.x) / nSpts;
   const unsigned int spt = idx % nSpts;
   const unsigned int ele = idx / nSpts;
   if (ele >= nCells)
@@ -251,7 +249,7 @@ void pack_cell_coords_wrapper(
     unsigned int nSpts, unsigned int nDims,
     unsigned int soasz, unsigned int neled2, int stream) {
 
-  int threads = 128;
+  constexpr int threads = 256;
   int blocks = (nCells * nSpts + threads - 1) / threads;
 
   if (stream == -1)

@@ -525,13 +525,16 @@ extern "C" {
   void tioga_set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
         unsigned long long caddr, unsigned long long nuptsaddr, 
         unsigned long long uaddr, unsigned long long duaddr, 
-        unsigned long long baseaddr
+        unsigned long long baseaddr,
+        unsigned long long csaddr, unsigned long long cbaseaddr
     ) {
     int* celltypes = reinterpret_cast<int*>(caddr);
     int* nupts_per_type = reinterpret_cast<int*>(nuptsaddr);
     int* ustrides = reinterpret_cast<int*>(uaddr);
     int* dustrides = reinterpret_cast<int*>(duaddr);
     unsigned long long* du_basedata = reinterpret_cast<unsigned long long*>(baseaddr);
-    tg->set_cell_info_by_type(nctypes, ncells, celltypes, nupts_per_type, ustrides, dustrides, du_basedata);
+    int* cstrides = reinterpret_cast<int*>(csaddr);
+    unsigned long long* c_basedata = reinterpret_cast<unsigned long long*>(cbaseaddr);
+    tg->set_cell_info_by_type(nctypes, ncells, celltypes, nupts_per_type, ustrides, dustrides, du_basedata, cstrides, c_basedata);
   }
 }

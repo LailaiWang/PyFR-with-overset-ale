@@ -53,6 +53,8 @@ extern void unpack_fringe_grad_wrapper(double*, double*, int*, int*, unsigned in
 extern void pointwise_copy_to_mpi_rhs_wrapper(double*, int*, int*, double*, int*, unsigned int, unsigned int, int);
 extern void pack_fringe_coords_wrapper(int*, double*, double*, int, int, unsigned int ,int);
 
+extern void pack_cell_coords_wrapper(int*, int*, double*, double*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, int);
+
 struct vector_hash {
   int operator()(const std::vector<int> &V) const {
     int hash = V.size();
@@ -241,6 +243,12 @@ private:
   std::unordered_map<int, std::vector<int>> cell_u_strides_per_type;
   std::unordered_map<int, std::vector<int>> cell_du_strides_per_type;
   std::unordered_map<int, unsigned long long int> cell_du_basedata_per_type;
+  std::unordered_map<int, std::vector<int>> cell_coords_strides_per_type;
+  std::unordered_map<int, unsigned long long int> cell_coords_basedata_per_type;
+  std::vector<int> cell_target_coords_scan;
+  dvec<int> cell_target_coords_scan_d;
+  dvec<int> cell_target_ids_d;
+  dvec<double> cell_target_coords_data_d;
   //
   // Alternating digital tree library
   //
@@ -820,8 +828,10 @@ private:
   void pack_fringe_facecoords_pointwise(double* rxyz);
   void set_cell_info_by_type(unsigned int nctypes, unsigned int nc,
                              int* ctypes, int* nupts_per_type,
-                             int* ustrides, int* dustrides, unsigned long long* du_basedata
+                             int* ustrides, int* dustrides, unsigned long long* du_basedata,
+                             int* cstrides, unsigned long long* c_basedata
                             );
+  void pointwise_pack_cell_coords(int ntotal, double* rxyz);
 };
 
 #endif

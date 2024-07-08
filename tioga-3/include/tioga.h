@@ -417,7 +417,8 @@ class tioga
   void set_facecoords_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
   void set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
                              int* celltypes, int* nupts_per_type,
-                             int* ustrides, int* dustrides, unsigned long long* du_basedata
+                             int* ustrides, int* dustrides, unsigned long long* du_basedata,
+                             int* cstrides, unsigned long long* c_basedata
                             );
 
 };

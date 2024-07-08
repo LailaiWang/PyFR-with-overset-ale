@@ -2018,7 +2018,8 @@ void MeshBlock::pack_fringe_facecoords_pointwise(double* rxyz) {
 
 void MeshBlock::set_cell_info_by_type(unsigned int nctypes, unsigned int nc, 
                              int* ctypes, int* nupts_per_type,
-                             int* ustrides, int* dustrides, unsigned long long* du_basedata
+                             int* ustrides, int* dustrides, unsigned long long* du_basedata,
+                             int* cstrides, unsigned long long* c_basedata
                             ) {
   if(nctypes != ntypes) {
     printf("something is wong with cell types: in %d native %d\n", nctypes, ntypes);
@@ -2033,6 +2034,7 @@ void MeshBlock::set_cell_info_by_type(unsigned int nctypes, unsigned int nc,
     auto nupts = nupts_per_type[i*2+1];
     cell_nupts_per_type.insert(std::pair<int,int>{type, nupts});
   }
+
   for(auto i=0;i<nctypes;++i) {
     auto type = ustrides[i*4+0];
     auto es = ustrides[i*4+1];
@@ -2055,5 +2057,43 @@ void MeshBlock::set_cell_info_by_type(unsigned int nctypes, unsigned int nc,
     auto basedata = du_basedata[2*i+1];
     cell_du_basedata_per_type.insert({type, basedata});
   }
+
+  for(auto i=0;i<nctypes;++i) {
+    auto type = cstrides[i*4+0];
+    auto es = cstrides[i*4+1];
+    auto ss = cstrides[i*4+2];
+    auto vs = cstrides[i*4+3];
+    cell_coords_strides_per_type.insert({type, std::vector<int>{es,ss,vs}});
+  }
+ 
+  for(auto i=0;i<nctypes;++i) {
+    auto type = (int) c_basedata[2*i+0];
+    auto basedata = c_basedata[2*i+1];
+    cell_coords_basedata_per_type.insert({type, basedata});
+  }
+}
+
+void MeshBlock::pointwise_pack_cell_coords(int ntotal, double* rxyz) {
+  // consider only one type
+  constexpr int dim = 3;
+  cell_target_coords_scan.resize(nreceptorCells);
+  std::exclusive_scan(pointsPerCell, pointsPerCell+nreceptorCells,
+        cell_target_coords_scan.begin(),0);
+  cell_target_coords_scan_d.assign(cell_target_coords_scan.data(), cell_target_coords_scan.size(), NULL);
+
+  cell_target_coords_data_d.resize(ntotal*dim); // resize this 
+
+  cell_target_ids_d.assign(ctag, nreceptorCells, NULL);
+
+  int* loc = cell_target_coords_scan_d.data(); // start idx per cell for local data
+  int* eid = cell_target_ids_d.data();  // global element id
+  double* dst = cell_target_coords_data_d.data();
+  int ctype = 8; // right now GPU version only support single type
+  double* src = reinterpret_cast<double*>(cell_coords_basedata_per_type[ctype]);
+  int nspts = cell_nupts_per_type[ctype];
+  int neled2 = cell_coords_strides_per_type[ctype][1];
+  pack_cell_coords_wrapper(loc, eid, dst, src, nreceptorCells, nspts, dim, soasz, neled2, 3 );
+  // now copy data to host
+  cuda_copy_d2h(dst, rxyz, ntotal * dim);
 }
 
