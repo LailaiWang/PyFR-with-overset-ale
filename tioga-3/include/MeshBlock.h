@@ -307,7 +307,7 @@ private:
   double* (*get_dq_spts)(int& ele_stride, int& spt_stride, int& var_stride, int& dim_stride, int etype);
 
   // GPU-related functions
-  double* (*get_q_spts_d)(int& ele_stride, int& spt_stride, int& var_stride, int etype);
+  double* (*get_q_spts_d)(int etype);
   double* (*get_dq_spts_d)(int& ele_stride, int& spt_stride, int& var_stride, int& dim_stride, int etype);
 
   void (*get_face_nodes_gpu)(int* fringeIDs, int nFringe, int* nptPerFace, double* xyz);
@@ -691,7 +691,7 @@ private:
 
   void setCallbackArtBndGpu(void (*h2df)(int* ids, int nf, int grad, double *data),
                             void (*h2dc)(int* ids, int nf, int grad, double *data),
-                            double* (*gqd)(int& es, int& ss, int& vs, int etype),
+                            double* (*gqd)(int etype),
                             double* (*gdqd)(int& es, int& ss, int& vs, int& ds, int etype),
                             void (*gfng)(int*, int, int*, double*),
                             void (*gcng)(int*, int, int*, double*),

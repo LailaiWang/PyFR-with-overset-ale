@@ -318,7 +318,7 @@ extern "C" {
 
   void tioga_set_ab_callback_gpu_(void (*h2df)(int* ids, int nf, int grad, double *data),
                                   void (*h2dc)(int* ids, int nc, int grad, double *data),
-                                  double* (*gqd)(int& es, int& ss, int& vs, int etype),
+                                  double* (*gqd)(int etype),
                                   double* (*gdqd)(int& es, int& ss, int& vs, int& ds, int etype),
                                   void (*gfng)(int*, int, int*, double*),
                                   void (*gcng)(int*, int, int*, double*),

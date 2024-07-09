@@ -268,7 +268,7 @@ struct callbacks {
   virtual void fringe_data_to_device(int* ids, int nf, int grad, double* data)=0;
   virtual void cell_data_to_device(int* ids, int nc, int grad, double* data)=0;
 
-  virtual unsigned  long long int get_q_spts_gpu(int& es, int& ss, int&vs, int etype)=0;
+  virtual unsigned  long long int get_q_spts_gpu(int etype)=0;
   virtual unsigned  long long int get_dq_spts_gpu(int& es, int& ss, int& vs, int& ds, int etype)=0;
 
   virtual ~callbacks() {}
@@ -340,9 +340,8 @@ static void helper_cell_data_to_device(int* ids, int nc, int grad, double* data)
   return cb_ptr->cell_data_to_device(ids,nc,grad,data);
 }
 
-static unsigned long long int helper_get_q_spts_gpu(int& es, int& ss, 
-                                                    int& vs, int etype) {
-  return cb_ptr->get_q_spts_gpu(es,ss,vs,etype);
+static unsigned long long int helper_get_q_spts_gpu(int etype) {
+  return cb_ptr->get_q_spts_gpu(etype);
 }
 
 static unsigned long long int helper_get_dq_spts_gpu(int& es, int& ss, int& vs,
@@ -350,8 +349,8 @@ static unsigned long long int helper_get_dq_spts_gpu(int& es, int& ss, int& vs,
   return cb_ptr->get_dq_spts_gpu(es,ss,vs,ds,etype);
 }
 
-double* helper_array_q_gpu(int& es, int& ss, int& vs, int etyp) {
-    unsigned long long int c = helper_get_q_spts_gpu(es,ss,vs,etyp);
+double* helper_array_q_gpu(int etype) {
+    unsigned long long int c = helper_get_q_spts_gpu(etype);
     double *tmp = reinterpret_cast<double*> (c);
     return tmp;
 }
@@ -454,7 +453,6 @@ void tioga_set_callbacks_ptr(callbacks* cb) {
 
 %inline %{
 void tioga_set_highorder_callback_wrapper(callbacks* cb) {
-    //cb_ptr = cb;
     tioga_set_highorder_callback_(&helper_get_nodes_per_cell,
                                   &helper_get_receptor_nodes,
                                   &helper_donor_inclusion_test,
@@ -465,7 +463,6 @@ void tioga_set_highorder_callback_wrapper(callbacks* cb) {
 
 %inline %{
 void tioga_set_ab_callback_wrapper(callbacks* cb) {
-    //cb_ptr = cb;
     tioga_set_ab_callback_(&helper_get_nodes_per_face,
                            &helper_get_face_nodes,
                            &helper_get_q_spt,
@@ -477,10 +474,8 @@ void tioga_set_ab_callback_wrapper(callbacks* cb) {
 }
 %}
 
-// for GPU
 %inline %{
 void tioga_set_ab_callback_gpu_wrapper(callbacks* cb) {
-    //cb_ptr = cb;
     tioga_set_ab_callback_gpu_(&helper_fringe_data_to_device,
                            &helper_cell_data_to_device,
                            &helper_array_q_gpu,

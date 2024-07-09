@@ -1609,22 +1609,29 @@ void MeshBlock::getInterpolatedGradientAtPoints(int &nints, int &nreals,
 void MeshBlock::interpSolution_gpu(double *q_out_d, int nvar)
 {
   
-  //printf("interpSolution_gpu %d\n", ninterp2);
   if (ninterp2 == 0) return;
 
   std::vector<double*> qtd_h(ntypes);
-  // here change strides_h
-  //std::vector<int> strides_h(3*ntypes);
   std::vector<int> strides_h(4*ntypes);
 
   for (int n = 0; n < ntypes; n++)
   {
+#ifdef _GET_Q_SPTS_D
     int estride, sstride, vstride;
     qtd_h[n] = get_q_spts_d(estride, sstride, vstride, n);
     strides_h[4*n] = estride;
     strides_h[4*n+1] = sstride;
     strides_h[4*n+2] = vstride;
     strides_h[4*n+3] = soasz;
+#else
+    int ctype = 8;
+    qtd_h[n] = get_q_spts_d(ctype);
+    auto& strides = cell_u_strides_per_type[ctype];
+    strides_h[4*n  ] = strides[0];
+    strides_h[4*n+1] = strides[1];
+    strides_h[4*n+2] = strides[2];
+    strides_h[4*n+3] = soasz;
+#endif
   }
 
   qptrs_d.resize(ntypes);

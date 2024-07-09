@@ -531,6 +531,11 @@ class Py_callbacks(tg.callbacks):
             [ctype_to_int(etype),int(eles.ploc_at_ncon('upts').data)] for etype, eles in ele_map.items()
             ]). astype('int64').reshape(-1)
             
+        custrides = np.array([
+
+            [ctype_to_int(etype)] + eles.scal_upts_inb._curr_mat.datashape for etype, eles in ele_map.items()
+            ]).astype('int32').reshape(-1)
+        
         # now get strides for gradient variables
         tg.tioga_set_cell_info_by_type(
                 ntypes, ncells,
@@ -540,7 +545,6 @@ class Py_callbacks(tg.callbacks):
                 du_basedata.ctypes.data, 
                 cstrides.ctypes.data, coords_basedata.ctypes.data
             )
-        test = 1
                    
     def setup_interior_mapping(self):
         grid = self.griddata
@@ -1039,19 +1043,10 @@ class Py_callbacks(tg.callbacks):
         tg.tg_copy_to_host(self.unblank_coords_d, xyz, int(nbytes))
         '''
 
-    def get_q_spts_gpu(self, ele_stride, spt_stride, var_stride, ele_type):
-        etype = 'hex-g{}'.format(self.gid)
-        eles = self.system.ele_map[etype]
-        elesdata = eles.scal_upts_inb._curr_mat
-        nspt, neled1, nvars, neled2 = elesdata.datashape
-        es = nvars*neled2
-        ss = neled1*nvars*neled2
-        vs = neled2
-        writeAt(ele_stride, 0, es)
-        writeAt(spt_stride, 0, ss)
-        writeAt(var_stride, 0, vs)
-        return int(elesdata.data)
-        
+    def get_q_spts_gpu(self, et):
+        int_to_ctype_dict = {8: 'hex'}
+        etype = f'{int_to_ctype_dict[et]}-g{self.gid}'
+        return int(self.system.ele_map[etype].scal_upts_inb._curr_mat.data)
 
     def _view(self, inter, meth, vshape=tuple()):
         # no permute
