@@ -2074,20 +2074,16 @@ void MeshBlock::set_cell_info_by_type(unsigned int nctypes, unsigned int nc,
 }
 
 void MeshBlock::pointwise_pack_cell_coords(int ntotal, double* rxyz) {
-  // consider only one type
+  // consider only one type for now
   if(nreceptorCells == 0) return;
-    int pid = getpid();
-    printf("current pid is %d hang at pack cell coords\n",pid);
-    int idebugger = 0;
-    while(idebugger) {
-
-    };
   constexpr int dim = 3;
   cell_target_coords_scan.resize(nreceptorCells);
-  std::exclusive_scan(pointsPerCell, pointsPerCell+nreceptorCells,
-        cell_target_coords_scan.begin(),0);
+  std::exclusive_scan(pointsPerCell, pointsPerCell+nreceptorCells, cell_target_coords_scan.begin(),0);
   cell_target_coords_scan_d.assign(cell_target_coords_scan.data(), cell_target_coords_scan.size(), NULL);
-
+  
+  if(ntotal != cell_target_coords_scan[nreceptorCells-1] + pointsPerCell[nreceptorCells-1]) {
+     printf("inconsistency in pack_cell_coords\n");
+  }
   cell_target_coords_data_d.resize(ntotal*dim); // resize this 
 
   cell_target_ids_d.assign(ctag, nreceptorCells, NULL);
@@ -2107,5 +2103,25 @@ void MeshBlock::pointwise_pack_cell_coords(int ntotal, double* rxyz) {
   pack_cell_coords_wrapper(loc, eid, dst, src, nreceptorCells, nspts, dim, soasz, neled2, 3 );
   // now copy data to host
   cuda_copy_d2h(dst, rxyz, ntotal * dim);
+}
+
+void MeshBlock::pointwise_unpack_cell_soln(double* data, int nvar) {
+  // consider only one type for now
+  if(nCellPoints == 0) return;
+  int ncells = nreceptorCells;
+  cell_target_soln_data_d.resize(nvar * nCellPoints);
+
+  int* loc = cell_target_coords_scan_d.data();
+  int* eid = cell_target_ids_d.data();
+  double* src = cell_target_soln_data_d.data();
+  
+  int ctype = 8;
+  double* dst = get_q_spts_d(ctype); // get the current active bank on the pyfr side
+  int nspts = cell_nupts_per_type[ctype];
+  auto& ustrides = cell_u_strides_per_type[ctype];
+  // ustrides[1] = shape[1]*shape[2]*shape[3] ustrides[0] = shape[2]*shape[3] 
+  int neled2 = ustrides[1]/ustrides[0]; 
+  cuda_copy_h2d(src, data, nCellPoints*nvar);
+  unpack_unblank_u_wrapper(loc, eid, src, dst, ncells, nspts, nvar, soasz, neled2, 3);
 }
 

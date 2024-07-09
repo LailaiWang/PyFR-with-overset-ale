@@ -277,12 +277,7 @@ void unpack_unblank_u(
     unsigned int nSpts, unsigned int nVars,
     unsigned int soasz, unsigned int neled2)
 {   
-  // note the differences from pack_coords
   const unsigned int tot_ind = (blockDim.x * blockIdx.x + threadIdx.x);
-  //const unsigned int var = tot_ind % nVars;
-  //const unsigned int spt = (tot_ind / nVars) % nSpts;
-  //const unsigned int ele = tot_ind / (nSpts * nVars);
-
   const unsigned int ele = tot_ind / (nSpts);
   const unsigned int spt = tot_ind % nSpts;
   if (ele >= nCells || spt >= nSpts)
@@ -312,8 +307,7 @@ void unpack_unblank_u_wrapper(
     unsigned int nSpts, unsigned int nVars,
     unsigned int soasz, unsigned int neled2, int stream) {
 
-  int threads = 128;
-  //int blocks = (nCells * nSpts * nVars + threads - 1) / threads;
+  int threads = 256;
   int blocks = (nCells * nSpts  + threads - 1) / threads;
 
   if (stream == -1) {

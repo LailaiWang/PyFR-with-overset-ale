@@ -1105,7 +1105,6 @@ void MeshBlock::getFringeNodes(bool unblanking)
 #ifdef _GET_CELL_NODES_GPU
     get_cell_nodes_gpu(ctag,nreceptorCells,pointsPerCell,&(rxyz[3*nFacePoints]));
 #else
-    get_cell_nodes_gpu(ctag,nreceptorCells,pointsPerCell,&(rxyz[3*nFacePoints]));
     pointwise_pack_cell_coords(nCellPoints, &(rxyz[3*nFacePoints]));
 #endif
 #else
@@ -1793,8 +1792,13 @@ void MeshBlock::updateFringePointData(double *qtmp, int nvar)
     face_data_to_device(ftag, nreceptorFaces, 0, qtmp); // call this to get the information
   }
 
-  if (nreceptorCells > 0)
+  if (nreceptorCells > 0) {
+#ifdef _CELL_DATA_TO_DEVICE
     cell_data_to_device(ctag, nreceptorCells, 0, qtmp+nvar*nFacePoints);
+#else
+    pointwise_unpack_cell_soln(qtmp+nvar*nFacePoints, nvar);
+#endif
+  }
 
 #else
 

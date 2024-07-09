@@ -531,11 +531,6 @@ class Py_callbacks(tg.callbacks):
             [ctype_to_int(etype),int(eles.ploc_at_ncon('upts').data)] for etype, eles in ele_map.items()
             ]). astype('int64').reshape(-1)
             
-        custrides = np.array([
-
-            [ctype_to_int(etype)] + eles.scal_upts_inb._curr_mat.datashape for etype, eles in ele_map.items()
-            ]).astype('int32').reshape(-1)
-        
         # now get strides for gradient variables
         tg.tioga_set_cell_info_by_type(
                 ntypes, ncells,
@@ -930,118 +925,6 @@ class Py_callbacks(tg.callbacks):
         tg.tioga_prepare_interior_artbnd_target_data_gradient(
             data, self.system.nvars, self.system.ndims
         )
-        
-    # unblank_to_device
-    def cell_data_to_device(self, cellids, ncells, gradflag, data):
-        if ncells == 0: return 
-        if gradflag == 0:
-            self.cell_u_to_device(cellids, ncells, data)
-        else:
-            # this will never be called 
-            self.cell_du_to_device(cellids, ncells, data)
-
-    def cell_u_to_device(self, cellids, ncells, data):
-        # there are from get_cell_coords
-        unblank_ids_ele = self.unblank_ids_ele_host
-        unblank_ids_loc = self.unblank_ids_loc_host
-        self.unblank_u_d = self.griddata['unblank_u_d']
-
-        # copy data from host to device
-        tot_nspts = self.tot_nspts
-        nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nspts*self.system.nvars
-        tg.tg_copy_to_device(self.unblank_u_d, data, int(nbytes))
-
-        # for each type do the copy inject data into unblanked cells
-        for etype in unblank_ids_ele.keys():
-            ele_soln = self.system.ele_map[etype].scal_upts_inb._curr_mat
-            nspts = self.system.ele_map[etype].basis.nupts
-            encells = unblank_ids_ele[etype].shape[1]
-            
-            neled2 = ele_soln.datashape[1]
-
-            tg.unpack_unblank_u_wrapper(
-                addrToIntPtr(self.unblank_ids_loc[etype]),
-                addrToIntPtr(self.unblank_ids_ele[etype]),
-                addrToFloatPtr(self.unblank_u_d),
-                addrToFloatPtr(ele_soln.data),
-                int(encells), int(nspts), int(self.system.nvars), 
-                int(self.system.backend.soasz), int(neled2), 3
-            )
-
-    def cell_du_to_device(self, cellids, ncell, data):
-        raise RuntimeError("copy du to device should not happen")
-    
-    def get_cell_nodes_gpu(self, cellids, ncells, nptscell, xyz):
-        if ncells == 0 : return
-        unblank_ids_ele = OrderedDict()
-        unblank_ids_loc = OrderedDict() # stores the entrance of each cell spts
-        for etype in self.system.ele_types:
-            unblank_ids_ele[etype] = []
-            unblank_ids_loc[etype] = []
-        # do the copy element by element
-        tot_nspts = 0
-        for i in range(ncells):
-            # cell id
-            cid = ptrAt(cellids, i)
-            etype = self.griddata['celltypes'][cid]
-            typecidx = self.griddata['celloffset'][cid]
-            unblank_ids_ele[etype].append(cid-typecidx) 
-            npts = self.system.ele_map[etype].basis.nupts
-            unblank_ids_loc[etype].append(tot_nspts)
-            tot_nspts = tot_nspts + npts
-            # write data to nptscell
-            writeAt(nptscell, i, int(npts))
-        for etype in self.system.ele_types:
-            unblank_ids_ele[etype] = np.atleast_2d(
-                np.array(unblank_ids_ele[etype])
-            ).astype('int32')
-            unblank_ids_loc[etype] = np.atleast_2d(
-                np.array(unblank_ids_loc[etype])
-            ).astype('int32')
-        
-        # save for later use
-        self.unblank_ids_ele_host = unblank_ids_ele
-        self.unblank_ids_loc_host = unblank_ids_loc
-        self.tot_nspts = tot_nspts
-        self.unblank_ids_ele = self.griddata['unblank_ids_ele']
-        self.unblank_ids_loc = self.griddata['unblank_ids_loc']
-        self.unblank_coords_d = self.griddata['unblank_coords_d']
-
-        # copy unblank_ids_ele and unblank_ids_loc to backend
-        for etype in unblank_ids_ele.keys():
-            ptr_ele = unblank_ids_ele[etype].__array_interface__['data'][0]
-            ptr_loc = unblank_ids_loc[etype].__array_interface__['data'][0]
-            nbytes_e = unblank_ids_ele[etype].nbytes
-            nbytes_l = unblank_ids_loc[etype].nbytes
-            tg.tg_copy_to_device(
-                self.unblank_ids_ele[etype],addrToIntPtr(ptr_ele), int(nbytes_e)
-            )
-            tg.tg_copy_to_device(
-                self.unblank_ids_loc[etype],addrToIntPtr(ptr_loc), int(nbytes_l)
-            )
-
-        '''
-        # for each type do the copy
-        for etype in unblank_ids_ele.keys():
-            ele_coords = self.system.ele_map[etype].ploc_at_ncon('upts')
-            nspts = self.system.ele_map[etype].basis.nupts
-            ncells = unblank_ids_ele[etype].shape[1]
-            neled2 = ele_coords.datashape[1]
-            print(f'data {ele_coords.data} neled2 is {neled2} ncells {ncells} nspts {nspts} ')
-            print('loc', unblank_ids_loc)
-            print('ele', unblank_ids_ele)
-            tg.pack_cell_coords_wrapper(
-                addrToIntPtr(self.unblank_ids_loc[etype]),
-                addrToIntPtr(self.unblank_ids_ele[etype]),
-                addrToFloatPtr(self.unblank_coords_d),
-                addrToFloatPtr(ele_coords.data),
-                int(ncells), int(nspts), int(self.system.ndims), 
-                int(self.system.backend.soasz), int(neled2), 3
-            )
-        # copy data from device to xyz
-        nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nspts*self.system.ndims
-        tg.tg_copy_to_host(self.unblank_coords_d, xyz, int(nbytes))
-        '''
 
     def get_q_spts_gpu(self, et):
         int_to_ctype_dict = {8: 'hex'}

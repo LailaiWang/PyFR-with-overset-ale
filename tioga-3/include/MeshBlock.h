@@ -54,6 +54,7 @@ extern void pointwise_copy_to_mpi_rhs_wrapper(double*, int*, int*, double*, int*
 extern void pack_fringe_coords_wrapper(int*, double*, double*, int, int, unsigned int ,int);
 
 extern void pack_cell_coords_wrapper(int*, int*, double*, double*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, int);
+extern void unpack_unblank_u_wrapper(int*, int*, double*, double*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned itn, int);
 
 struct vector_hash {
   int operator()(const std::vector<int> &V) const {
@@ -249,6 +250,7 @@ private:
   dvec<int> cell_target_coords_scan_d;
   dvec<int> cell_target_ids_d;
   dvec<double> cell_target_coords_data_d;
+  dvec<double> cell_target_soln_data_d;
   //
   // Alternating digital tree library
   //
@@ -832,6 +834,7 @@ private:
                              int* cstrides, unsigned long long* c_basedata
                             );
   void pointwise_pack_cell_coords(int ntotal, double* rxyz);
+  void pointwise_unpack_cell_soln(double* data, int nvar);
 };
 
 #endif
