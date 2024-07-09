@@ -1594,12 +1594,6 @@ void MeshBlock::set_mpi_mapping(unsigned long long int basedata,  int* faceinfo,
 void MeshBlock::set_mpi_rhs_mapping(unsigned long long int basedata,int* mapping,int* strides, int nfpts) {
   if(nfpts != mpi_entire_tnfpts) {
     printf("something is wrong with missmatching nfpts for mpi rhs nfpts %d mpi_entire_tnfpts %d\n", nfpts, mpi_entire_tnfpts);
-    int pid = getpid();
-    printf("current pid is %d hang at inconsistent mpi\n",pid);
-    int idebugger = 0;
-    while(idebugger) {
-
-    };
   }
   mpi_rhs_basedata = basedata;
   mpi_entire_rhs_mapping.resize(nfpts);
@@ -1736,21 +1730,12 @@ void MeshBlock::figure_out_mpi_artbnd_target() {
         for(auto i=0;i<face_fpts[fid];++i) {
             auto npid = mpi_target_scan[idx] + i;
             auto gpid = mpi_entire_scan[fid - nbcfaces] + i;
-            //printf("npid is %d i is %d tartget sca %d entire scan %d fid is %d\n", npid, i, mpi_target_scan[idx], mpi_entire_scan[fid - nbcfaces], fid - nbcfaces);
             mpi_target_rhs_fptsid[npid] = gpid; // get the id for current fpts
         }
     });
   mpi_target_rhs_fptsid_d.resize(mpi_tnfpts);
   mpi_target_rhs_fptsid_d.assign(mpi_target_rhs_fptsid.data(), mpi_target_rhs_fptsid.size(), NULL);
 
-
-  {
-    int pid = getpid();
-    int idebugger = 0;
-    while(idebugger) {
-
-    };
-  }
 }
 
 
@@ -1909,9 +1894,6 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
   mpi_data_d.resize(mpi_data_h.size());
   mpi_data_d.assign(mpi_data_h.data(), mpi_data_h.size(), NULL);
 
-  //for(auto i=0;i<mpi_tnfpts*nvar;++i) printf("original data %12.8e\n", data[i]);
-  //for(auto i: mpi_data_h) printf("data %12.8e\n", i);
-    
   // now copy the data to the destination we want
   double* dst = reinterpret_cast<double*>(mpi_rhs_basedata);
   double* src = mpi_data_d.data(); 
@@ -1967,7 +1949,6 @@ void MeshBlock::prepare_interior_artbnd_target_data(double* data, int nvar) {
   // now, we want to prepare the data  for interior artbnd
   // data, mpi_tnfpts * nvar are the data for mpi fringe faces
   if(interior_tnfpts == 0) return;
-  //interior_data_d.resize(interior_tnfpts * nvar); 
   interior_data_d.assign(data + mpi_tnfpts * nvar, interior_tnfpts * nvar, NULL);
   unpack_interior_artbnd_u_pointwise(nvar);
 }
@@ -2095,11 +2076,6 @@ void MeshBlock::pointwise_pack_cell_coords(int ntotal, double* rxyz) {
   double* src = reinterpret_cast<double*>(cell_coords_basedata_per_type[ctype]);
   int nspts = cell_nupts_per_type[ctype];
   int neled2 = cell_coords_strides_per_type[ctype][1];
-  //printf("tigao side %lld %d %d %d\n", cell_coords_basedata_per_type[ctype], neled2,
-  //      nreceptorCells, nspts
-  //  );
-  //for(auto i : cell_target_coords_scan) printf(" %d", i); printf("\n");
-  //for(int i=0;i<nreceptorCells;++i) printf(" %d", ctag[i]); printf("\n");
   pack_cell_coords_wrapper(loc, eid, dst, src, nreceptorCells, nspts, dim, soasz, neled2, 3 );
   // now copy data to host
   cuda_copy_d2h(dst, rxyz, ntotal * dim);
