@@ -56,6 +56,8 @@ extern void pack_fringe_coords_wrapper(int*, double*, double*, int, int, unsigne
 extern void pack_cell_coords_wrapper(int*, int*, double*, double*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, int);
 extern void unpack_unblank_u_wrapper(int*, int*, double*, double*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned itn, int);
 
+extern void get_nodal_basis_wrapper(int*, double*, double*, double*, int, int,int,int);
+
 struct vector_hash {
   int operator()(const std::vector<int> &V) const {
     int hash = V.size();
@@ -251,7 +253,11 @@ private:
   dvec<int> cell_target_ids_d;
   dvec<double> cell_target_coords_data_d;
   dvec<double> cell_target_soln_data_d;
-  //
+  
+
+  dvec<double> solution_points_d;
+  std::unordered_map<int, std::vector<int>> soln_pts_range;
+  std::unordered_map<int, int> cell_nupts_interp_per_type;
   // Alternating digital tree library
   //
   ADT *adt;   /** < Digital tree for searching this block */
@@ -835,6 +841,8 @@ private:
                             );
   void pointwise_pack_cell_coords(int ntotal, double* rxyz);
   void pointwise_unpack_cell_soln(double* data, int nvar);
+  void set_solution_points(int* types, int* nupts, double* data);
+  void donor_frac_native(int* cellids, int nfringe, double* rst, double* weights);
 };
 
 #endif

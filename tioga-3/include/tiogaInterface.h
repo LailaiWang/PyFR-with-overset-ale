@@ -181,4 +181,5 @@ void tioga_set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
         unsigned long long du_basedata,
         unsigned long long cstrides, unsigned long long c_basedata
     );
+void tioga_set_solution_points(unsigned long long types, unsigned long long cnupts, unsigned long long data);
 } /* extern "C" */

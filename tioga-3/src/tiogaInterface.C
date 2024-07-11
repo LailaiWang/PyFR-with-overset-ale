@@ -537,4 +537,11 @@ extern "C" {
     unsigned long long* c_basedata = reinterpret_cast<unsigned long long*>(cbaseaddr);
     tg->set_cell_info_by_type(nctypes, ncells, celltypes, nupts_per_type, ustrides, dustrides, du_basedata, cstrides, c_basedata);
   }
+
+  void tioga_set_solution_points(unsigned long long taddr, unsigned long long caddr, unsigned long long daddr) {
+    int* types = reinterpret_cast<int*>(taddr);
+    int* cnupts = reinterpret_cast<int*>(caddr);
+    double* data = reinterpret_cast<double*>(daddr);
+    tg->set_solution_points(types, cnupts, data);
+  }
 }

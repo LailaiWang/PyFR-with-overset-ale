@@ -1474,3 +1474,7 @@ void tioga::set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
                             ) {
   mb->set_cell_info_by_type(nctypes, ncells, celltypes, nupts_per_type, ustrides, dustrides, du_basedata, cstrides, c_basedata);
 }
+
+void tioga::set_solution_points(int* types, int* cnupts, double* data) {
+  mb->set_solution_points(types, cnupts, data);
+}

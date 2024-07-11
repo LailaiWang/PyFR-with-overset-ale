@@ -2101,3 +2101,23 @@ void MeshBlock::pointwise_unpack_cell_soln(double* data, int nvar) {
   unpack_unblank_u_wrapper(loc, eid, src, dst, ncells, nspts, nvar, soasz, neled2, 3);
 }
 
+void MeshBlock::set_solution_points(int* types, int* cnupts, double* data) {
+  int sum= 0;
+  for(int i=0;i<ntypes;++i) {
+    int ctype = types[i];
+    int nupts = cnupts[i];
+    soln_pts_range.insert({ctype, std::vector<int>{sum, sum+nupts}});
+    cell_nupts_interp_per_type[ctype] = nupts;
+    sum += nupts;
+  }
+  solution_points_d.assign(data, sum, NULL);
+}
+
+void MeshBlock::donor_frac_native(int* cellids, int nfringe, double* rst, double* weights) {
+  // only support one type for now
+  int ctype = 8;
+  int nspts = cell_nupts_per_type[ctype];
+  int nspts1d = cell_nupts_interp_per_type[ctype];
+  double* xi = solution_points_d.data();
+  get_nodal_basis_wrapper(cellids, rst, weights, xi, nfringe, nspts, nspts1d, 3);
+}

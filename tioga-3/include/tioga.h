@@ -420,7 +420,7 @@ class tioga
                              int* ustrides, int* dustrides, unsigned long long* du_basedata,
                              int* cstrides, unsigned long long* c_basedata
                             );
-
+  void set_solution_points(int* types, int* cnupts, double* data);
 };
       
 #endif

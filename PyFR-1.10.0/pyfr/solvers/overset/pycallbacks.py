@@ -327,8 +327,23 @@ class Py_callbacks(tg.callbacks):
         self.setup_structured_to_srted_mapping()
         self.setup_facecoords_mapping()
         self.setup_cell_info_by_type()
+        self.setup_solution_points()
         # set up mpi artbnd status
         self.setup_mpi_artbnd_status_aux()
+
+    def setup_solution_points(self):
+        ele_map = self.system.ele_map
+        ctype_to_int_dict = {'hex': 8}
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        eles_nqpts = lambda ctype, eles: eles.basis.order + 1 if ctype_to_int(ctype) == 8 else eles.basis.nupts
+        qpts = lambda ctype, eles: list(eles.basis.upts[:eles.basis.order+1,0]) if ctype_to_int(ctype) == 8 else list(eles.basis.upts)
+        fpdtype = self.system.backend.fpdtype
+        upts = [np.array(qpts(etype, eles)).astype(fpdtype) for etype, eles in ele_map.items()]
+        upts = np.concatenate(upts).astype(fpdtype)
+
+        ntypes = np.array([ctype_to_int(etype) for etype, eles in ele_map.items()]).astype('int32')
+        nupts = np.array([eles_nqpts(etype, eles) for etype, eles in ele_map.items()]).astype('int32')
+        tg.tioga_set_solution_points(ntypes.ctypes.data, nupts.ctypes.data, upts.ctypes.data)
 
     def setup_structured_to_srted_mapping(self):
         grid = self.griddata
@@ -614,26 +629,6 @@ class Py_callbacks(tg.callbacks):
         tg.tioga_set_interior_mapping(
             basedata, grad_basedata, sum_info.ctypes.data, sum_mapping.ctypes.data, 
             sum_grad_mapping.ctypes.data, sum_grad_strides.ctypes.data, sum_mapping.shape[0]
-        )
-
-    def donor_frac_gpu(self, cellids, nfringe, rst, weights):
-        print('Using donor_frac_gpu')
-        # tioga does not support multiple type of elements
-        etype = 'hex-g{}'.format(self.gid)
-        eles = self.system.ele_map[etype]
-        order = eles.basis.order
-        nSpts1D = order+1
-        nspts = eles.basis.nupts
-        spts1d = np.atleast_2d(
-            np.array(eles.basis.upts[:order+1,0])
-        ).astype(self.backend.fpdtype)
-        # copy data to device
-        xiGrid = self.griddata['xi1d']
-        tg.tg_copy_to_device(
-          xiGrid, addrToFloatPtr(spts1d.__array_interface__['data'][0]), spts1d.nbytes
-        )
-        tg.get_nodal_basis_wrapper(
-          cellids,rst,weights,addrToFloatPtr(xiGrid),nfringe,int(nspts),int(nSpts1D),3
         )
 
     def setup_mpi_artbnd_status_aux(self):

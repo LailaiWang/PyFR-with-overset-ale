@@ -1275,7 +1275,11 @@ void MeshBlock::processPointDonorsGPU(void)
   {
     // Only one cell type - no need to map/unmap data by cell type
     weights_d.resize(nWeightsTotal);
+#ifdef _DONOR_FRAC_GPU
     donor_frac_gpu(donors_d.data(), ninterp2, mb_d.rst.data(), weights_d.data());
+#else
+    donor_frac_native(donors_d.data(), ninterp2, mb_d.rst.data(), weights_d.data());
+#endif
   }
   else
   {

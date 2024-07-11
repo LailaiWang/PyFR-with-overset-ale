@@ -87,7 +87,7 @@ void tioga_set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
                 unsigned long long cstrides, unsigned long long c_basedata
             );
 
-
+void tioga_set_solution_points(unsigned long long types, unsigned long long cnupts, unsigned long long data);
 void tg_print_data(unsigned long long int datastart, unsigned long long int offset,
                    unsigned int nums, int dtype);
 void get_nodal_basis_wrapper(int* cellIDs, double* rst, double* weights,
