@@ -165,7 +165,8 @@ class BaseCommon(object):
 
         # Get the number of degrees of freedom in this partition
         ndofs = sum(self.system.ele_ndofs)
-
+        if self.system.gid == 0 and self.system.overset == True:
+            ndofs = 0
         # Sum to get the global number over all partitions
         return comm.allreduce(ndofs, op=get_mpi('sum'))
 

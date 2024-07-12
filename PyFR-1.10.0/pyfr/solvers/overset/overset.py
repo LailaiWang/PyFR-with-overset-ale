@@ -881,113 +881,11 @@ class Overset(object):
             # reference location
             self.ecoords_d_ref = backend.matrix(ecoords.shape, ecoords)
 
-            # allocate fixed size memory chunk
-            self.MAX_FRINGE_FACES = 10000
-            self.MAX_FPTS = 25
-            self.MAX_FRINGE_FPTS = 250000
-            self.MAX_UNBLANK_CELLS = 2000
-            self.MAX_UPTS = 64
-
-            self.MAX_ORDER = 6
-            
             itemsize = np.dtype(self.system.backend.fpdtype).itemsize
             
-            self.fringe_coords_d = tg.tg_allocate_device(
-              self.MAX_FRINGE_FACES, self.MAX_FPTS, self.ndims, 1, 0, itemsize
-            )
-
-            self.fringe_u_fpts_d = tg.tg_allocate_device(
-              self.MAX_FRINGE_FACES, self.MAX_FPTS, self.ndims, self.nvars, 0, itemsize
-            )
-
-            self.fringe_du_fpts_d = tg.tg_allocate_device(
-              self.MAX_FRINGE_FACES, self.MAX_FPTS, self.ndims, self.nvars, 1, itemsize
-            )
-            
-            # memeory for cell unblanking
-            self.unblank_coords_d  = tg.tg_allocate_device(
-              self.MAX_UNBLANK_CELLS, self.MAX_UPTS, self.ndims, 1, 0, itemsize
-            )
-
-            self.unblank_u_d = tg.tg_allocate_device(
-              self.MAX_UNBLANK_CELLS, self.MAX_UPTS, self.ndims, self.nvars, 0, itemsize
-            )
-
-            self.unblank_du_d = tg.tg_allocate_device(
-              self.MAX_UNBLANK_CELLS, self.MAX_UPTS, self.ndims, self.nvars, 1, itemsize
-            )
-            
-            # memory for xi 1d this is particularly for hex
-            self.xi1d = tg.tg_allocate_device( self.MAX_ORDER, 1, 1, 1, 0, itemsize )
-
-            # memory for mpientry
-            self.mpientry_d = tg.tg_allocate_device_int( grid['mpientry'].shape[0] ) 
-
-            tg.tg_copy_to_device( self.mpientry_d,
-                addrToFloatPtr(grid['mpientry'].ctypes.data),
-                grid['mpientry'].nbytes
-            )
-
-            # copy data to device
-            self.curmpientry_d = tg.tg_allocate_device_int(
-                grid['mpientry'].shape[0]
-            )
-
-            self.mnfpts_d = tg.tg_allocate_device_int(
-                grid['mnfpts'].shape[0]
-            )
-
-            tg.tg_copy_to_device(self.mnfpts_d,
-                addrToFloatPtr(grid['mnfpts'].ctypes.data),
-                grid['mnfpts'].nbytes
-            )
-
-            self.curnfpts_d = tg.tg_allocate_device_int(
-                grid['mnfpts'].shape[0]
-            )
-
-            self.mbaseface_d = tg.tg_allocate_device_int(
-                grid['mbaseface'].shape[0]
-            )
-
-            tg.tg_copy_to_device(self.mbaseface_d,
-                addrToFloatPtr(grid['mbaseface'].ctypes.data),
-                grid['mbaseface'].nbytes
-            )
-
-            self.unblank_ids_ele = OrderedDict()
-            self.unblank_ids_loc = OrderedDict()
-            for etype in self.system.ele_types:
-                self.unblank_ids_ele[etype] = tg.tg_allocate_device_int(
-                    self.MAX_UNBLANK_CELLS
-                )
-
-                self.unblank_ids_loc[etype] = tg.tg_allocate_device_int(
-                    self.MAX_UNBLANK_CELLS
-                )
-
-            self.fringe_fpts_d = tg.tg_allocate_device_int(self.MAX_FRINGE_FPTS)
-            
             # hint: using tg_print_data to check data for debugging purpose
-            grid['xi1d'] = self.xi1d
             grid['coords_gpu'] = self.coords_d
             grid['ele_coords_gpu'] = self.ecoords_d
-
-            grid['fringe_coords_d'] = self.fringe_coords_d
-            grid['fringe_u_fpts_d'] = self.fringe_u_fpts_d
-            grid['fringe_du_fpts_d'] = self.fringe_du_fpts_d
-
-            grid['unblank_coords_d'] = self.unblank_coords_d
-            grid['unblank_u_d'] = self.unblank_u_d
-            grid['unblank_du_d'] = self.unblank_du_d
-            grid['unblank_ids_ele'] = self.unblank_ids_ele
-            grid['unblank_ids_loc'] = self.unblank_ids_loc
-            
-            grid['mpientry_d'] = self.mpientry_d
-            grid['curmpientry_d'] = self.curmpientry_d
-            grid['mnfpts_d'] = self.mnfpts_d
-            grid['curnfpts_d'] = self.curnfpts_d
-            grid['mbaseface_d'] = self.mbaseface_d
 
             # additional memeory for local coordinates manipulation
             self.Rmat_d = tg.tg_allocate_device(
@@ -1054,34 +952,21 @@ class Overset(object):
         self.griddata['rigidPivot'][:] = pivot[:]
         # see search.C
         tg.tioga_set_transform(
-            addrToFloatPtr(self.griddata['rigidRotMat'].__array_interface__['data'][0]),
-            addrToFloatPtr(self.griddata['rigidPivot'].__array_interface__['data'][0]),
-            addrToFloatPtr(self.griddata['rigidOffset'].__array_interface__['data'][0]),
+            addrToFloatPtr(self.griddata['rigidRotMat'].ctypes.data),
+            addrToFloatPtr(self.griddata['rigidPivot'].ctypes.data),
+            addrToFloatPtr(self.griddata['rigidOffset'].ctypes.data),
             self.ndims
         )
         
     def update_transform(self, Rmat, pivot, offset):
-        
         fpdtype = self.system.backend.fpdtype
         Rmat = np.atleast_2d(np.array(Rmat).astype(fpdtype)).reshape(-1,3).reshape(-1)
         pivot  = np.atleast_2d(np.array(pivot ).astype(fpdtype))
         offset = np.atleast_2d(np.array(offset).astype(fpdtype))
 
-        tg.tg_copy_to_device(
-            self.Rmat_d, addrToFloatPtr(Rmat.__array_interface__['data'][0]), 
-            Rmat.nbytes
-        )
-
-        tg.tg_copy_to_device(
-            self.offset_d, addrToFloatPtr(offset.__array_interface__['data'][0]),
-            offset.nbytes
-        )
-
-        tg.tg_copy_to_device(
-            self.pivot_d, addrToFloatPtr(pivot.__array_interface__['data'][0]),
-            pivot.nbytes
-        )
-
+        tg.tg_copy_to_device(self.Rmat_d, addrToFloatPtr(Rmat.ctypes.data), Rmat.nbytes)
+        tg.tg_copy_to_device(self.offset_d, addrToFloatPtr(offset.ctypes.data), offset.nbytes)
+        tg.tg_copy_to_device(self.pivot_d, addrToFloatPtr(pivot.ctypes.data), pivot.nbytes)
 
     def move_on_cpu(self):
         tg.tg_copy_to_host(
