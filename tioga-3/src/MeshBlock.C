@@ -25,6 +25,7 @@
 #if __cplusplus > 202403L
   // C++20 code
   #include <ranges>
+  #include <execution>
 #else
   #include "thrust_range.h"
 #endif
@@ -1490,17 +1491,29 @@ void MeshBlock::figure_out_interior_artbnd_target() {
   interior_target_scan.resize(nfringe);
 
   // we need face_fpts
+#if __cplusplus > 202403L
   std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
     [this] (auto idx) {
       auto fid = interior_ab_faces[idx].first;
       interior_target_nfpts[idx] = face_fpts[fid];
     });   
   
   //
+#if __cplusplus > 202403L
   std::exclusive_scan(std::execution::par, 
       interior_target_nfpts.begin(), interior_target_nfpts.end(), 
       interior_target_scan.begin(), 0
     );
+#else
+  int sum =0;
+  for(auto i=0;i<interior_target_nfpts.size();++i) {
+    interior_target_scan[i] = sum;
+    sum += interior_target_nfpts[i];
+  }
+#endif
 
   // total number of fpts
   auto tnfpts = interior_target_scan[nfringe-1] + interior_target_nfpts[nfringe-1];
@@ -1515,7 +1528,12 @@ void MeshBlock::figure_out_interior_artbnd_target() {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   // for these interior fringe faces
   // here we need fcelltypes and fposition
+
+#if __cplusplus > 202403L
   std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
     [this, &rank](auto idx) {
       auto fid = interior_ab_faces[idx].first;
       auto c0 = f2c[fid*2+0];
@@ -1624,14 +1642,27 @@ void MeshBlock::set_mpi_rhs_mapping(unsigned long long int basedata,int* mapping
   auto erange = thrust::views::iota(nbcfaces, nbcfaces+nmpifaces);
 #endif
   mpi_entire_nfpts.resize(nmpifaces);
+#if __cplusplus > 202403L
   std::for_each(std::execution::par, erange.begin(), erange.end(), 
+#else
+  std::for_each(erange.begin(), erange.end(), 
+#endif
     [this](auto idx) {
        mpi_entire_nfpts[idx-nbcfaces] = face_fpts[idx];
     });
   mpi_entire_scan.resize(nmpifaces);
-  std::exclusive_scan(std::execution::par, mpi_entire_nfpts.begin(), mpi_entire_nfpts.end(),
-        mpi_entire_scan.begin(), 0
+#if __cplusplus > 202403L
+  std::exclusive_scan(std::execution::par,
+      mpi_entire_nfpts.begin(), mpi_entire_nfpts.end(),
+      mpi_entire_scan.begin(), 0
     );
+#else
+  int sum = 0;
+  for(auto i=0;i<mpi_entire_nfpts.size();++i) {
+    mpi_entire_scan[i] = sum;
+    sum += mpi_entire_nfpts[i];
+  }
+#endif
 }
 
 void MeshBlock::set_overset_rhs_basedata(unsigned long long int basedata) {
@@ -1665,24 +1696,39 @@ void MeshBlock::figure_out_facecoords_target() {
 #endif
   fcoords_target_nfpts.resize(nfringe);
   fcoords_target_scan.resize(nfringe);
-
+#if __cplusplus > 202403L
   std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
     [this] (auto idx) {
       auto fid = ftag[idx];
       fcoords_target_nfpts[idx] = face_fpts[fid];
     });   
   
   //
+#if __cplusplus > 202403L
   std::exclusive_scan(std::execution::par, 
       fcoords_target_nfpts.begin(), fcoords_target_nfpts.end(), 
       fcoords_target_scan.begin(), 0
     );
+#else
+  int sum = 0;
+  for(int i=0;i<fcoords_target_nfpts.size();++i) {
+    fcoords_target_scan[i] = sum;
+    sum += fcoords_target_nfpts[i];
+  }
+#endif
 
   auto tnfpts = fcoords_target_scan[nfringe-1] + fcoords_target_nfpts[nfringe-1];
   fcoords_target_mapping.resize(tnfpts);
   fcoords_tnfpts = tnfpts;
 
+#if __cplusplus > 202403L
   std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
     [this](auto idx) {
       auto fid = ftag[idx];
       auto c0 = f2c[fid*2+0];
@@ -1709,16 +1755,28 @@ void MeshBlock::figure_out_mpi_artbnd_target() {
   mpi_target_nfpts.resize(nfringe);
   mpi_target_scan.resize(nfringe);
     
+#if __cplusplus > 202403L
   std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
     [this] (auto idx) {
       auto fid = mpi_ab_faces[idx].first;
       mpi_target_nfpts[idx] = face_fpts[fid];
     });
 
+#if __cplusplus > 202403L
   std::exclusive_scan(std::execution::par, 
       mpi_target_nfpts.begin(), mpi_target_nfpts.end(), 
       mpi_target_scan.begin(), 0
     );
+#else
+  int sum = 0;
+  for(auto i=0;i<mpi_target_nfpts.size();++i) {
+    mpi_target_scan[i] = sum;
+    sum += mpi_target_nfpts[i];
+  }
+#endif
 
   auto tnfpts = mpi_target_scan[nfringe-1] + mpi_target_nfpts[nfringe-1];
   mpi_target_mapping.resize(tnfpts);
@@ -1726,8 +1784,11 @@ void MeshBlock::figure_out_mpi_artbnd_target() {
     
   int rank =0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
+#if __cplusplus > 202403L
   std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
     [this, &rank](auto idx) {
       auto fid = mpi_ab_faces[idx].first;
       auto c0 = f2c[fid*2+0];
@@ -1747,7 +1808,11 @@ void MeshBlock::figure_out_mpi_artbnd_target() {
   
   // starting from here we figure out the indices of current mpi fpts
   mpi_target_rhs_fptsid.resize(mpi_tnfpts);
+#if __cplusplus > 202403L
   std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
     [this, &rank] (auto idx) {
         auto fid = mpi_ab_faces[idx].first;
         for(auto i=0;i<face_fpts[fid];++i) {
@@ -1774,16 +1839,28 @@ void MeshBlock::figure_out_overset_artbnd_target() {
   overset_target_nfpts.resize(nfringe);
   overset_target_scan.resize(nfringe);
     
+#if __cplusplus > 202403L
   std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
     [this] (auto idx) {
       auto fid = overset_ab_faces[idx].first;
       overset_target_nfpts[idx] = face_fpts[fid];
     });
 
+#if __cplusplus > 202403L
   std::exclusive_scan(std::execution::par, 
       overset_target_nfpts.begin(), overset_target_nfpts.end(), 
       overset_target_scan.begin(), 0
     );
+#else
+  int sum = 0;
+  for(int i=0;i<overset_target_nfpts.size();++i) {
+    overset_target_scan[i] = sum;
+    sum += overset_target_nfpts[i];
+  }
+#endif
 
   auto tnfpts = overset_target_scan[nfringe-1] + overset_target_nfpts[nfringe-1];
   overset_target_mapping.resize(tnfpts);
@@ -1793,7 +1870,11 @@ void MeshBlock::figure_out_overset_artbnd_target() {
   int rank =0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+#if __cplusplus > 202403L
   std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
     [this, &rank](auto idx) {
       auto fid = overset_ab_faces[idx].first;
       auto c0 = f2c[fid*2+0];
@@ -1845,7 +1926,6 @@ void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
         ncells, std::vector<std::unordered_map<int, int>> (maxnface)
     );
 #if __cplusplus > 202403L
-  // C++20 code
   auto range = std::views::iota(0, ncells);
 #else
   auto range = thrust::views::iota(0, ncells);
@@ -1853,7 +1933,11 @@ void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
   // ntypes // number of different types
   // nc // number of cells per type
   // ncf // number of faces per type
+#if __cplusplus > 202403L
   std::for_each(std::execution::par, range.begin(), range.end(), 
+#else
+  std::for_each(range.begin(), range.end(), 
+#endif
     [this, &unsrted_to_srted_map](auto idx) {
       for(auto i=0;i<ncf[0];++i) { // use maxnface here for now
         std::unordered_map<int, int> lmap;
@@ -1902,7 +1986,12 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
   auto range = thrust::views::iota(0, nfringe);  
 #endif
   
-  std::for_each(std::execution::par, range.begin(), range.end(), [this, nvar, data](auto idx) {
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
+     [this, nvar, data](auto idx) {
     auto  sidx = mpi_target_scan[idx];    // start idx of each face
     auto  nfpt = mpi_target_nfpts[idx];
     auto  fid = mpi_ab_faces[idx].first; // global id
@@ -1946,7 +2035,12 @@ void MeshBlock::prepare_overset_artbnd_target_data(double* data, int nvar) {
   auto range = thrust::views::iota(0, nfringe);  
 #endif
 
-  std::for_each(std::execution::par, range.begin(), range.end(), [this, nvar, data](auto idx) {
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par,
+#else
+  std::for_each(
+#endif
+     range.begin(), range.end(), [this, nvar, data](auto idx) {
     auto  sidx = overset_target_scan[idx];    // start idx of each face
     auto  nfpt = overset_target_nfpts[idx];
     auto  fid = overset_ab_faces[idx].first; // global id
@@ -2100,7 +2194,16 @@ void MeshBlock::pointwise_pack_cell_coords(int ntotal, double* rxyz) {
   if(nreceptorCells == 0) return;
   constexpr int dim = 3;
   cell_target_coords_scan.resize(nreceptorCells);
+
+#if __cplusplus > 202403L
   std::exclusive_scan(pointsPerCell, pointsPerCell+nreceptorCells, cell_target_coords_scan.begin(),0);
+#else
+  int sum = 0;
+  for(int i=0;i<nreceptorCells;++i) {
+    cell_target_coords_scan[i] = sum;
+    sum += pointsPerCell[i];
+  }
+#endif
   cell_target_coords_scan_d.assign(cell_target_coords_scan.data(), cell_target_coords_scan.size(), NULL);
   
   if(ntotal != cell_target_coords_scan[nreceptorCells-1] + pointsPerCell[nreceptorCells-1]) {

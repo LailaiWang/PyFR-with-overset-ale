@@ -33,7 +33,6 @@
 #include <mutex>
 
 #include <algorithm>
-#include <execution>
 
 #include "codetypes.h"
 #include "funcs.hpp"
