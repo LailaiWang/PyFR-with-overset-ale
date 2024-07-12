@@ -22,7 +22,12 @@
 #include "utils.h"
 #include "math_funcs.h"
 #include "linklist.h"
-
+#if __cplusplus > 202403L
+  // C++20 code
+  #include <ranges>
+#else
+  #include "thrust_range.h"
+#endif
 using namespace tg_funcs;
 
 void MeshBlock::setData(int btag,int nnodesi,double *xyzi, int *ibli,int nwbci,
@@ -1476,7 +1481,11 @@ void MeshBlock::figure_out_interior_artbnd_target() {
   int nfringe = interior_ab_faces.size();
   if (nfringe == 0) return;
   // interior_mapping is for every flux points
+#if __cplusplus > 202403L
   auto range = std::views::iota(0, nfringe);
+#else
+  auto range = thrust::views::iota(0, nfringe);
+#endif
   interior_target_nfpts.resize(nfringe);
   interior_target_scan.resize(nfringe);
 
@@ -1609,7 +1618,11 @@ void MeshBlock::set_mpi_rhs_mapping(unsigned long long int basedata,int* mapping
   mpi_entire_rhs_mapping_d.assign(mpi_entire_rhs_mapping.data(), mpi_entire_rhs_mapping.size(), NULL);
   mpi_entire_rhs_strides_d.assign(mpi_entire_rhs_strides.data(), mpi_entire_rhs_strides.size(), NULL);
 
+#if __cplusplus > 202403L
   auto erange = std::views::iota(nbcfaces, nbcfaces+nmpifaces);
+#else
+  auto erange = thrust::views::iota(nbcfaces, nbcfaces+nmpifaces);
+#endif
   mpi_entire_nfpts.resize(nmpifaces);
   std::for_each(std::execution::par, erange.begin(), erange.end(), 
     [this](auto idx) {
@@ -1645,7 +1658,11 @@ void MeshBlock::figure_out_facecoords_target() {
     // directly use nreceptorFaces and ftag to figure things out
   int nfringe = nreceptorFaces;
   if(nfringe == 0) return;
+#if __cplusplus > 202403L
   auto range = std::views::iota(0, nfringe);
+#else
+  auto range = thrust::views::iota(0, nfringe);
+#endif
   fcoords_target_nfpts.resize(nfringe);
   fcoords_target_scan.resize(nfringe);
 
@@ -1684,7 +1701,11 @@ void MeshBlock::figure_out_facecoords_target() {
 void MeshBlock::figure_out_mpi_artbnd_target() {
   int nfringe = mpi_ab_faces.size();
   if (nfringe == 0) return;
+#if __cplusplus > 202403L
   auto range = std::views::iota(0, nfringe);
+#else
+  auto range = thrust::views::iota(0, nfringe);
+#endif
   mpi_target_nfpts.resize(nfringe);
   mpi_target_scan.resize(nfringe);
     
@@ -1744,7 +1765,12 @@ void MeshBlock::figure_out_mpi_artbnd_target() {
 void MeshBlock::figure_out_overset_artbnd_target() {
   int nfringe = overset_ab_faces.size();
   if (nfringe == 0) return;
+#if __cplusplus > 202403L
+  // C++20 code
   auto range = std::views::iota(0, nfringe);
+#else
+  auto range = thrust::views::iota(0, nfringe);
+#endif
   overset_target_nfpts.resize(nfringe);
   overset_target_scan.resize(nfringe);
     
@@ -1787,14 +1813,6 @@ void MeshBlock::figure_out_overset_artbnd_target() {
 }
 
 void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
-  {
-    int pid = getpid();
-    printf("current pid is %d\n",pid);
-    int idebugger = 0;
-    while(idebugger) {
-
-    };
-  }
 
   srted_order = std::vector<std::vector<std::vector<int>>> (ncells, 
     std::vector<std::vector<int>>(maxnface, std::vector<int>(maxnfpts,-1))
@@ -1826,7 +1844,12 @@ void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
   std::vector<std::vector<std::unordered_map<int, int>>> unsrted_to_srted_map(
         ncells, std::vector<std::unordered_map<int, int>> (maxnface)
     );
+#if __cplusplus > 202403L
+  // C++20 code
   auto range = std::views::iota(0, ncells);
+#else
+  auto range = thrust::views::iota(0, ncells);
+#endif
   // ntypes // number of different types
   // nc // number of cells per type
   // ncf // number of faces per type
@@ -1873,7 +1896,11 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
   int nfringe = mpi_ab_faces.size();
   if(nfringe == 0) return;
   mpi_data_h.resize(mpi_tnfpts*nvar);
+#if __cplusplus > 202403L
   auto range = std::views::iota(0, nfringe);  
+#else
+  auto range = thrust::views::iota(0, nfringe);  
+#endif
   
   std::for_each(std::execution::par, range.begin(), range.end(), [this, nvar, data](auto idx) {
     auto  sidx = mpi_target_scan[idx];    // start idx of each face
@@ -1913,7 +1940,11 @@ void MeshBlock::prepare_overset_artbnd_target_data(double* data, int nvar) {
   int nfringe = overset_ab_faces.size();
   if(nfringe == 0 ) return;
   overset_data_h.resize(overset_tnfpts*nvar);
+#if __cplusplus > 202403L
   auto range = std::views::iota(0, nfringe);  
+#else
+  auto range = thrust::views::iota(0, nfringe);  
+#endif
 
   std::for_each(std::execution::par, range.begin(), range.end(), [this, nvar, data](auto idx) {
     auto  sidx = overset_target_scan[idx];    // start idx of each face

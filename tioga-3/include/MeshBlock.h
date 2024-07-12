@@ -33,7 +33,6 @@
 #include <mutex>
 
 #include <algorithm>
-#include <ranges>
 #include <execution>
 
 #include "codetypes.h"
