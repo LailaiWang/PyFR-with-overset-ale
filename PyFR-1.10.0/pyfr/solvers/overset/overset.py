@@ -23,6 +23,7 @@ class Overset(object):
         
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
+        self.rank = rank
         nproc = comm.Get_size()
         
         # wrap up each grids into one communicator
@@ -30,6 +31,11 @@ class Overset(object):
         self.gridrank = self.gridcomm.Get_rank()
         self.gridsize = self.gridcomm.Get_size()
         
+        llrank = self.gridrank
+        lrank = np.array(llrank, dtype = self.intdtype )
+        grank = np.zeros((nproc), dtype = self.intdtype)
+        comm.Allgather([lrank, MPI.INT], [grank, MPI.INT])
+        self.grrank = grank
         # initialize the MPI communicator
         tg.tioga_init_(comm)
     
@@ -558,6 +564,12 @@ class Overset(object):
             mpinodes = np.concatenate(mnodes, axis = 0).astype(self.intdtype)
             mpifaces_r = np.concatenate(recvbuf, axis = 0).astype(self.intdtype)
             mpifaces_r_rank = np.concatenate(rranks, axis= 0).astype(self.intdtype)
+
+            cc = np.zeros(mpifaces_r_rank.shape[0], dtype = self.intdtype)
+            for i in range(mpifaces_r_rank.shape[0]):
+                d = mpifaces_r_rank[i]
+                cc[i] = self.grrank[d]
+            mpifaces_r_rank = cc
 
         nmpifaces = mpifaceidx.shape[0]
         nmpinodes = mpinodes.shape[0]
