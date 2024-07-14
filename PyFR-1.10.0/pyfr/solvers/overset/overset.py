@@ -384,7 +384,7 @@ class Overset(object):
             mf2c = np.concatenate(mf2c, axis = 0)
             mfposition = np.concatenate(mfposition, axis = 0)
             # bytewise offset from the first data entry
-            mdataentry = np.concatenate(mdataentry, axis = 0).astype(self.intdtype)
+            mdataentry = np.concatenate(mdataentry, axis = 0).astype('int64')
             mnfpts = np.concatenate(mnfpts, axis = 0).astype(self.intdtype)
             mbaseface = np.concatenate(mbaseface, axis=0).astype(self.intdtype)
         else:
@@ -392,7 +392,7 @@ class Overset(object):
             mf2v = np.array(mf2v)
             mf2c = np.array(mf2c)
             mfposition = np.array(mfposition)
-            mdataentry = np.array(mdataentry).astype(self.intdtype)
+            mdataentry = np.array(mdataentry).astype('int64')
             mnfpts = np.array(mnfpts).astype(self.intdtype)
             mbaseface = np.array(mbaseface).astype(self.intdtype)
 

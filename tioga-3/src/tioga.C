@@ -1412,7 +1412,7 @@ void tioga::set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int*
   mb->set_mpi_mapping(basedata, faceinfo, mapping, nfpts);
 }
 
-void tioga::set_mpi_rhs_mapping(unsigned long long int basedata, int* mapping, int* strides, int nfpts) {
+void tioga::set_mpi_rhs_mapping(unsigned long long int basedata, long long int* mapping, int* strides, int nfpts) {
   mb->set_mpi_rhs_mapping(basedata, mapping, strides, nfpts);
 }
 

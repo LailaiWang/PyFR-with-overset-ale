@@ -48,7 +48,7 @@
 extern void reset_mpi_face_artbnd_status_wrapper(double*, int*, double, unsigned int, unsigned int, unsigned int, unsigned int, int);
 extern void unpack_fringe_u_wrapper(double*, double*, int*, unsigned int, unsigned int, unsigned int, unsigned int, int);
 extern void unpack_fringe_grad_wrapper(double*, double*, int*, int*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, int);
-extern void pointwise_copy_to_mpi_rhs_wrapper(double*, int*, int*, double*, int*, unsigned int, unsigned int, int);
+extern void pointwise_copy_to_mpi_rhs_wrapper(double*, long long int*, int*, double*, int*, unsigned int, unsigned int, int);
 extern void pack_fringe_coords_wrapper(int*, double*, double*, int, int, unsigned int ,int);
 
 extern void pack_cell_coords_wrapper(int*, int*, double*, double*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, int);
@@ -218,10 +218,10 @@ private:
   std::vector<int> mpi_entire_nfpts;
   std::vector<int> mpi_entire_scan;
 
-  std::vector<int> mpi_entire_rhs_mapping;
+  std::vector<long long int> mpi_entire_rhs_mapping;
   std::vector<int> mpi_entire_rhs_strides;
   std::vector<int> mpi_target_rhs_fptsid;
-  dvec<int> mpi_entire_rhs_mapping_d;
+  dvec<long long int> mpi_entire_rhs_mapping_d;
   dvec<int> mpi_entire_rhs_strides_d;
   dvec<int> mpi_target_rhs_fptsid_d;
 
@@ -808,7 +808,7 @@ private:
                             int* grad_mapping, int* grad_strides,
                             int nfpts);
   void set_interior_gradient_mapping();
-  void set_mpi_rhs_mapping(unsigned long long int basedata, int* mapping, int* strides, int nfpts);
+  void set_mpi_rhs_mapping(unsigned long long int basedata, long long int* mapping, int* strides, int nfpts);
   void set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
   void set_overset_rhs_basedata(unsigned long long int basedata);
   void set_overset_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);

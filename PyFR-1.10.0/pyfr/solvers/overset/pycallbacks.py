@@ -431,7 +431,7 @@ class Py_callbacks(tg.callbacks):
         # now we populate it for each flux points
         fpts_rhs_mapping = [ list(face_mapping[i] + itemsize*np.arange(mpi_nfpts[i])) for i in range(nmpifaces)]
         fpts_rhs_strides = [ [face_strides[i]] * mpi_nfpts[i] for i in range(nmpifaces)] 
-        fpts_rhs_mapping = np.array(fpts_rhs_mapping).astype('int32').reshape(-1)
+        fpts_rhs_mapping = np.array(fpts_rhs_mapping).astype('int64').reshape(-1)
         fpts_rhs_strides = np.array(fpts_rhs_strides).astype('int32').reshape(-1)
         
         tg.tioga_set_mpi_rhs_mapping(rhs_basedata, fpts_rhs_mapping.ctypes.data, fpts_rhs_strides.ctypes.data, fpts_rhs_mapping.shape[0])        

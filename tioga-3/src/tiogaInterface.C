@@ -455,7 +455,7 @@ extern "C" {
   void tioga_set_mpi_rhs_mapping(unsigned long long basedata,
                                  unsigned long long maddr,
                                  unsigned long long saddr, int nfpts) {
-    int* mapping = reinterpret_cast<int*>(maddr);
+    long long int* mapping = reinterpret_cast<long long int*>(maddr);
     int* strides = reinterpret_cast<int*>(saddr);
     tg->set_mpi_rhs_mapping(basedata, mapping, strides, nfpts);
   }

@@ -1620,7 +1620,7 @@ void MeshBlock::set_mpi_mapping(unsigned long long int basedata,  int* faceinfo,
   mpi_entire_mapping_d.assign(mpi_entire_mapping_h.data(), mpi_entire_mapping_h.size(), NULL);
 }
 
-void MeshBlock::set_mpi_rhs_mapping(unsigned long long int basedata,int* mapping,int* strides, int nfpts) {
+void MeshBlock::set_mpi_rhs_mapping(unsigned long long int basedata, long long int* mapping,int* strides, int nfpts) {
   if(nfpts != mpi_entire_tnfpts) {
     printf("something is wrong with missmatching nfpts for mpi rhs nfpts %d mpi_entire_tnfpts %d\n", nfpts, mpi_entire_tnfpts);
   }
@@ -2016,7 +2016,7 @@ void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
   double* dst = reinterpret_cast<double*>(mpi_rhs_basedata);
   double* src = mpi_data_d.data(); 
  
-  int* mapping = mpi_entire_rhs_mapping_d.data();
+  long long int* mapping = mpi_entire_rhs_mapping_d.data();
   int* strides = mpi_entire_rhs_strides_d.data();
   
   int* fptsids = mpi_target_rhs_fptsid_d.data();
@@ -2071,6 +2071,8 @@ void MeshBlock::prepare_interior_artbnd_target_data(double* data, int nvar) {
   // now, we want to prepare the data  for interior artbnd
   // data, mpi_tnfpts * nvar are the data for mpi fringe faces
   if(interior_tnfpts == 0) return;
+  //printf("total mpi %d interior %d data %p\n", mpi_tnfpts, interior_tnfpts, data);
+  interior_data_d.resize(interior_tnfpts*nvar);
   interior_data_d.assign(data + mpi_tnfpts * nvar, interior_tnfpts * nvar, NULL);
   unpack_interior_artbnd_u_pointwise(nvar);
 }

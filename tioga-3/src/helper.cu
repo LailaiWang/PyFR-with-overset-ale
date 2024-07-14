@@ -701,7 +701,7 @@ void copy_to_mpi_rhs_wrapper(
 __global__
 void pointwise_copy_to_mpi_rhs(
     double* base,            // starting address of mpi data at pyfr side
-    int* mapping,   // offset from the base in char 1 byte for each point
+    long long int* mapping,   // offset from the base in char 1 byte for each point
     int* strides,   // variable strides for in double
     double* src,             // source of the data to copy
     int* fptsid,    // id of the current fpts
@@ -723,7 +723,7 @@ void pointwise_copy_to_mpi_rhs(
 }
 
 void pointwise_copy_to_mpi_rhs_wrapper(
-    double* base, int* mapping, int* strides,
+    double* base, long long int* mapping, int* strides,
     double* src, int* fptsids,   
     unsigned int nfpts, unsigned int nvar,
     int stream

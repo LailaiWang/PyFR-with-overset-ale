@@ -112,7 +112,7 @@ void copy_to_mpi_rhs_wrapper(
  
 
 void pointwise_copy_to_mpi_rhs_wrapper(
-    double* base, int* mapping, int* strides,
+    double* base, long long int* mapping, int* strides,
     double* src, int* fptsids,   
     unsigned int nfpts, unsigned int nvar,
     int stream = -1
