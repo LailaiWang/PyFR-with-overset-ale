@@ -620,10 +620,6 @@ void tioga::directCut(void)
     if (nFaceTot_g[g] > 0)
     {
       HOLEMAP hm = (gridType == 0) ? overMap[g] : holeMap[g];
-      printf("bounding box is %lf %lf %lf %lf %lf %lf\n",
-            bbox_g[g][0], bbox_g[g][1], bbox_g[g][2],
-            bbox_g[g][3], bbox_g[g][4], bbox_g[g][5]
-        );
       mb->directCut_gpu(faceNodes_g[g], nFace_g[g], nVertf_g[g], bbox_g[g], hm, cutMap[ncut], gridType);
       ncut++;
     }
