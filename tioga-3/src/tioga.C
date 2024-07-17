@@ -578,6 +578,16 @@ void tioga::directCut(void)
   MPI_Waitall((int)sreqs.size(), sreqs.data(), MPI_STATUSES_IGNORE);
   MPI_Waitall((int)rreqs.size(), rreqs.data(), MPI_STATUSES_IGNORE);
 
+  
+  // this is a fatal bug Lai Wang 7/16/2024
+  for(int i=0;i<bbox_g.size();++i) {
+    for (int d = 0; d < nDims; d++)
+    {
+      bbox_g[i][d]       =  BIG_DOUBLE;
+      bbox_g[i][d+nDims] = -BIG_DOUBLE;
+    }
+  }
+
   // Reduce the bounding box data to one box per grid, using only bboxes of
   // ranks sending faces to us
   for (int i = 0; i < nrecv; i++)
@@ -585,15 +595,11 @@ void tioga::directCut(void)
     int p = dcRcvMap[i];
     int g = gridIDs[p];
 
-    for (int d = 0; d < nDims; d++)
-    {
-      bbox_g[g][d]       =  BIG_DOUBLE;
-      bbox_g[g][d+nDims] = -BIG_DOUBLE;
-    }
 
     for (int d = 0; d < nDims; d++)
     {
-      bbox_g[g][d] = std::min(bbox_g[g][d], bbox_tmp[2*nDims*p+d]);
+      auto dst = std::min(bbox_g[g][d], bbox_tmp[2*nDims*p+d]);
+      bbox_g[g][d] = dst;
       bbox_g[g][d+nDims] = std::max(bbox_g[g][d+nDims], bbox_tmp[2*nDims*p+d+nDims]);
     }
   }
@@ -614,6 +620,10 @@ void tioga::directCut(void)
     if (nFaceTot_g[g] > 0)
     {
       HOLEMAP hm = (gridType == 0) ? overMap[g] : holeMap[g];
+      printf("bounding box is %lf %lf %lf %lf %lf %lf\n",
+            bbox_g[g][0], bbox_g[g][1], bbox_g[g][2],
+            bbox_g[g][3], bbox_g[g][4], bbox_g[g][5]
+        );
       mb->directCut_gpu(faceNodes_g[g], nFace_g[g], nVertf_g[g], bbox_g[g], hm, cutMap[ncut], gridType);
       ncut++;
     }
