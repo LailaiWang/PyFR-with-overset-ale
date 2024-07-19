@@ -37,6 +37,8 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                 of = motion['offset']
                 R = motion['Rmat']
 
+                # save the rotation matrix at stage end
+                self.Rmat = R
                 self.oset.unblankPart1( motion )
                 
                 # move grid to stage start
