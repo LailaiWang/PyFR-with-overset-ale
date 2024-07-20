@@ -14,7 +14,7 @@ class BaseWriter(object):
         extn = os.path.splitext(args.outf)[1]
         outf = os.path.splitext(args.outf)[0]
 
-        nmsh = 1 if args.addmsh == None else 1+len(args.addmsh)
+        nmsh = 1 if args.addmsh == None else 1 + len(args.addmsh)
         self.outf = ['{0}-grid-{1}{2}'.format(outf,idx,extn) for idx in range(nmsh)]
         
         meshf = [args.meshf] if args.addmsh == None else [args.meshf]+args.addmsh
@@ -59,9 +59,10 @@ class BaseWriter(object):
 
         self.elementscls = self.systemscls.elementscls
         
-        # postprocessing when there is overset
-        self.postoverset = PostOverset(
-            self.elementscls, self.mesh, self.soln, self.mesh_inf, self.soln_inf,
-            self.cfg, self.stats
-        )
+        if nmsh > 1 :
+            # postprocessing when there is overset
+            self.postoverset = PostOverset(
+                self.elementscls, self.mesh, self.soln, self.mesh_inf, self.soln_inf,
+                self.cfg, self.stats
+            )
 
