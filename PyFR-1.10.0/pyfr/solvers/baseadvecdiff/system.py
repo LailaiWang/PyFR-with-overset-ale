@@ -37,8 +37,6 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                 of = motion['offset']
                 R = motion['Rmat']
 
-                # save the rotation matrix at stage end
-                self.Rmat = R
                 self.oset.unblankPart1( motion )
                 
                 # move grid to stage start
@@ -130,6 +128,9 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
             of = motion['offset']
             R = motion['Rmat']
             pivot = motion['pivot']
+
+            # save the rotation matrix at stage end
+            self.Rmat = R
 
             if self.overset is False:
                 q1 << kernels['eles','updateplocface'](
