@@ -39,7 +39,7 @@ class VTKWriter(BaseWriter):
             self._vtk_vars = [(k, [k]) for k in self._soln_fields]
 
         self.blanking = args.blanking
-        
+        self.gradients = args.gradients
         # See if we are computing gradients
         if args.gradients:
             self._pre_proc_fields_ref = self._pre_proc_fields
@@ -88,7 +88,7 @@ class VTKWriter(BaseWriter):
     def _post_proc_fields_scal(self, vsoln):
         return [vsoln[self._soln_fields.index(v)] for v, _ in self._vtk_vars]
 
-    def _pre_proc_fields_grad(self, name, mesh, soln):
+    def _pre_proc_fields_grad(self, name, mesh, soln, gid):
         # Call the reference pre-processor
         soln = self._pre_proc_fields_ref(name, mesh, soln)
 
@@ -99,7 +99,7 @@ class VTKWriter(BaseWriter):
         basiscls = subclass_where(BaseShape, name=name)
 
         # Construct an instance of the relevant elements class
-        eles = self.elementscls(basiscls, mesh, self.cfg)
+        eles = self.elementscls(basiscls, mesh, self.cfg, gid)
 
         # Get the smats and |J|^-1 to untransform the gradient
         smat = eles.smat_at_np('upts').transpose(2, 0, 1, 3)
@@ -366,7 +366,6 @@ class VTKWriter(BaseWriter):
 
             mesh = mesh[:, self.soln[f'{skpre}_idxs_{skpost}'], :]
 
-
         # handle the case where overset blanking information is available
         # only output unblanked cells for visualization
         if 'overset' in self.cfg.sections():
@@ -416,7 +415,10 @@ class VTKWriter(BaseWriter):
 
 
         # Pre-process the solution
-        soln = self._pre_proc_fields(name, mesh, soln).swapaxes(0, 1)
+        if self.gradients:
+            soln = self._pre_proc_fields(name, mesh, soln, gid).swapaxes(0, 1)
+        else:
+            soln = self._pre_proc_fields(name, mesh, soln).swapaxes(0, 1)
 
         # Interpolate the solution to the vis points
         vsoln = soln_vtu_op @ soln.reshape(len(soln), -1)
