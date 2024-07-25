@@ -11,22 +11,10 @@ from pyfr.quadrules import get_quadrule
 from multiprocessing import Pool
 from scipy.spatial import KDTree
 
-# this is really time comsuming, let's use mp to accelerate since
-# import multiprocessing
-
-'''
-This is a class to interpolate the solution from overset grid 
-to background grid for quantatitive analysis
-
-case 1: Isentropic Vortox Propagation
-case 2: Taylor Green 
-case 3: Turbulence Decaying
-'''
-
-
 class PostOverset(object):
     def __init__(self, elementscls, mesh, soln, mesh_inf, soln_inf, cfg, stats):
         self.elementscls = elementscls
+        
         self.mesh = mesh
         self.soln = soln
         self.mesh_inf = mesh_inf
@@ -46,26 +34,24 @@ class PostOverset(object):
 
         # background solution
         self.bksoln = self._merge_overset()
-
         # starting from here process for different problems
+        self._process_quant()
 
     def _process_quant(self):
         description = self.cfg.get('overset', 'description', 'wall-bounded')
-
+        description = 'vortexpropagation'
         if description == 'vortexpropagation':
-            self._exact_soln_isentropic_vortex(self.mesh, self.soln)
+            self._integrate_background_vp(self.bksoln, self.bkmesh, self.bkeles)
         elif description == 'taylorgreen':
-            pass
+            self._integrate_background_tgv(self.bksoln, self.bkmesh, self.bkeles)
         elif description == 'wall-bounded':
             pass
         else:
-            # no subroutines defined for quantatitive analysis 
-            # of this problem
             pass
-
 
     def _merge_overset(self):
         description = self.cfg.get('overset', 'description', 'wall-bounded')
+        description = 'vortexpropagation'
         if  description == 'wall-bounded':
             solnbackground = defaultdict(list)
             for k, v in self.soln_inf.items():
@@ -91,7 +77,6 @@ class PostOverset(object):
 
             if gid == 0:
                 # the first grid is always the background grid
-                # therefore, I need to first collect those blanked points first
                 self._collect_blanked_upts(
                     amesh, self.mesh_inf[gid], self.soln, soln_inf, gid, offset
                 )
@@ -118,24 +103,18 @@ class PostOverset(object):
                 #loop over solution points
                 for idxspts in range(eles.shape[0]):
                     pts = eles[idxspts, :, idxe]
-
                     # searching for the point in the forests
                     rst, destination = self._search_in_forests(pts)
-                    
                     # destination stores the (uidx, eidx, partname)
                     _, (_,eidx), ovpart = destination
-
                     # do the interpolation
                     intp_soln = self._interpolation(
                         rst, self.unblanked_overset_eles[ovpart], eidx, ovpart
                     )
-                    
                     bkeidx = blankedeidx[idxe]
-                
                     partsoln[idxspts,:,bkeidx] = intp_soln[0,:]
 
             solnbackground[part] = partsoln
-        
         return solnbackground
 
     def _interpolation(self, rst, eles, eidovset, part):
@@ -166,11 +145,6 @@ class PostOverset(object):
             '''
             # infer the grid id from name
             gid = int(name.split('_')[1].split('-')[1][1:])
-
-            # motioninfo = motion_exprs(self.cfg, gid)
-            # need provide data type to this function
-            # motion = calc_motion(self.t, self.t, motioninfo, self.fpdtype)
-
             motion = self.motion[f'grid_{gid}']
 
             '''
@@ -196,11 +170,6 @@ class PostOverset(object):
             rmat   = np.array(motion['Rmat']).reshape(-1,3).astype(self.fpdtype)
             offset = np.array(motion['offset']).astype(self.fpdtype)
             pivot  = np.array(motion['pivot']).astype(self.fpdtype)
-            
-            # double check if I need to do this
-            # offsetv = np.tile(offset, (eshape.shape[0], eshape.shape[2], 1))
-            # pivotv  = np.tile(pivot,  (eshape.shape[0], eshape.shape[2], 1))
-            
             # swap axes such that the dim is (nupts, neles, ndim)
             eshape = eshape.swapaxes(1,2)
             # add offset to eshape (original coordiantes)
@@ -211,7 +180,6 @@ class PostOverset(object):
             pivot  = pivot + offset
             
             # use einsum broadcast
-            # eshape = np.einsum('ij,...j->...i', rmat, eshape-pivotv) + pivotv
             eshape = np.einsum('ij,...j->...i', rmat, eshape-pivot) + pivot
 
             # flatten the coords to buildup KD tree
@@ -306,8 +274,8 @@ class PostOverset(object):
         # pts to be searched
         self.blanked_pts = blanked_pts
         self.blanked_eid = blanked_eid
-        self.background_esh = background_mesh 
-        self.background_eles = background_eles
+        self.bkmesh = background_mesh 
+        self.bkeles = background_eles
 
     def _collect_upts_pool(self, mesh, mesh_inf, soln, soln_inf, gid, goffset):
 
@@ -416,8 +384,50 @@ class PostOverset(object):
 
         return passflag, rst_n
 
-    def _integrate_background(self, soln, mesh, eles):
+    def _integrate_background_vp(self, soln, mesh, eles):
+
+        errorpart = [] # error per part
+        volpart   = [] # volume per part
+        for part in soln.keys():
+            # grap soln mesh and eles for the currenct name
+            isoln, imesh, ieles = soln[part], mesh[part], eles[part]
+            # need to get the quadrature rule
+            rname = self.cfg.get('solver-elements-' + ieles.basis.name, 'soln-pts')
+            # inverse of det
+            rcpdjac = ieles.rcpdjac_at_np('upts')
+            # det
+            jac = 1.0/rcpdjac
+            # cofactor matrix
+            smat = ieles.smat_at_np('upts').transpose(2, 0, 1, 3)
+            gradop = ieles.basis.m4
+            # quadrature rule
+            r = get_quadrule(ieles.basis.name, rname, ieles.basis.nupts)
+            # convert the solution from convervative vars to primitive vars
+            ipsoln = np.array(self.elementscls.con_to_pri(isoln.swapaxes(0,1), self.cfg))
+            # testing
+            # evaluate the expression to be integrated
+            errorsoln = self._exact_soln_isentropic_vortex(imesh, ipsoln.swapaxes(0,1))
+            e2soln = errorsoln*errorsoln
+            # volume integration
+            vol = np.einsum('i,ik->ik', r.wts,jac)
+            # total volume
+            volt = np.sum(vol)
+
+            evol = np.einsum('ik,ijk->ijk', vol, e2soln)
+            evolt = evol.swapaxes(0,1).reshape(5,-1)
+            evolt = np.sum(evolt, axis = 1)
+
+            volpart.append(volt)
+            errorpart.append(evolt)
+
+
+        errorpart = np.array(errorpart)
+        volpart = np.array(volpart)
+        errorpart = errorpart/np.sum(volpart)
+        print('volume is,', volpart)
+        print('Error of Vp is ,', errorpart)
         
+    def _integrate_background(self, soln, mesh, eles):
         errorpart = [] # error per part
         volpart   = [] # volume per part
         kinepart  = [] # kinetic dissipation etc per part
@@ -425,26 +435,18 @@ class PostOverset(object):
             # grap soln mesh and eles for the currenct name
             isoln, imesh, ieles = soln[part], mesh[part], eles[part]
             # need to get the quadrature rule
-
-            #r = get_quadrule()
             rname = self.cfg.get('solver-elements-' + ieles.basis.name, 'soln-pts')
-            
             # inverse of det
             rcpdjac = ieles.rcpdjac_at_np('upts')
-            
             # det
             jac = 1.0/rcpdjac
-
             # cofactor matrix
             smat = ieles.smat_at_np('upts').transpose(2, 0, 1, 3)
             gradop = ieles.basis.m4
-            
             # quadrature rule
             r = get_quadrule(ieles.basis.name, rname, ieles.basis.nupts)
-            
             # convert the solution from convervative vars to primitive vars
             ipsoln = np.array(self.elementscls.con_to_pri(isoln.swapaxes(0,1), self.cfg))
-            
             # testing
             # ipsoln = self._test_grad(imesh, ipsoln.swapaxes(0,1))
             # gradsoln = gradop @ ipsoln.reshape(ieles.basis.nupts, -1)
@@ -456,11 +458,6 @@ class PostOverset(object):
             kinetic = self._eval_kinetic(gradsoln, ipsoln)
             kinetic = kinetic.swapaxes(0,1)
 
-            # evaluate the gradient if needed
-            # evaluate the expression to be integrated
-            errorsoln = self._exact_soln(imesh, ipsoln.swapaxes(0,1))
-            e2soln = errorsoln*errorsoln
-            
             # volume integration
             vol = np.einsum('i,ik->ik', r.wts,jac)
             # total volume
@@ -470,21 +467,14 @@ class PostOverset(object):
             kvolt = kvol.swapaxes(0,1).reshape(4,-1)
             kvolt = np.sum(kvolt,axis = 1)
 
-            evol = np.einsum('ik,ijk->ijk', vol, e2soln)
-            evolt = evol.swapaxes(0,1).reshape(5,-1)
-            evolt = np.sum(evolt, axis = 1)
-
             volpart.append(volt)
-            errorpart.append(evolt)
             kinepart.append(kvolt)
 
 
         kinepart = np.array(kinepart)
-        errorpart = np.array(errorpart)
         volpart = np.array(volpart)
-        errorpart = errorpart/np.sum(volpart)
         kinepart = kinepart/np.sum(volpart)
-        print(errorpart)
+
         kinepartlist = [kinepart[0,i] for i in range(4)]
         kinepartlist.append(self.t)
         kinepartlist = np.atleast_2d(np.array(kinepartlist))
@@ -492,35 +482,17 @@ class PostOverset(object):
 
     def _eval_kinetic(self, gradsoln, soln):
         mu = float(self.cfg.get('constants','mu'))
-        
         kinetic = np.zeros((4,soln.shape[1], soln.shape[2]))
 
         for eidx in range(gradsoln.shape[3]):
             for pts in range(gradsoln.shape[2]):
-                
                 m = gradsoln[1:4,:,pts, eidx]
-
                 p = soln[4,pts,eidx]
-
-                ux = m[0,0]
-                uy = m[0,1]
-                uz = m[0,2]
-
-                vx = m[1,0]
-                vy = m[1,1]
-                vz = m[1,2]
-
-                wx = m[2,0]
-                wy = m[2,1]
-                wz = m[2,2]
-
-                s11 = ux
-                s22 = vy
-                s33 = wz
-
-                s12= 0.5*(uy+vx)
-                s13= 0.5*(uz+wx)
-                s23= 0.5*(vz+wy)
+                ux, uy, uz = m[0,0], m[0,1], m[0,2]
+                vx, vy, vz = m[1,0], m[1,1], m[1,2]
+                wx, wy, wz = m[2,0], m[2,1], m[2,2]
+                s11, s22, s33 = ux, vy, wz
+                s12, s13, s23 = 0.5*(uy+vx), 0.5*(uz+wx), 0.5*(vz+wy)
 
                 sum1 = 2.0*mu*(s11*s11+s22*s22+s33*s33+2.0*s12*s12+2.0*s13*s13+2.0*s23*s23)
                 sum2 = 0.0*(ux+vy+wz)*(ux+vy+wz)
@@ -573,9 +545,7 @@ class PostOverset(object):
         for eidx in range(mesh.shape[2]):
             for pidx in range(mesh.shape[0]):
                 pts = mesh[pidx,:,eidx]
-                x = pts[0]
-                y = pts[1]
-                z = pts[2]
+                x,y,z = pts[0], pts[1], pts[2]
 
                 S = 13.5    
                 M = 0.4     
