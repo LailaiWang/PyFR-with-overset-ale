@@ -93,8 +93,8 @@ class PostOverset(object):
         for part, eles in self.blanked_pts.items():
             blankedeidx = self.blanked_eid[part]
             partsoln = self.soln[part]
-            
             # loop over elements
+            
             for idxe in range(eles.shape[2]):
                 #loop over solution points
                 for idxspts in range(eles.shape[0]):
@@ -469,13 +469,11 @@ class PostOverset(object):
 
         volpart = np.array(volpart)
         volt = np.sum(volpart)
-        print('volume is,', volt)
 
         kinepart = np.array(kinepart)
         kinepart = np.sum(kinepart, axis=0)/volt
         
-        print('time,', self.t)
-        print('kinepart list,', kinepart)
+        print(f'{self.t} {kinepart[3]}')
         
     def _eval_kinetic(self, gradsoln, soln):
         mu = float(self.cfg.get('constants','mu'))

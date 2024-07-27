@@ -60,9 +60,22 @@ class BaseWriter(object):
         self.elementscls = self.systemscls.elementscls
         
         if nmsh > 1 :
-            # postprocessing when there is overset
-            self.postoverset = PostOverset(
-                self.elementscls, self.mesh, self.soln, self.mesh_inf, self.soln_inf,
-                self.cfg, self.stats
-            )
+            if args.nsolnf == 1 :
+                self.postoverset = PostOverset(
+                    self.elementscls, self.mesh, self.soln, self.mesh_inf, self.soln_inf,
+                    self.cfg, self.stats
+                )
+            else:
+                base = int(args.solnf[-9:-6])
+                filenames = [args.solnf[:-9] + f'{base + args.incrsolnf *i :03}' + '.pyfrs' for i in range(args.nsolnf)] 
+                for file in filenames:
+                    soln = NativeReader(file)
+                    stats = Inifile(soln['stats'])
+                    PostOverset(
+                        self.elementscls, self.mesh, soln, self.mesh_inf, self.soln_inf,
+                        self.cfg, stats
+                    )
+                import sys
+                sys.exit('Existing batch post-processing')
+                
 
