@@ -94,7 +94,7 @@ class PostOverset(object):
             blankedeidx = self.blanked_eid[part]
             partsoln = self.soln[part]
             # loop over elements
-            
+            '''
             for idxe in range(eles.shape[2]):
                 #loop over solution points
                 for idxspts in range(eles.shape[0]):
@@ -109,7 +109,7 @@ class PostOverset(object):
                     )
                     bkeidx = blankedeidx[idxe]
                     partsoln[idxspts,:,bkeidx] = intp_soln[0,:]
-            
+            '''
             solnbackground[part] = partsoln
         return solnbackground
 
@@ -473,7 +473,10 @@ class PostOverset(object):
         kinepart = np.array(kinepart)
         kinepart = np.sum(kinepart, axis=0)/volt
         
-        print(f'{self.t} {kinepart[3]}')
+        file1 = open("tgv.dat", "a")
+        print(f'{self.t} {kinepart[3]}\n')
+        file1.writelines(f'{self.t} {kinepart[3]}\n')
+        file1.close()
         
     def _eval_kinetic(self, gradsoln, soln):
         mu = float(self.cfg.get('constants','mu'))
