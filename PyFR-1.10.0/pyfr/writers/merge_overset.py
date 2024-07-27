@@ -38,8 +38,7 @@ class PostOverset(object):
         self._process_quant()
 
     def _process_quant(self):
-        description = self.cfg.get('overset', 'description', 'wall-bounded')
-        description = 'vortexpropagation'
+        description = self.cfg.get('overset', 'description', 'taylorgreen')
         if description == 'vortexpropagation':
             self._integrate_background_vp(self.bksoln, self.bkmesh, self.bkeles)
         elif description == 'taylorgreen':
@@ -50,8 +49,7 @@ class PostOverset(object):
             pass
 
     def _merge_overset(self):
-        description = self.cfg.get('overset', 'description', 'wall-bounded')
-        description = 'vortexpropagation'
+        description = self.cfg.get('overset', 'description', 'taylorgreen')
         if  description == 'wall-bounded':
             solnbackground = defaultdict(list)
             for k, v in self.soln_inf.items():
@@ -93,9 +91,7 @@ class PostOverset(object):
         solnbackground = defaultdict(list)
         # loop over blanked elements, here are the solution points
         for part, eles in self.blanked_pts.items():
-           
             blankedeidx = self.blanked_eid[part]
-
             partsoln = self.soln[part]
             
             # loop over elements
@@ -113,7 +109,7 @@ class PostOverset(object):
                     )
                     bkeidx = blankedeidx[idxe]
                     partsoln[idxspts,:,bkeidx] = intp_soln[0,:]
-
+            
             solnbackground[part] = partsoln
         return solnbackground
 
@@ -291,7 +287,7 @@ class PostOverset(object):
         for pfn, misil in parts.items():
             for mk, sk in misil:
                 name = mesh_inf[mk][0]
-                mesh = mesh[mk]
+                imesh = mesh[mk]
                 soln = self.soln[sk].swapaxes(0, 1)
             
                 skpre, skpost = sk.rsplit('_', 1)
@@ -300,7 +296,7 @@ class PostOverset(object):
                 idxunblanked = [idx for idx, stat in enumerate(unblanked) if stat == 1]
 
                 # first instantiate the element class
-                eles = self._prepare_eles(mesh, name, gid)
+                eles = self._prepare_eles(imesh, name, gid)
                 # build the coordinates of upts of the elements
                 elesupts = eles.ploc_at_np('upts')
                 eles_unblanked = elesupts[:,:,idxunblanked]
@@ -364,7 +360,7 @@ class PostOverset(object):
 
             dxyz = eop @ eshape - coords
             iters = iters + 1
-            if iters > 10:
+            if iters > 2:
                 break
 
         if np.linalg.norm(dxyz) <= 1e-6: # converged
@@ -427,7 +423,7 @@ class PostOverset(object):
         print('volume is,', volpart)
         print('Error of Vp is ,', errorpart)
         
-    def _integrate_background(self, soln, mesh, eles):
+    def _integrate_background_tgv(self, soln, mesh, eles):
         errorpart = [] # error per part
         volpart   = [] # volume per part
         kinepart  = [] # kinetic dissipation etc per part
@@ -471,15 +467,16 @@ class PostOverset(object):
             kinepart.append(kvolt)
 
 
-        kinepart = np.array(kinepart)
         volpart = np.array(volpart)
-        kinepart = kinepart/np.sum(volpart)
+        volt = np.sum(volpart)
+        print('volume is,', volt)
 
-        kinepartlist = [kinepart[0,i] for i in range(4)]
-        kinepartlist.append(self.t)
-        kinepartlist = np.atleast_2d(np.array(kinepartlist))
-        np.savetxt(f"tgv_data_{self.t:.4g}", kinepartlist)
-
+        kinepart = np.array(kinepart)
+        kinepart = np.sum(kinepart, axis=0)/volt
+        
+        print('time,', self.t)
+        print('kinepart list,', kinepart)
+        
     def _eval_kinetic(self, gradsoln, soln):
         mu = float(self.cfg.get('constants','mu'))
         kinetic = np.zeros((4,soln.shape[1], soln.shape[2]))
