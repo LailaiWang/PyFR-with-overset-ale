@@ -94,7 +94,7 @@ class PostOverset(object):
             blankedeidx = self.blanked_eid[part]
             partsoln = self.soln[part]
             # loop over elements
-            '''
+            
             for idxe in range(eles.shape[2]):
                 #loop over solution points
                 for idxspts in range(eles.shape[0]):
@@ -109,7 +109,7 @@ class PostOverset(object):
                     )
                     bkeidx = blankedeidx[idxe]
                     partsoln[idxspts,:,bkeidx] = intp_soln[0,:]
-            '''
+            
             solnbackground[part] = partsoln
         return solnbackground
 
