@@ -37,6 +37,7 @@ public:
 
   dvec<double> offset;
   dvec<double> Rmat;
+  dvec<double> Pivot;
 
   bool rrot = false;         /** Flag for rigid-body rotation (apply transform to all search points) */
 
@@ -48,7 +49,7 @@ public:
 
   void clearData(void);
 
-  void setTransform(double* mat, double* off, int nDims);
+  void setTransform(double* mat, double* pvt, double* off, int nDims);
 };
 
 //! Search the ADT for the element containint the point xsearch

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-
 from pyfr.solvers.baseadvec import BaseAdvectionSystem
 import numpy as np
 
 # for debugging purpose
 from convert import *
+import sys
 
 class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
     def rhs(self, t, uinbank, foutbank):
@@ -21,6 +21,8 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         istage = next(i for i, _ in enumerate(tstage) if np.isclose(_, t, 1e-4*self.dtcurr))
         fpdtype = self.backend.fpdtype
         
+        self.istage = istage
+
         # do the overset related stuff first
         if self.mvgrid and self.overset:
             # check t 
@@ -42,6 +44,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                 motion = self._calc_motion(tn, tn, self.motioninfo, fpdtype)
                 of = motion['offset']
                 R = motion['Rmat']
+                pivot = motion['pivot']
                 
                 # these are used by get_face_nodes get_cell_nodes
                 q1 << kernels['eles','updateplocface'](
@@ -49,7 +52,8 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                     r00 = R[0],  r01 = R[1],  r02 = R[2],
                     r10 = R[3],  r11 = R[4],  r12 = R[5],
                     r20 = R[6],  r21 = R[7],  r22 = R[8],
-                    ofx = of[0], ofy = of[1], ofz = of[2]
+                    ofx = of[0], ofy = of[1], ofz = of[2],
+                    pvx = pivot[0], pvy = pivot[1], pvz = pivot[2]
                 )
 
                 q1 << kernels['eles','updateploc'](
@@ -57,7 +61,8 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                     r00 = R[0],  r01 = R[1],  r02 = R[2],
                     r10 = R[3],  r11 = R[4],  r12 = R[5],
                     r20 = R[6],  r21 = R[7],  r22 = R[8],
-                    ofx = of[0], ofy = of[1], ofz = of[2]
+                    ofx = of[0], ofy = of[1], ofz = of[2],
+                    pvx = pivot[0], pvy = pivot[1], pvz = pivot[2]
                 )
                 
                 runall([q1])
@@ -74,6 +79,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                 motion = self._calc_motion(t, t, self.motioninfo, fpdtype)
                 of = motion['offset']
                 R = motion['Rmat']
+                pivot = motion['pivot']
                 
                 #self.oset.move_solvercoords(motion)
                 # update face grids
@@ -82,7 +88,8 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                     r00 = R[0],  r01 = R[1],  r02 = R[2],
                     r10 = R[3],  r11 = R[4],  r12 = R[5],
                     r20 = R[6],  r21 = R[7],  r22 = R[8],
-                    ofx = of[0], ofy = of[1], ofz = of[2]
+                    ofx = of[0], ofy = of[1], ofz = of[2],
+                    pvx = pivot[0], pvy = pivot[1], pvz = pivot[2]
                 )
 
                 q1 << kernels['eles','updateploc'](
@@ -90,7 +97,8 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                     r00 = R[0],  r01 = R[1],  r02 = R[2],
                     r10 = R[3],  r11 = R[4],  r12 = R[5],
                     r20 = R[6],  r21 = R[7],  r22 = R[8],
-                    ofx = of[0], ofy = of[1], ofz = of[2]
+                    ofx = of[0], ofy = of[1], ofz = of[2],
+                    pvx = pivot[0], pvy = pivot[1], pvz = pivot[2]
                 )
                 runall([q1])
                 # is in  different stream
@@ -98,7 +106,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                 self.oset.sync_device()
                 # also need to move the body grid
                 # eventally move to last position
-                self.oset.update_transform(motion['Rmat'], motion['offset'])
+                self.oset.update_transform(motion['Rmat'], motion['pivot'], motion['offset'])
                 self.oset.update_adt_transform( motion )
                 self.oset.move_flat( motion )
                 self.oset.move_nested( motion )
@@ -119,6 +127,10 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
             
             of = motion['offset']
             R = motion['Rmat']
+            pivot = motion['pivot']
+
+            # save the rotation matrix at stage end
+            self.Rmat = R
 
             if self.overset is False:
                 q1 << kernels['eles','updateplocface'](
@@ -126,7 +138,8 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                     r00 = R[0],  r01 = R[1],  r02 = R[2],
                     r10 = R[3],  r11 = R[4],  r12 = R[5],
                     r20 = R[6],  r21 = R[7],  r22 = R[8],
-                    ofx = of[0], ofy = of[1], ofz = of[2]
+                    ofx = of[0], ofy = of[1], ofz = of[2],
+                    pvx = pivot[0], pvy = pivot[1], pvz = pivot[2]
                 )
                 #runall([q1])
 
@@ -135,13 +148,13 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
                     r00 = R[0],  r01 = R[1],  r02 = R[2],
                     r10 = R[3],  r11 = R[4],  r12 = R[5],
                     r20 = R[6],  r21 = R[7],  r22 = R[8],
-                    ofx = of[0], ofy = of[1], ofz = of[2]
+                    ofx = of[0], ofy = of[1], ofz = of[2],
+                    pvx = pivot[0], pvy = pivot[1], pvz = pivot[2]
                 )
 
                 #runall([q1])
                 
             omg = motion['omega']
-            pivot = motion['pivot']
             tvel = motion['tvel']
 
             q1 << kernels['eles','updatemvel'](
@@ -192,9 +205,24 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
 
         q1 << kernels['eles', 'disu_int']()
         runall([q1])
+
+        # in case there is overset boundary
+        if ('mpiint','scal_fpts_send') in kernels:
+            q2 << kernels['mpiint', 'scal_fpts_send']()
+            q2 << kernels['mpiint', 'scal_fpts_recv']()
+            q2 << kernels['mpiint', 'scal_fpts_unpack']()
+
+        # send, recv and unpack state and mvel
+        #if self.mvgrid is True:
+        if ('mpiint','vect_fpts_mvel_send') in kernels:
+            q2 << kernels['mpiint', 'vect_fpts_mvel_send']()
+            q2 << kernels['mpiint', 'vect_fpts_mvel_recv']()
+            q2 << kernels['mpiint', 'vect_fpts_mvel_unpack']()
+        runall([q2])
         
         # here update the solution on artbnd
         if self.mvgrid and self.overset:
+            self.oset.sync_device()
             self.oset.exchangeSolution()
             self.oset.sync_device()
 
@@ -213,19 +241,20 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         q1 << kernels['eles', 'tgradpcoru_upts']()
         
         # in case there is overset boundary
-        if ('mpiint','scal_fpts_send') in kernels:
-            q2 << kernels['mpiint', 'scal_fpts_send']()
-            q2 << kernels['mpiint', 'scal_fpts_recv']()
-            q2 << kernels['mpiint', 'scal_fpts_unpack']()
+        #if ('mpiint','scal_fpts_send') in kernels:
+        #    q2 << kernels['mpiint', 'scal_fpts_send']()
+        #    q2 << kernels['mpiint', 'scal_fpts_recv']()
+        #    q2 << kernels['mpiint', 'scal_fpts_unpack']()
 
         # send, recv and unpack state and mvel
         #if self.mvgrid is True:
-        if ('mpiint','vect_fpts_mvel_send') in kernels:
-            q2 << kernels['mpiint', 'vect_fpts_mvel_send']()
-            q2 << kernels['mpiint', 'vect_fpts_mvel_recv']()
-            q2 << kernels['mpiint', 'vect_fpts_mvel_unpack']()
+        #if ('mpiint','vect_fpts_mvel_send') in kernels:
+        #    q2 << kernels['mpiint', 'vect_fpts_mvel_send']()
+        #    q2 << kernels['mpiint', 'vect_fpts_mvel_recv']()
+        #    q2 << kernels['mpiint', 'vect_fpts_mvel_unpack']()
 
-        runall([q1, q2])
+        #runall([q1, q2])
+        runall([q1])
 
 
         q1 << kernels['mpiint', 'con_u']()

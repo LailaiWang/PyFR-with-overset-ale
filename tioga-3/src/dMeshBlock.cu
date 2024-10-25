@@ -275,13 +275,14 @@ void dMeshBlock::setDeviceData(double* vx, double* ex, int* ibc, int* ibf)
   coord = ex;
 }
 
-void dMeshBlock::setTransform(double* mat, double* off, int ndim)
+void dMeshBlock::setTransform(double* mat, double* pvt, double* off, int ndim)
 {
   if (ndim != nDims)
     ThrowException("dMeshBlock::set_transform: input ndim != nDims");
 
   rrot = true; /// WORKING ON ADT REBUILD - DISABLED RROT
   Rmat.assign(mat, ndim*ndim);
+  Pivot.assign(pvt, ndim);
   offset.assign(off, ndim);
 }
 
@@ -1867,7 +1868,7 @@ void filterElements(dMeshBlock mb, dvec<double> cut_bbox, dvec<int> filt,
   float xv[nvert*3];
   for (int i = 0; i < nvert; i++) {
     for (int d = 0; d < 3; d++) {
-      xv[3*i+d] = (float)mb.coord[ic+mb.ncells*(d+3*i)];
+      xv[3*i+d] = (float) mb.coord[ic+mb.ncells*(d+3*i)];
       //int gnd = mb.ijk2gmsh[i];
       //xv[3*gnd+d] = (float)mb.coord[ic+mb.ncells*(d+3*i)];
     }
@@ -1891,15 +1892,29 @@ void filterElements(dMeshBlock mb, dvec<double> cut_bbox, dvec<int> filt,
     
     //if(ic == 0) printf("x y z %lf %lf %lf\n", xc[0], xc[1], xc[2]);
     if (mb.rrot) // Transform xc to hole map's coordinate system
-    {
+    {   
+      
+      // update pivot
+      double pivot[3] = {mb.Pivot[0], mb.Pivot[1], mb.Pivot[2]};
+      //double pivot[3] = {0.0};
+      //for(int d1 = 0; d1<3; d1++) {
+        //pivot[d1] -= mb.offset[d1];
+      //}
+
+      //printf("Pivot %lf %lf %lf\n", mb.Pivot[0], mb.Pivot[1], mb.Pivot[2]);
+
       double x2[3] = {0.,0.,0.};
       for (int d1 = 0; d1 < 3; d1++)
+        
         for (int d2 = 0; d2 < 3; d2++) {
-          x2[d1] += mb.Rmat[d1+3*d2]*(xc[d2]-mb.offset[d2]); //! TODO: include Rmat from other grid
+          //x2[d1] += mb.Rmat[d1+3*d2]*(xc[d2]-mb.offset[d2]);
+          x2[d1] += mb.Rmat[d1+3*d2]*(xc[d2]-mb.offset[d2]-pivot[d2]);
+          //! TODO: include Rmat from other grid
         }
       
       for (int d = 0; d < 3; d++)
-        xc[d] = x2[d];
+        xc[d] = x2[d]+pivot[d];
+
     }
 
     char tag = cuda_funcs::checkHoleMap<float>(xc, mb.hm_sam.data(), mb.hm_nx.data(), mb.hm_extents.data());
@@ -1993,24 +2008,22 @@ void dMeshBlock::directCut(double* cutFaces_h, int nCut, int nvertf, double *cut
   
   ///////////////////////////////////////////////////////
   // for debugging purpose
-  /*
-  printf("nCut is %d nvertf is %d\n", nCut, nvertf);
+  //printf("nCut is %d nvertf is %d\n", nCut, nvertf);
   // printf the face to check ordering of the nodes
-  FILE* fp = fopen("check_face_nodes.dat","w");
+  //FILE* fp = fopen("check_face_nodes.dat","w");
 
-  for (int j=0;j<nCut;j++) {
-    for(int i=0;i<nvertf;i++) {
-      int dim =3;
-      fprintf(fp,"%lf %lf %lf %d\n",
-                     cutFaces_h[j*nvertf*dim+i*dim+0],
-                     cutFaces_h[j*nvertf*dim+i*dim+1],
-                     cutFaces_h[j*nvertf*dim+i*dim+2],
-                     i
-                     );
-    }
-  }
-  fclose(fp);
-  */
+  //for (int j=0;j<nCut;j++) {
+  //  for(int i=0;i<nvertf;i++) {
+  //    int dim =3;
+  //    fprintf(fp,"%lf, %lf, %lf, %d\n",
+  //                   cutFaces_h[j*nvertf*dim+i*dim+0],
+  //                   cutFaces_h[j*nvertf*dim+i*dim+1],
+  //                   cutFaces_h[j*nvertf*dim+i*dim+2],
+  //                   i
+  //                   );
+  //  }
+  //}
+  //fclose(fp);
   /////////////////////////////////////////////////////////
   
   cutFlag_d.resize(ncells);
@@ -2183,9 +2196,9 @@ void dMeshBlock::directCut(double* cutFaces_h, int nCut, int nvertf, double *cut
 
     sortFaces0<<<BlocksS0, ThreadsS0>>>(filt_faces, nfiltC, nfiltF, cfDist, checkFaces);
     check_error();
-
+    
     // Have each filtered element calculate a rough distance to the reduced face list
-
+    
     dim3 Threads1(32,4);
     dim3 Blocks1( (nfiltC + Threads1.x - 1) / Threads1.x,
                   (nCheck1 + Threads1.y - 1) / Threads1.y );
@@ -2236,7 +2249,7 @@ void dMeshBlock::directCut(double* cutFaces_h, int nCut, int nvertf, double *cut
         nfiltC, nvertf, nTri, cutFlag_d, cfDist, cfVec, cutType);
     check_error();
   }
-
+    
   cuda_copy_d2h(cutFlag_d.data(), cutFlag, ncells);
 
   ///////////////// for debugging purpose ////////////////////

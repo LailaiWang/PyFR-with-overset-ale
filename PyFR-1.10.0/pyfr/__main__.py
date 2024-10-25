@@ -75,13 +75,8 @@ def main():
     # input the averaged data and instantaneous data to get the u'
     # if this is the case that an averaged file is supplied to check 
     # turbulent kinetci energy
-    ap_export.add_argument('-sp','--spherical', required = False, 
-                           type = bool, default = False,
-                           help = 'wether to change to spherical coordinates or not')
-
-    ap_export.add_argument('-ke', '--kte', required = False, 
-                           type = bool, default = False,
-                           help = 'indicator of if an averaged file is supplied')
+    ap_export.add_argument('-blank','--blanking', action = 'store_true', 
+                           help = 'whether to blank cell on back ground mesh')
 
     # to calculate u', add the instantaneous soln  file here
     ap_export.add_argument('-af', '--avsolnf',required = False, 

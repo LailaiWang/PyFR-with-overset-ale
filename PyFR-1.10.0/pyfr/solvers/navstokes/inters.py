@@ -55,20 +55,23 @@ class NavierStokesMPIInters(BaseAdvectionDiffusionMPIInters):
         visc_corr = cfg.get('solver', 'viscosity-correction')
         shock_capturing = cfg.get('solver', 'shock-capturing')
         
-        overset = True if rhsrank == None else False
+        # this overset is to tell if this is a 
+        ovmpi = True if rhsrank == None else False
 
         tplargs = dict(ndims=self.ndims, nvars=self.nvars, rsolver=rsolver,
                        visc_corr=visc_corr, shock_capturing=shock_capturing,
-                       mvgrid=self.mvgrid, ovset=overset,
+                       mvgrid=self.mvgrid, ovmpi=ovmpi, overset = self.overset,
                        c=self._tpl_c)
 
         be.pointwise.register('pyfr.solvers.navstokes.kernels.mpiconu')
         be.pointwise.register('pyfr.solvers.navstokes.kernels.mpicflux')
 
+        # continuous flux 
         self.kernels['con_u'] = lambda: be.kernel(
             'mpiconu', tplargs=tplargs, dims=[self.ninterfpts],
             ulin=self._scal_lhs, urin=self._scal_rhs,
-            ulout=self._vect_lhs
+            ulout=self._vect_lhs, 
+            ovmarker=self._scal_lhs_artbnd
         )
         # add grid velocity into common flux kernel
         self.kernels['comm_flux'] = lambda: be.kernel(
@@ -78,7 +81,8 @@ class NavierStokesMPIInters(BaseAdvectionDiffusionMPIInters):
             artviscl=self._artvisc_lhs, artviscr=self._artvisc_rhs,
             mvelnl=self._scal_lhs_mvel,mvelnr=self._scal_rhs_mvel,
             mvell=self._vect_lhs_mvel,mvelr=self._vect_rhs_mvel,
-            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs
+            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs,
+            ovmarker=self._scal_lhs_artbnd
         )
 
 
@@ -227,19 +231,3 @@ class NavierStokesSubOutflowBCInters(NavierStokesBaseBCInters):
 
         self._tpl_c.update(self._exp_opts(['p'], lhs))
 
-'''
-# temporary  overset BC
-# future work
-class NavierStokesOversetBCinters(NavierStokesBaseBCInters):
-    type = 'overset'
-    cflux_state = 'ghost'
-
-    def __init__(self, be, lhs, elemap, cfgsect, cfg):
-        super().__init__(be, lhs, elemap, cfgsect, cfg)
-
-        tplc = self._exp_opts(
-            ['rho', 'p', 'u', 'v', 'w'][:self.ndims + 2], lhs
-        )
-        self._tpl_c.update(tplc)
-
-'''

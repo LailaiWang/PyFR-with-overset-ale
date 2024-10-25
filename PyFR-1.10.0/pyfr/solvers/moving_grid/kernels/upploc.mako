@@ -16,6 +16,9 @@
               ofx = 'scalar fpdtype_t'
               ofy = 'scalar fpdtype_t'
               ofz = 'scalar fpdtype_t'
+              pvx = 'scalar fpdtype_t'
+              pvy = 'scalar fpdtype_t'
+              pvz = 'scalar fpdtype_t'
               ploc='inout fpdtype_t[${str(mvars)}]'
               pref='inout fpdtype_t[${str(mvars)}]'
               >
@@ -29,21 +32,20 @@
     ploc[1] = pref[1]+ofy;
     ploc[2] = pref[2]+ofz;
     
-    //printf("ofx %15.7e ofy %15.7e ofz %15.7e\n",ofx,ofy,ofz);
-    //printf("r00 %15.7e r01 %15.7e r02 %15.7e\n",r00,r01,r02);
-    //printf("r10 %15.7e r11 %15.7e r12 %15.7e\n",r10,r11,r12);
-    //printf("r20 %15.7e r21 %15.7e r22 %15.7e\n",r20,r21,r22);
+    pvx = pvx + ofx;
+    pvy = pvy + ofy;
+    pvz = pvz + ofz;
 
     fpdtype_t x0 = 0.0, x1 = 0.0, x2 = 0.0;
     
     // apply  rotation
-    x0 = r00*ploc[0]+r01*ploc[1]+r02*ploc[2];
-    x1 = r10*ploc[0]+r11*ploc[1]+r12*ploc[2];
-    x2 = r20*ploc[0]+r21*ploc[1]+r22*ploc[2];
+    x0 = r00*(ploc[0]-pvx)+r01*(ploc[1]-pvy)+r02*(ploc[2]-pvz);
+    x1 = r10*(ploc[0]-pvx)+r11*(ploc[1]-pvy)+r12*(ploc[2]-pvz);
+    x2 = r20*(ploc[0]-pvx)+r21*(ploc[1]-pvy)+r22*(ploc[2]-pvz);
 
-    ploc[0] = x0;
-    ploc[1] = x1;
-    ploc[2] = x2;
+    ploc[0] = x0+pvx;
+    ploc[1] = x1+pvy;
+    ploc[2] = x2+pvz;
 
 % endif
 

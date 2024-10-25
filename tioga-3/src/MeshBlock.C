@@ -22,7 +22,13 @@
 #include "utils.h"
 #include "math_funcs.h"
 #include "linklist.h"
-
+#if __cplusplus > 202403L
+  // C++20 code
+  #include <ranges>
+  #include <execution>
+#else
+  #include "thrust_range.h"
+#endif
 using namespace tg_funcs;
 
 void MeshBlock::setData(int btag,int nnodesi,double *xyzi, int *ibli,int nwbci,
@@ -132,6 +138,7 @@ void MeshBlock::tagBoundary(void)
     for (int i = 0; i < nnodes; i++) nodeRes[i] = 0.0;
 
     int k = 0;
+    // loop over different element types
     for (int n = 0; n < ntypes; n++)
     {
       int nvert = nv[n];
@@ -143,19 +150,6 @@ void MeshBlock::tagBoundary(void)
       for (int i = 0; i < nc[n]; i++)
       {
         double vol = 0.;
-
-          /// TODO: high-order element volumes beyond hexas
-//          for (int m = 0; m < nvert; m++)
-//          {
-//            inode[m] = vconn[n][nvert*i+m]-BASE;
-//            int i3 = 3*inode[m];
-//            for (int j = 0; j < 3; j++)
-//              xv2[m*3+j] = x[i3+j];
-//          }
-//          vol = computeVolume(xv2.data(), nvert, 3);
-//        }
-//        else
-//        {
           for (int m = 0; m < nv[n]; m++)
           {
             inode[m] = vconn[n][nv[n]*i+m]-BASE;
@@ -1367,27 +1361,909 @@ void MeshBlock::setResolutions(double *nres,double *cres)
   userSpecifiedCellRes=cres;
 }
 
-void MeshBlock::setTransform(double* mat, double* off, int ndim)
+void MeshBlock::setTransform(double* mat, double* pvt, double* off, int ndim)
 {
   if (ndim != nDims)
     ThrowException("MeshBlock::set_transform: input ndim != nDims");
-
+  
+  // adding pivot point
   rrot = true;
   Rmat = mat;
+  Pivot = pvt;
   offset = off;
 
-  //printf("mat %ld\n", mat);
-  //printf("mb mat is %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e \n",
-  //  mat[0], mat[1], mat[2],
-  //  mat[3], mat[4], mat[5],
-  //  mat[6], mat[7], mat[8]
-  //);
-  //printf("myid is %d adt is true %d\n", myid, adt);
+  //printf("mb pvx %lf %lf %lf\n", pvt[0], pvt[1], pvt[2]);
+  
+  // adding pivot point
   if (adt)  {
-    adt->setTransform(mat,off,ndim);
+    adt->setTransform(mat,pvt,off,ndim);
   }
 }
 
 void MeshBlock::set_soasz(unsigned int sz) {
   soasz = sz;
+}
+
+void MeshBlock::set_maxnface_maxnfpts(unsigned int nface_in, unsigned int nfpts_in) {
+  maxnface = nface_in;
+  maxnfpts = nfpts_in;
+}
+
+void MeshBlock::set_face_numbers(unsigned int nmpif, unsigned int nbcf) {
+  nmpifaces = nmpif;
+  nbcfaces = nbcf;
+}
+
+void MeshBlock::set_face_fpts(int* ffpts, unsigned int ntface) {
+  face_fpts.resize(ntface);
+  std::copy(ffpts, ffpts + ntface, face_fpts.begin());
+}
+
+void MeshBlock::set_fcelltypes(int* fctype, unsigned int ntface) {
+  // this is a one time deal, no need to parallel
+  fcelltypes = std::vector<std::vector<int>> (ntface, std::vector<int>(2,-1));
+  for(int i=0;i<ntface;++i){
+    fcelltypes[i][0] = fctype[i*2+0];
+    fcelltypes[i][1] = fctype[i*2+1];
+  }
+}
+
+void MeshBlock::set_fposition(int* fpos, unsigned int ntface) {
+  fposition = std::vector<std::vector<int>> (ntface, std::vector<int>(2, -1));
+  for(int i=0;i<ntface;++i) {
+    fposition[i][0] = fpos[i*2+0];
+    fposition[i][1] = fpos[i*2+1];
+  }
+}
+
+void MeshBlock::set_facecoords_mapping(unsigned long long int basedata,
+                                        int* faceinfo, int* mapping, int nfpts
+                                       ) {
+  fcoords_basedata = basedata;
+  int etype, cidx, fpos, nid;
+  for(int i=0;i<nfpts;++i) {
+    etype = faceinfo[i*4+0]; // element type
+    cidx = faceinfo[i*4+1];  // element number in all cell types
+    fpos = faceinfo[i*4+2];  // face position in the cell
+    nid = faceinfo[i*4+3];   // node idx
+
+    auto key = std::vector<int>{etype, cidx, fpos, nid};
+    auto it = fcoords_mapping.find(key);
+    if(it == fcoords_mapping.end()) {
+      fcoords_mapping.insert({key, mapping[i]});
+    }
+  }
+}
+
+
+
+void MeshBlock::set_interior_mapping(unsigned long long int basedata, 
+                                     unsigned long long int grad_basedata,
+                                     int* faceinfo, 
+                                     int* mapping,
+                                     int* grad_mapping,
+                                     int* grad_strides,
+                                     int nfpts) {
+  interior_basedata = basedata;
+  interior_grad_basedata = grad_basedata;
+
+  int etype, cidx, fpos, nid;
+  for(int i=0;i<nfpts;++i) {
+    etype = faceinfo[i*4+0]; // element type
+    cidx = faceinfo[i*4+1];  // element number in all cell types
+    fpos = faceinfo[i*4+2];  // face position in the cell
+    nid = faceinfo[i*4+3];   // node idx
+
+    auto key = std::vector<int>{etype, cidx, fpos, nid};
+    {
+      auto it = interior_mapping.find(key);
+      if(it == interior_mapping.end()) {
+        interior_mapping.insert({key, mapping[i]});
+      }
+    }
+    
+    {
+      auto it = interior_grad_mapping.find(key);
+      if(it == interior_grad_mapping.end()) {
+        interior_grad_mapping.insert({key, grad_mapping[i]});
+      }
+    }
+
+    {
+      auto it = interior_grad_strides.find(key);
+      if(it == interior_grad_strides.end()) {
+        interior_grad_strides.insert({key, grad_strides[i]});
+      }
+    }
+  }
+}
+
+void MeshBlock::figure_out_interior_artbnd_target() {
+  int nfringe = interior_ab_faces.size();
+  if (nfringe == 0) return;
+  // interior_mapping is for every flux points
+#if __cplusplus > 202403L
+  auto range = std::views::iota(0, nfringe);
+#else
+  auto range = thrust::views::iota(0, nfringe);
+#endif
+  interior_target_nfpts.resize(nfringe);
+  interior_target_scan.resize(nfringe);
+
+  // we need face_fpts
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
+    [this] (auto idx) {
+      auto fid = interior_ab_faces[idx].first;
+      interior_target_nfpts[idx] = face_fpts[fid];
+    });   
+  
+  //
+#if __cplusplus > 202403L
+  std::exclusive_scan(std::execution::par, 
+      interior_target_nfpts.begin(), interior_target_nfpts.end(), 
+      interior_target_scan.begin(), 0
+    );
+#else
+  int sum =0;
+  for(auto i=0;i<interior_target_nfpts.size();++i) {
+    interior_target_scan[i] = sum;
+    sum += interior_target_nfpts[i];
+  }
+#endif
+
+  // total number of fpts
+  auto tnfpts = interior_target_scan[nfringe-1] + interior_target_nfpts[nfringe-1];
+
+  interior_target_mapping.resize(tnfpts);
+  interior_target_grad_mapping.resize(tnfpts);
+  interior_target_grad_strides.resize(tnfpts);
+
+  interior_tnfpts = tnfpts;
+
+  int rank =0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  // for these interior fringe faces
+  // here we need fcelltypes and fposition
+
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
+    [this, &rank](auto idx) {
+      auto fid = interior_ab_faces[idx].first;
+      auto c0 = f2c[fid*2+0];
+      auto c1 = f2c[fid*2+1];
+      auto ib0 = iblank_cell[c0];
+      auto ib1 = iblank_cell[c1];
+        
+      auto check = ib0 ^ ib1;
+      if(check == 0) printf(" something is wrong on blanking status\n");         
+
+      if(ib0 == 0) {
+        for(auto i=0;i<face_fpts[fid];++i) {
+          auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
+          auto npid = interior_target_scan[idx] + i;
+          {
+            auto it = interior_mapping.find(key);
+            interior_target_mapping[npid] = it->second;
+          }
+          {
+            auto it = interior_grad_mapping.find(key);
+            interior_target_grad_mapping[npid] = it->second;
+          }
+          {
+            auto it = interior_grad_strides.find(key);
+            interior_target_grad_strides[npid] = it->second;
+          }
+        }
+      } else {
+        for(auto i=0;i<face_fpts[fid];++i) {
+          auto key = std::vector<int>{fcelltypes[fid][1], c1, fposition[fid][1], i};
+          auto npid = interior_target_scan[idx] + i;
+          {
+            auto it = interior_mapping.find(key);
+            interior_target_mapping[npid] = it->second;
+          }
+          {
+            auto it = interior_grad_mapping.find(key);
+            interior_target_grad_mapping[npid] = it->second;
+          }
+          {
+            auto it = interior_grad_strides.find(key);
+            interior_target_grad_strides[npid] = it->second;
+          }
+        }
+      }
+    });
+
+    // now we copy this to device 
+    //interior_target_mapping_d.resize(interior_target_mapping.size());
+    interior_target_mapping_d.assign(interior_target_mapping.data(), interior_target_mapping.size(), NULL);
+
+    //interior_target_grad_mapping_d.resize(interior_target_grad_mapping.size());
+    interior_target_grad_mapping_d.assign(interior_target_grad_mapping.data(), interior_target_grad_mapping.size(), NULL);
+
+    //interior_target_grad_strides_d.resize(interior_target_grad_strides.size());
+    interior_target_grad_strides_d.assign(interior_target_grad_strides.data(), interior_target_grad_strides.size(), NULL);
+
+}
+
+void MeshBlock::set_mpi_mapping(unsigned long long int basedata,  int* faceinfo, int* mapping, int nfpts) {
+  //one pyfr partition could have different mpi inters, each mpi inters 
+  //have its own memory allocated such that there are not necessarily continuous
+  //moreover, the mpi variable are stored variable by variable 
+  //Therefore here int mapping is organized as mapping[i*nv + 0]-> mapping[i*nv+nv]
+  //for the different variables at the same flux point
+  //Note that mapping here is interms of char instead of float/double in case the 
+  //discontinuous memory is not float/double aligned
+  mpi_basedata = basedata;
+  int etype, cidx, fpos, nid;
+  for(int i=0;i<nfpts;++i) {
+    etype = faceinfo[i*4+0]; // element type
+    cidx = faceinfo[i*4+1];  // element number
+    fpos = faceinfo[i*4+2];  // face position
+    nid = faceinfo[i*4+3];   // node id
+    
+    auto key = std::vector<int>{etype, cidx, fpos, nid};
+    auto it = mpi_mapping.find(key);
+    if(it == mpi_mapping.end()) {
+      mpi_mapping.insert({key, mapping[i]});
+    }
+  }
+  mpi_entire_tnfpts = nfpts;
+  mpi_entire_mapping_h = std::vector<int>(mapping, mapping + nfpts);
+  mpi_entire_mapping_d.assign(mpi_entire_mapping_h.data(), mpi_entire_mapping_h.size(), NULL);
+}
+
+void MeshBlock::set_mpi_rhs_mapping(unsigned long long int basedata, long long int* mapping,int* strides, int nfpts) {
+  if(nfpts != mpi_entire_tnfpts) {
+    printf("something is wrong with missmatching nfpts for mpi rhs nfpts %d mpi_entire_tnfpts %d\n", nfpts, mpi_entire_tnfpts);
+  }
+  mpi_rhs_basedata = basedata;
+  mpi_entire_rhs_mapping.resize(nfpts);
+  mpi_entire_rhs_strides.resize(nfpts);
+  mpi_entire_rhs_mapping_d.resize(nfpts);
+  mpi_entire_rhs_strides_d.resize(nfpts);
+
+  std::copy(mapping, mapping + nfpts, mpi_entire_rhs_mapping.data());
+  std::copy(strides, strides + nfpts, mpi_entire_rhs_strides.data()); 
+  
+  mpi_entire_rhs_mapping_d.assign(mpi_entire_rhs_mapping.data(), mpi_entire_rhs_mapping.size(), NULL);
+  mpi_entire_rhs_strides_d.assign(mpi_entire_rhs_strides.data(), mpi_entire_rhs_strides.size(), NULL);
+
+#if __cplusplus > 202403L
+  auto erange = std::views::iota(nbcfaces, nbcfaces+nmpifaces);
+#else
+  auto erange = thrust::views::iota(nbcfaces, nbcfaces+nmpifaces);
+#endif
+  mpi_entire_nfpts.resize(nmpifaces);
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, erange.begin(), erange.end(), 
+#else
+  std::for_each(erange.begin(), erange.end(), 
+#endif
+    [this](auto idx) {
+       mpi_entire_nfpts[idx-nbcfaces] = face_fpts[idx];
+    });
+  mpi_entire_scan.resize(nmpifaces);
+#if __cplusplus > 202403L
+  std::exclusive_scan(std::execution::par,
+      mpi_entire_nfpts.begin(), mpi_entire_nfpts.end(),
+      mpi_entire_scan.begin(), 0
+    );
+#else
+  int sum = 0;
+  for(auto i=0;i<mpi_entire_nfpts.size();++i) {
+    mpi_entire_scan[i] = sum;
+    sum += mpi_entire_nfpts[i];
+  }
+#endif
+}
+
+void MeshBlock::set_overset_rhs_basedata(unsigned long long int basedata) {
+   overset_rhs_basedata = basedata;
+}
+
+void MeshBlock::set_overset_mapping(unsigned long long int basedata,  int* faceinfo, int* mapping, int nfpts) {
+  overset_basedata = basedata;
+  int etype, cidx, fpos, nid;
+  for(int i=0;i<nfpts;++i) {
+    etype = faceinfo[i*4+0]; // element type
+    cidx = faceinfo[i*4+1];  // element number
+    fpos = faceinfo[i*4+2];  // face position
+    nid = faceinfo[i*4+3];   // node id
+    
+    auto key = std::vector<int>{etype, cidx, fpos, nid};
+    auto it = overset_mapping.find(key);
+    if(it == overset_mapping.end()) {
+      overset_mapping.insert({key, mapping[i]});
+    }
+  }
+}
+void MeshBlock::figure_out_facecoords_target() {
+    // directly use nreceptorFaces and ftag to figure things out
+  int nfringe = nreceptorFaces;
+  if(nfringe == 0) return;
+#if __cplusplus > 202403L
+  auto range = std::views::iota(0, nfringe);
+#else
+  auto range = thrust::views::iota(0, nfringe);
+#endif
+  fcoords_target_nfpts.resize(nfringe);
+  fcoords_target_scan.resize(nfringe);
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
+    [this] (auto idx) {
+      auto fid = ftag[idx];
+      fcoords_target_nfpts[idx] = face_fpts[fid];
+    });   
+  
+  //
+#if __cplusplus > 202403L
+  std::exclusive_scan(std::execution::par, 
+      fcoords_target_nfpts.begin(), fcoords_target_nfpts.end(), 
+      fcoords_target_scan.begin(), 0
+    );
+#else
+  int sum = 0;
+  for(int i=0;i<fcoords_target_nfpts.size();++i) {
+    fcoords_target_scan[i] = sum;
+    sum += fcoords_target_nfpts[i];
+  }
+#endif
+
+  auto tnfpts = fcoords_target_scan[nfringe-1] + fcoords_target_nfpts[nfringe-1];
+  fcoords_target_mapping.resize(tnfpts);
+  fcoords_tnfpts = tnfpts;
+
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
+    [this](auto idx) {
+      auto fid = ftag[idx];
+      auto c0 = f2c[fid*2+0];
+        
+      for(auto i=0;i<face_fpts[fid];++i) {
+        auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
+        auto it = fcoords_mapping.find(key);
+        auto npid = fcoords_target_scan[idx] + i;
+        fcoords_target_mapping[npid] = it->second;
+      }
+    });
+  fcoords_target_mapping_d.resize(fcoords_target_mapping.size());
+  fcoords_target_mapping_d.assign(fcoords_target_mapping.data(), fcoords_target_mapping.size(), NULL);
+}
+
+void MeshBlock::figure_out_mpi_artbnd_target() {
+  int nfringe = mpi_ab_faces.size();
+  if (nfringe == 0) return;
+#if __cplusplus > 202403L
+  auto range = std::views::iota(0, nfringe);
+#else
+  auto range = thrust::views::iota(0, nfringe);
+#endif
+  mpi_target_nfpts.resize(nfringe);
+  mpi_target_scan.resize(nfringe);
+    
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
+    [this] (auto idx) {
+      auto fid = mpi_ab_faces[idx].first;
+      mpi_target_nfpts[idx] = face_fpts[fid];
+    });
+
+#if __cplusplus > 202403L
+  std::exclusive_scan(std::execution::par, 
+      mpi_target_nfpts.begin(), mpi_target_nfpts.end(), 
+      mpi_target_scan.begin(), 0
+    );
+#else
+  int sum = 0;
+  for(auto i=0;i<mpi_target_nfpts.size();++i) {
+    mpi_target_scan[i] = sum;
+    sum += mpi_target_nfpts[i];
+  }
+#endif
+
+  auto tnfpts = mpi_target_scan[nfringe-1] + mpi_target_nfpts[nfringe-1];
+  mpi_target_mapping.resize(tnfpts);
+  mpi_tnfpts = tnfpts;// this one will be used later
+    
+  int rank =0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
+    [this, &rank](auto idx) {
+      auto fid = mpi_ab_faces[idx].first;
+      auto c0 = f2c[fid*2+0];
+      auto c1 = f2c[fid*2+1];
+      auto ib0 = iblank_cell[c0];
+        
+      for(auto i=0;i<face_fpts[fid];++i) {
+        auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
+        auto it = mpi_mapping.find(key);
+        auto npid = mpi_target_scan[idx] + i;
+        mpi_target_mapping[npid] = it->second;
+      }
+    });
+    
+  mpi_target_mapping_d.resize(mpi_target_mapping.size());
+  mpi_target_mapping_d.assign(mpi_target_mapping.data(), mpi_target_mapping.size(), NULL);
+  
+  // starting from here we figure out the indices of current mpi fpts
+  mpi_target_rhs_fptsid.resize(mpi_tnfpts);
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
+    [this, &rank] (auto idx) {
+        auto fid = mpi_ab_faces[idx].first;
+        for(auto i=0;i<face_fpts[fid];++i) {
+            auto npid = mpi_target_scan[idx] + i;
+            auto gpid = mpi_entire_scan[fid - nbcfaces] + i;
+            mpi_target_rhs_fptsid[npid] = gpid; // get the id for current fpts
+        }
+    });
+  mpi_target_rhs_fptsid_d.resize(mpi_tnfpts);
+  mpi_target_rhs_fptsid_d.assign(mpi_target_rhs_fptsid.data(), mpi_target_rhs_fptsid.size(), NULL);
+
+}
+
+
+void MeshBlock::figure_out_overset_artbnd_target() {
+  int nfringe = overset_ab_faces.size();
+  if (nfringe == 0) return;
+#if __cplusplus > 202403L
+  // C++20 code
+  auto range = std::views::iota(0, nfringe);
+#else
+  auto range = thrust::views::iota(0, nfringe);
+#endif
+  overset_target_nfpts.resize(nfringe);
+  overset_target_scan.resize(nfringe);
+    
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
+    [this] (auto idx) {
+      auto fid = overset_ab_faces[idx].first;
+      overset_target_nfpts[idx] = face_fpts[fid];
+    });
+
+#if __cplusplus > 202403L
+  std::exclusive_scan(std::execution::par, 
+      overset_target_nfpts.begin(), overset_target_nfpts.end(), 
+      overset_target_scan.begin(), 0
+    );
+#else
+  int sum = 0;
+  for(int i=0;i<overset_target_nfpts.size();++i) {
+    overset_target_scan[i] = sum;
+    sum += overset_target_nfpts[i];
+  }
+#endif
+
+  auto tnfpts = overset_target_scan[nfringe-1] + overset_target_nfpts[nfringe-1];
+  overset_target_mapping.resize(tnfpts);
+ 
+  overset_tnfpts = tnfpts;// this one will be used later
+    
+  int rank =0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
+    [this, &rank](auto idx) {
+      auto fid = overset_ab_faces[idx].first;
+      auto c0 = f2c[fid*2+0];
+      auto c1 = f2c[fid*2+1];
+      auto ib0 = iblank_cell[c0];
+        
+      for(auto i=0;i<face_fpts[fid];++i) {
+        auto key = std::vector<int>{fcelltypes[fid][0], c0, fposition[fid][0], i};
+        auto it = overset_mapping.find(key);
+        auto npid = overset_target_scan[idx] + i;
+        overset_target_mapping[npid] = it->second;
+      }
+    });
+    
+    overset_target_mapping_d.resize(overset_target_mapping.size());
+    overset_target_mapping_d.assign(overset_target_mapping.data(), overset_target_mapping.size(), NULL);
+}
+
+void MeshBlock::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
+
+  srted_order = std::vector<std::vector<std::vector<int>>> (ncells, 
+    std::vector<std::vector<int>>(maxnface, std::vector<int>(maxnfpts,-1))
+  );
+
+  unsrted_order = std::vector<std::vector<std::vector<int>>> (ncells, 
+    std::vector<std::vector<int>>(maxnface, std::vector<int>(maxnfpts,-1))
+  );
+  
+  for(auto i=0;i<ncells;++i) {
+    for(auto j=0;j<maxnface;++j) {
+      for(auto k=0;k<maxnfpts;++k){
+        srted_order[i][j][k] = srted[i*maxnface*maxnfpts+j*maxnfpts+k];
+      } 
+    }
+  }
+
+  for(auto i=0;i<ncells;++i) {
+    for(auto j=0;j<maxnface;++j) {
+      for(auto k=0;k<maxnfpts;++k){
+        unsrted_order[i][j][k] = unsrted[i*maxnface*maxnfpts+j*maxnfpts+k];
+      } 
+    }
+  }
+
+  // we know in unsorted_order the id of fpts always in acending order
+  // data being passed in is in unsrted order  
+  // the index of a point in srted in unsrted
+  std::vector<std::vector<std::unordered_map<int, int>>> unsrted_to_srted_map(
+        ncells, std::vector<std::unordered_map<int, int>> (maxnface)
+    );
+#if __cplusplus > 202403L
+  auto range = std::views::iota(0, ncells);
+#else
+  auto range = thrust::views::iota(0, ncells);
+#endif
+  // ntypes // number of different types
+  // nc // number of cells per type
+  // ncf // number of faces per type
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(), 
+#else
+  std::for_each(range.begin(), range.end(), 
+#endif
+    [this, &unsrted_to_srted_map](auto idx) {
+      for(auto i=0;i<ncf[0];++i) { // use maxnface here for now
+        std::unordered_map<int, int> lmap;
+        auto fid = c2f[0][idx*maxnface + i]; // current face id
+        auto nfpts = face_fpts[fid];
+        for(auto j=0;j<nfpts;++j) {
+          auto sid = srted_order[idx][i][j]; // the sorted id of flux points
+          // search this id in undorted_order[idx][i]
+          auto& pool = unsrted_order[idx][i];
+          auto it = std::lower_bound(pool.begin(), pool.begin() + nfpts, sid);
+          auto id = std::distance(pool.begin(), it);
+          if(id >= nfpts) printf("something is wrong on finding the reorder key\n");
+          lmap[sid] = id;
+        }
+        unsrted_to_srted_map[idx][i] = lmap;
+      }
+    });
+   
+  face_unsrted_to_srted_map = unsrted_to_srted_map;
+ 
+}
+
+void MeshBlock::reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+  if(nmpifaces == 0) return;
+  double* status = reinterpret_cast<double*>(mpi_basedata);
+  int* mapping = mpi_entire_mapping_d.data();
+  reset_mpi_face_artbnd_status_wrapper(status,mapping,1.0,0,mpi_entire_tnfpts,nvar,soasz,3);
+}
+
+void MeshBlock::reset_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+  if(mpi_tnfpts == 0) return;
+  double* status = reinterpret_cast<double*>(mpi_basedata);
+  int* mapping = mpi_target_mapping_d.data();
+  reset_mpi_face_artbnd_status_wrapper(status, mapping, 1.0, 0,  mpi_tnfpts, nvar, soasz, 3);
+}
+
+void MeshBlock::prepare_mpi_artbnd_target_data(double* data, int nvar) {
+  // here we need to do some reordering of the data
+  // we know for now the mpi faces are in the first mpi_tnfpts for cases we support
+  int nfringe = mpi_ab_faces.size();
+  if(nfringe == 0) return;
+  mpi_data_h.resize(mpi_tnfpts*nvar);
+#if __cplusplus > 202403L
+  auto range = std::views::iota(0, nfringe);  
+#else
+  auto range = thrust::views::iota(0, nfringe);  
+#endif
+  
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par, range.begin(), range.end(),
+#else
+  std::for_each(range.begin(), range.end(),
+#endif
+     [this, nvar, data](auto idx) {
+    auto  sidx = mpi_target_scan[idx];    // start idx of each face
+    auto  nfpt = mpi_target_nfpts[idx];
+    auto  fid = mpi_ab_faces[idx].first; // global id
+    auto  c0 = f2c[fid*2+0];
+    auto  fp = fposition[fid][0]; // face position
+    auto& srted = srted_order[c0][fp];  // srted ids for current face
+    // now swap the values
+    for(auto i=0;i<nfpt;++i) {
+        auto srtid = srted[i];
+        //auto unsrtid = lmap[srtid];
+        auto unsrtid = face_unsrted_to_srted_map[c0][fp][srtid];
+        for(auto k=0;k<nvar;++k) {
+            mpi_data_h[sidx*nvar + i*nvar + k] = data[sidx*nvar + unsrtid * nvar + k];
+        }
+    }
+  });
+  // then copy this data to the device
+  mpi_data_d.resize(mpi_data_h.size());
+  mpi_data_d.assign(mpi_data_h.data(), mpi_data_h.size(), NULL);
+
+  // now copy the data to the destination we want
+  double* dst = reinterpret_cast<double*>(mpi_rhs_basedata);
+  double* src = mpi_data_d.data(); 
+ 
+  long long int* mapping = mpi_entire_rhs_mapping_d.data();
+  int* strides = mpi_entire_rhs_strides_d.data();
+  
+  int* fptsids = mpi_target_rhs_fptsid_d.data();
+  pointwise_copy_to_mpi_rhs_wrapper(dst, mapping, strides, src, fptsids, mpi_tnfpts, nvar, 3);
+}
+
+void MeshBlock::prepare_overset_artbnd_target_data(double* data, int nvar) {
+  // currently, we assume the overset grid will not be cut by any other grids
+  // hence the data are all for overset boundaries
+  int nfringe = overset_ab_faces.size();
+  if(nfringe == 0 ) return;
+  overset_data_h.resize(overset_tnfpts*nvar);
+#if __cplusplus > 202403L
+  auto range = std::views::iota(0, nfringe);  
+#else
+  auto range = thrust::views::iota(0, nfringe);  
+#endif
+
+#if __cplusplus > 202403L
+  std::for_each(std::execution::par,
+#else
+  std::for_each(
+#endif
+     range.begin(), range.end(), [this, nvar, data](auto idx) {
+    auto  sidx = overset_target_scan[idx];    // start idx of each face
+    auto  nfpt = overset_target_nfpts[idx];
+    auto  fid = overset_ab_faces[idx].first; // global id
+    auto  c0 = f2c[fid*2+0];
+    auto  fp = fposition[fid][0]; // face position
+    auto& srted = srted_order[c0][fp];  // srted ids for current face
+    // now swap the values
+    for(auto i=0;i<nfpt;++i) {
+        auto srtid = srted[i];
+        auto unsrtid = face_unsrted_to_srted_map[c0][fp][srtid];
+        for(auto k=0;k<nvar;++k) {
+            overset_data_h[k*overset_tnfpts+sidx+i] = data[sidx*nvar + unsrtid * nvar + k];
+        }
+    }
+  });
+  // then copy this data to the device
+  // overset_data_d.resize(overset_data_h.size());
+  // overset_data_d.assign(overset_data_h.data(), overset_data_h.size(), NULL);
+
+  // overset data is directly copied to the desination
+  // we are assuming the overset grid is not cut by any other grid for now
+  double* dst = reinterpret_cast<double*>(overset_rhs_basedata);
+  cuda_copy_h2d(dst, overset_data_h.data(), overset_data_h.size());
+}
+
+
+void MeshBlock::prepare_interior_artbnd_target_data(double* data, int nvar) {
+  // now, we want to prepare the data  for interior artbnd
+  // data, mpi_tnfpts * nvar are the data for mpi fringe faces
+  if(interior_tnfpts == 0) return;
+  //printf("total mpi %d interior %d data %p\n", mpi_tnfpts, interior_tnfpts, data);
+  interior_data_d.resize(interior_tnfpts*nvar);
+  interior_data_d.assign(data + mpi_tnfpts * nvar, interior_tnfpts * nvar, NULL);
+  unpack_interior_artbnd_u_pointwise(nvar);
+}
+
+void MeshBlock::prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim) {
+  if(interior_tnfpts == 0) return;
+  //interior_data_grad_d.resize(interior_tnfpts * nvar * dim);
+  interior_data_grad_d.assign(data + mpi_tnfpts*nvar*dim, interior_tnfpts * nvar * dim, NULL);
+  unpack_interior_artbnd_du_pointwise(nvar, dim);
+}
+
+void MeshBlock::unpack_interior_artbnd_u_pointwise(unsigned int nvar) {
+  if(interior_tnfpts == 0) return;
+  double* usrc = interior_data_d.data();
+  double* udst = reinterpret_cast<double*>(interior_basedata);
+  int* mapping = interior_target_mapping_d.data();
+  unpack_fringe_u_wrapper(usrc, udst, mapping, 0, interior_tnfpts, nvar, soasz, 3); 
+}
+
+void MeshBlock::unpack_interior_artbnd_du_pointwise(unsigned int nvar, unsigned int dim) {
+  if(interior_tnfpts == 0) return;
+  double* usrc = interior_data_grad_d.data();
+  double* udst = reinterpret_cast<double*>(interior_grad_basedata);
+  //printf("basedata tioga side %lld\n", interior_grad_basedata);
+  //for(auto i: interior_target_grad_mapping) std::cout<<i<<" ";
+  //std::cout<<std::endl;
+  //for(auto i: interior_target_grad_strides) std::cout<<i<<" ";
+  //std::cout<<std::endl;
+  //{
+  //  int pid = getpid();
+  //  printf("current pid is %d\n haning at unpack interiror du",pid);
+  //  int idebugger = 1;
+  //  while(idebugger) {
+
+  //  };
+  //}
+  int* mapping = interior_target_grad_mapping_d.data();
+  int* strides = interior_target_grad_strides_d.data();
+  unpack_fringe_grad_wrapper(usrc, udst, mapping, strides, 0, interior_tnfpts, nvar, dim, soasz, 3);
+}
+
+void MeshBlock::pack_fringe_facecoords_pointwise(double* rxyz) {
+
+  if(nreceptorFaces != 0) {
+    figure_out_facecoords_target();
+  } else {
+    fcoords_tnfpts = 0;
+  }
+
+  if(fcoords_tnfpts == 0) return;
+  // resize the work data first
+  constexpr int dim = 3;
+  fcoords_data_d.resize(fcoords_tnfpts * dim);
+  double* src = reinterpret_cast<double*>(fcoords_basedata);
+  double* dst = fcoords_data_d.data();
+  int* mapping = fcoords_target_mapping_d.data();
+  pack_fringe_coords_wrapper(mapping, dst, src, fcoords_tnfpts, dim, soasz, 3);
+  // now also copy the data to host
+  cuda_copy_d2h(dst, rxyz, fcoords_tnfpts*dim);
+}
+
+void MeshBlock::set_cell_info_by_type(unsigned int nctypes, unsigned int nc, 
+                             int* ctypes, int* nupts_per_type,
+                             int* ustrides, int* dustrides, unsigned long long* du_basedata,
+                             int* cstrides, unsigned long long* c_basedata
+                            ) {
+  if(nctypes != ntypes) {
+    printf("something is wong with cell types: in %d native %d\n", nctypes, ntypes);
+  }
+  if(nc != ncells) {
+    printf("something is wong with cell num: in %d native %d\n", nc, ncells);
+  }
+  celltypes.resize(nc);
+  std::copy(ctypes, ctypes+ncells, celltypes.data());
+  for(auto i=0;i<nctypes;++i) {
+    auto type = nupts_per_type[i*2+0];
+    auto nupts = nupts_per_type[i*2+1];
+    cell_nupts_per_type.insert(std::pair<int,int>{type, nupts});
+  }
+
+  for(auto i=0;i<nctypes;++i) {
+    auto type = ustrides[i*4+0];
+    auto es = ustrides[i*4+1];
+    auto ss = ustrides[i*4+2];
+    auto vs = ustrides[i*4+3];
+    cell_u_strides_per_type.insert({type, std::vector<int>{es,ss,vs}});
+  }
+
+  for(auto i=0;i<nctypes;++i) {
+    auto type = dustrides[i*5+0];
+    auto es = dustrides[i*5+1];
+    auto ss = dustrides[i*5+2];
+    auto vs = dustrides[i*5+3];
+    auto ds = dustrides[i*5+4];
+    cell_du_strides_per_type.insert({type, std::vector<int>{es,ss,vs,ds}});
+  }
+  
+  for(auto i=0;i<nctypes;++i) {
+    auto type = (int) du_basedata[2*i+0];
+    auto basedata = du_basedata[2*i+1];
+    cell_du_basedata_per_type.insert({type, basedata});
+  }
+
+  for(auto i=0;i<nctypes;++i) {
+    auto type = cstrides[i*4+0];
+    auto es = cstrides[i*4+1];
+    auto ss = cstrides[i*4+2];
+    auto vs = cstrides[i*4+3];
+    cell_coords_strides_per_type.insert({type, std::vector<int>{es,ss,vs}});
+  }
+ 
+  for(auto i=0;i<nctypes;++i) {
+    auto type = (int) c_basedata[2*i+0];
+    auto basedata = c_basedata[2*i+1];
+    cell_coords_basedata_per_type.insert({type, basedata});
+  }
+}
+
+void MeshBlock::pointwise_pack_cell_coords(int ntotal, double* rxyz) {
+  // consider only one type for now
+  if(nreceptorCells == 0) return;
+  constexpr int dim = 3;
+  cell_target_coords_scan.resize(nreceptorCells);
+
+#if __cplusplus > 202403L
+  std::exclusive_scan(pointsPerCell, pointsPerCell+nreceptorCells, cell_target_coords_scan.begin(),0);
+#else
+  int sum = 0;
+  for(int i=0;i<nreceptorCells;++i) {
+    cell_target_coords_scan[i] = sum;
+    sum += pointsPerCell[i];
+  }
+#endif
+  cell_target_coords_scan_d.assign(cell_target_coords_scan.data(), cell_target_coords_scan.size(), NULL);
+  
+  if(ntotal != cell_target_coords_scan[nreceptorCells-1] + pointsPerCell[nreceptorCells-1]) {
+     printf("inconsistency in pack_cell_coords\n");
+  }
+  cell_target_coords_data_d.resize(ntotal*dim); // resize this 
+
+  cell_target_ids_d.assign(ctag, nreceptorCells, NULL);
+
+  int* loc = cell_target_coords_scan_d.data(); // start idx per cell for local data
+  int* eid = cell_target_ids_d.data();  // global element id
+  double* dst = cell_target_coords_data_d.data();
+  int ctype = 8; // right now GPU version only support single type
+  double* src = reinterpret_cast<double*>(cell_coords_basedata_per_type[ctype]);
+  int nspts = cell_nupts_per_type[ctype];
+  int neled2 = cell_coords_strides_per_type[ctype][1];
+  pack_cell_coords_wrapper(loc, eid, dst, src, nreceptorCells, nspts, dim, soasz, neled2, 3 );
+  // now copy data to host
+  cuda_copy_d2h(dst, rxyz, ntotal * dim);
+}
+
+void MeshBlock::pointwise_unpack_cell_soln(double* data, int nvar) {
+  // consider only one type for now
+  if(nCellPoints == 0) return;
+  int ncells = nreceptorCells;
+  cell_target_soln_data_d.resize(nvar * nCellPoints);
+
+  int* loc = cell_target_coords_scan_d.data();
+  int* eid = cell_target_ids_d.data();
+  double* src = cell_target_soln_data_d.data();
+  
+  int ctype = 8;
+  double* dst = get_q_spts_d(ctype); // get the current active bank on the pyfr side
+  int nspts = cell_nupts_per_type[ctype];
+  auto& ustrides = cell_u_strides_per_type[ctype];
+  // ustrides[1] = shape[1]*shape[2]*shape[3] ustrides[0] = shape[2]*shape[3] 
+  int neled2 = ustrides[1]/ustrides[0]; 
+  cuda_copy_h2d(src, data, nCellPoints*nvar);
+  unpack_unblank_u_wrapper(loc, eid, src, dst, ncells, nspts, nvar, soasz, neled2, 3);
+}
+
+void MeshBlock::set_solution_points(int* types, int* cnupts, double* data) {
+  int sum= 0;
+  for(int i=0;i<ntypes;++i) {
+    int ctype = types[i];
+    int nupts = cnupts[i];
+    soln_pts_range.insert({ctype, std::vector<int>{sum, sum+nupts}});
+    cell_nupts_interp_per_type[ctype] = nupts;
+    sum += nupts;
+  }
+  solution_points_d.assign(data, sum, NULL);
+}
+
+void MeshBlock::donor_frac_native(int* cellids, int nfringe, double* rst, double* weights) {
+  // only support one type for now
+  int ctype = 8;
+  int nspts = cell_nupts_per_type[ctype];
+  int nspts1d = cell_nupts_interp_per_type[ctype];
+  double* xi = solution_points_d.data();
+  get_nodal_basis_wrapper(cellids, rst, weights, xi, nfringe, nspts, nspts1d, 3);
 }

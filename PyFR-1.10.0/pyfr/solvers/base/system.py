@@ -103,7 +103,7 @@ class BaseSystem(object):
 
         if self.overset is True:
             self.oset = Overset(self,rallocs) 
-    
+
     def _compute_int_offsets(self, rallocs, mesh, gid, offset):
         lhsprank = rallocs.prank
         intoffs = defaultdict(lambda: 0)
@@ -240,7 +240,7 @@ class BaseSystem(object):
         # there are artificial boundaries
         cnt_overset_bc = 0
         for f in amesh:
-            m = re.match('bcon_overset_p{0}$'.format(rallocs.prank-offset), f)
+            m = re.match('bcon_overset_(.+?)_p{0}$'.format(rallocs.prank-offset), f)
             if m:
                 cnt_overset_bc = cnt_overset_bc + 1
                 # Get the interface
@@ -306,7 +306,6 @@ class BaseSystem(object):
             for kn, kgetter in it.chain(*pobj.kernels.items()):
                 if not kn.startswith('_'):
                     kernels[pn, kn].append(kgetter())
-        test = 1
 
     def rhs(self, t, uinbank, foutbank):
         pass

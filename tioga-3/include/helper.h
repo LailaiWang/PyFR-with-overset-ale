@@ -13,13 +13,15 @@
 
 
 static cudaStream_t stream_handles[N_STREAMS];
-static cudaEvent_t event_handles[N_EVENTS];
+static cudaEvent_t  event_handles[N_EVENTS];
 
 void initialize_stream_event();
 void destroy_stream_event();
 
 cudaStream_t get_stream_handle();
-cudaEvent_t get_event_handle();
+cudaEvent_t  get_event_handle();
+
+void addrToCudaStream(unsigned long long int); 
 
 void sync_device();
 
@@ -48,25 +50,33 @@ void unpack_unblank_u_wrapper(
 // for fringe faces
 void unpack_fringe_u_wrapper(
     double *U_fringe, double* U, 
-    unsigned int* fringe_fpts, 
+    int* fringe_fpts, 
     unsigned int nFringe,
     unsigned int nFpts, unsigned int nVars, 
     unsigned int soasz, int stream = -1);
 
 void unpack_fringe_grad_wrapper(
     double* dU_fringe, double* dU,
-    unsigned int* fringe_fpts,
-    unsigned int* dim_stride,
+    int* fringe_fpts,
+    int* dim_stride,
     unsigned int nFringe,
     unsigned int nFpts, unsigned int nVars, unsigned int nDims,
     unsigned int soasz, int stream = -1);
 
 void pack_fringe_coords_wrapper(
-    unsigned int* fringe_fpts, 
+    int* fringe_fpts, 
     double* xyz,
     double* coord_fpts, 
     int nPts, int nDims,
     unsigned int soasz,int stream = -1);
+
+void reset_mpi_face_artbnd_status_wrapper(
+    double* status, 
+    int* mapping, 
+    double val,
+    unsigned int nface,
+    unsigned int nfpts, unsigned int nvars, 
+    unsigned int soasz, int strean=-1);
 
 void move_grid_flat_wrapper(
     double* flatcoords, 
@@ -76,6 +86,7 @@ void move_grid_flat_wrapper(
     double sgn,
     double* Rmat,
     double* offset,
+    double* pivot,  // adding pivot to allow for arbrary pivot point
     int stream = -1); 
 
 void move_grid_nested_wrapper(
@@ -87,5 +98,26 @@ void move_grid_nested_wrapper(
     double sgn,
     double* Rmat,
     double* offset,
+    double* pivot, // adding pivot info to allow for arbitrary pivot point
     int stream = -1);
+
+
+void copy_to_mpi_rhs_wrapper(
+    double* base, double* src,
+    unsigned int* doffset, unsigned int* fidx,  // these two decide the offset for dest
+    unsigned int* soffset, // this one decide the offset for src
+    unsigned int* nfpts, unsigned int* fbase,
+    unsigned int nvar, unsigned int nface, int stream = -1
+);
+ 
+
+void pointwise_copy_to_mpi_rhs_wrapper(
+    double* base, long long int* mapping, int* strides,
+    double* src, int* fptsids,   
+    unsigned int nfpts, unsigned int nvar,
+    int stream = -1
+    );
+
+/// functions for gmres etc
+void pmg_helper(void (*pmgfunc) ());
 #endif

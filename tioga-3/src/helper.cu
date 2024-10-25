@@ -2,7 +2,7 @@
 
 void initialize_stream_event() {
   stream_handles[0] = cudaStreamPerThread;
-  for(int i=1;i<N_STREAMS;i++) {
+  for(int i=1;i<N_STREAMS-1;i++) {
     cudaStreamCreate(&stream_handles[i]);
   }
 
@@ -13,7 +13,13 @@ void initialize_stream_event() {
 }
 
 void destroy_stream_event() {
-
+    for(int i=0;i<N_STREAMS-1;i++) {
+        cudaStreamDestroy(stream_handles[i]);
+    }
+    
+    for(int i=0;i<N_EVENTS;i++) {
+        cudaEventDestroy(event_handles[i]);
+    }
 }
 
 cudaStream_t get_stream_handle() {
@@ -22,6 +28,13 @@ cudaStream_t get_stream_handle() {
 
 cudaEvent_t get_event_handle() {
     return event_handles[0];
+}
+
+/* Convert the pycuda stream handle to c++ syntax
+ * and store it in pre-existing storage
+ */
+void addrToCudaStream(unsigned long long int addr) {
+    stream_handles[N_STREAMS] = reinterpret_cast<cudaStream_t> (addr);
 }
 
 void sync_device() {
@@ -209,8 +222,6 @@ void pack_cell_coords(
   // element type has are different
 
   const unsigned int idx = blockDim.x * blockIdx.x + threadIdx.x;
-  //const unsigned int spt = (blockDim.x * blockIdx.x + threadIdx.x) % nSpts;
-  //const unsigned int ele = (blockDim.x * blockIdx.x + threadIdx.x) / nSpts;
   const unsigned int spt = idx % nSpts;
   const unsigned int ele = idx / nSpts;
   if (ele >= nCells)
@@ -238,33 +249,24 @@ void pack_cell_coords_wrapper(
     unsigned int nSpts, unsigned int nDims,
     unsigned int soasz, unsigned int neled2, int stream) {
 
-  int threads = 128;
+  constexpr int threads = 256;
   int blocks = (nCells * nSpts + threads - 1) / threads;
 
   if (stream == -1)
   {
-    //if (nDims == 2)
-    //  pack_cell_coords<2><<<blocks, threads>>>(cellIDs,xyz,coord_spts,nCells,nSpts);
-    //else
-    //  pack_cell_coords<3><<<blocks, threads>>>(cellIDs,xyz,coord_spts,nCells,nSpts);
     pack_cell_coords<<<blocks, threads>>>(ucellIDs, ecellIDs, xyz, 
                                           coord_spts, nCells, nSpts, nDims,
                                           soasz, neled2);
   }
   else
   {
-    //if (nDims == 2)
-    //  pack_cell_coords<2><<<blocks, threads, 0, stream_handles[stream]>>>(cellIDs,
-    //      xyz,coord_spts,nCells,nSpts);
-    //else
-    //  pack_cell_coords<3><<<blocks, threads, 0, stream_handles[stream]>>>(cellIDs,
-    //      xyz,coord_spts,nCells,nSpts);
     pack_cell_coords<<<blocks, threads, 0, stream_handles[stream]>>>(ucellIDs, ecellIDs,
         xyz, coord_spts, nCells, nSpts, nDims, soasz, neled2);
   }
 
   check_error();
 }
+
 
 
 __global__
@@ -275,12 +277,7 @@ void unpack_unblank_u(
     unsigned int nSpts, unsigned int nVars,
     unsigned int soasz, unsigned int neled2)
 {   
-  // note the differences from pack_coords
   const unsigned int tot_ind = (blockDim.x * blockIdx.x + threadIdx.x);
-  //const unsigned int var = tot_ind % nVars;
-  //const unsigned int spt = (tot_ind / nVars) % nSpts;
-  //const unsigned int ele = tot_ind / (nSpts * nVars);
-
   const unsigned int ele = tot_ind / (nSpts);
   const unsigned int spt = tot_ind % nSpts;
   if (ele >= nCells || spt >= nSpts)
@@ -310,8 +307,7 @@ void unpack_unblank_u_wrapper(
     unsigned int nSpts, unsigned int nVars,
     unsigned int soasz, unsigned int neled2, int stream) {
 
-  int threads = 128;
-  //int blocks = (nCells * nSpts * nVars + threads - 1) / threads;
+  int threads = 256;
   int blocks = (nCells * nSpts  + threads - 1) / threads;
 
   if (stream == -1) {
@@ -330,7 +326,7 @@ void unpack_unblank_u_wrapper(
 //template<int nDims>
 __global__
 void pack_fringe_coords(
-    unsigned int* fringe_fpts, 
+    int* fringe_fpts, 
     double* xyz, double* coord_fpts, 
     int nPts, unsigned int soasz, int nDims) {
 
@@ -349,25 +345,17 @@ void pack_fringe_coords(
 }
 
 void pack_fringe_coords_wrapper(
-    unsigned int* fringe_fpts,
+    int* fringe_fpts,
     double* xyz, double* coord_fpts, 
     int nPts, int nDims, unsigned int soasz, int stream) {
 
-  int threads = 128;
+  constexpr int threads = 256;
   int blocks = (nPts + threads - 1) / threads;
 
   if (stream == -1) {
-    //if (nDims == 2)
-    //  pack_fringe_coords<2><<<blocks, threads>>>(fringe_fpts,xyz,coord_fpts,nPts,soasz);
-    //else {
       pack_fringe_coords<<<blocks, threads>>>(fringe_fpts,xyz,
         coord_fpts,nPts,soasz,nDims);
-    //}
   } else {
-    //if (nDims == 2)
-    //  pack_fringe_coords<2><<<blocks, threads, 0, stream_handles[stream]>>>(fringe_fpts,
-    //      xyz,coord_fpts,nPts,soasz);
-    //else
       pack_fringe_coords<<<blocks, threads, 0, stream_handles[stream]>>>(fringe_fpts,
           xyz,coord_fpts,nPts,soasz,nDims);
   }
@@ -379,21 +367,12 @@ void pack_fringe_coords_wrapper(
 __global__
 void unpack_fringe_grad(
     double* dU_fringe, double* dU, 
-    unsigned int* fringe_fpts,
-    unsigned int* dim_stride,
+    int* fringe_fpts,
+    int* dim_stride,
     unsigned int nFringe,
     unsigned int nFpts,
     unsigned int nVars, unsigned int nDims,
     unsigned int soasz) {
-  
-  // do not use face since fringe faces could be of different types
-  //const unsigned int tot_ind = (blockDim.x * blockIdx.x + threadIdx.x);
-  //const unsigned int var = tot_ind % nVars;
-  //const unsigned int pt = tot_ind / nVars;
-  //const unsigned int fpt = (tot_ind / nVars) % nFpts;
-  //const unsigned int face = tot_ind / (nFpts * nVars);
-  //if (fpt >= nFpts || face >= nFringe || var >= nVars || pt >= nFpts)
-  //  return;
   
   const unsigned int tot_ind = (blockDim.x * blockIdx.x + threadIdx.x);
   const unsigned int var = tot_ind % nVars;
@@ -405,11 +384,6 @@ void unpack_fringe_grad(
   unsigned int gft  = fringe_fpts[pt];
   unsigned int ds = dim_stride[pt];
   
-  //datashape of dU is [ndims, nfpts, neled2, nvars, soasz]
-
-  //const unsigned int gfpt = fringe_fpts(fpt, face);
-  //const unsigned int side = fringe_side(fpt, face);
-
   for (unsigned int dim = 0; dim < nDims; dim++) {
     //dU(side, dim, var, gfpt) = dU_fringe(face, fpt, dim, var);
      dU[dim*ds+gft+var*soasz] =   dU_fringe[pt*nDims*nVars+dim*nVars+var];
@@ -418,38 +392,22 @@ void unpack_fringe_grad(
 
 void unpack_fringe_grad_wrapper(
     double* dU_fringe, double* dU,
-    unsigned int* fringe_fpts,
-    unsigned int* dim_stride,
+    int* fringe_fpts,
+    int* dim_stride,
     unsigned int nFringe,
     unsigned int nFpts, unsigned int nVars, unsigned int nDims,
     unsigned int soasz, int stream) {
 
-  int threads  = 128;
-  //int blocks = (nFringe * nFpts * nVars + threads - 1) / threads;
-  // here nFpts is the total number of fpts
+  constexpr int threads  = 256;
   int blocks = (nFpts*nVars + threads-1)/threads;
 
   if (stream == -1)
   {
-    //if (nDims == 2)
-    //  unpack_fringe_grad<2><<<blocks, threads>>>(dU_fringe, dU, fringe_fpts,
-    //                                     nFringe, nFpts, nVars, soasz);
-
-    //else if (nDims == 3)
-    //  unpack_fringe_grad<3><<<blocks, threads>>>(dU_fringe, dU, fringe_fpts,
-    //                                     nFringe, nFpts, nVars, soasz);
       unpack_fringe_grad<<<blocks, threads>>>(dU_fringe, dU, fringe_fpts, dim_stride,
                                  nFringe, nFpts, nVars, nDims, soasz);
   }
   else
   {
-    //if (nDims == 2)
-    //  unpack_fringe_grad<2><<<blocks, threads, 0, stream_handles[stream]>>>
-    //      (dU_fringe, dU, fringe_fpts, nFringe, nFpts, nVars, soasz);
-
-    //else if (nDims == 3)
-    //  unpack_fringe_grad<3><<<blocks, threads, 0, stream_handles[stream]>>>
-    //      (dU_fringe, dU, fringe_fpts, nFringe, nFpts, nVars, soasz);
       unpack_fringe_grad<<<blocks, threads, 0, stream_handles[stream]>>>
           (dU_fringe, dU, fringe_fpts, dim_stride, nFringe, nFpts, nVars, nDims, soasz);
   }
@@ -460,7 +418,7 @@ void unpack_fringe_grad_wrapper(
 __global__
 void unpack_fringe_u(
     double* U_fringe, double* U,
-    unsigned int* fringe_fpts,
+    int* fringe_fpts,
     unsigned int nFringe,
     unsigned int nFpts, unsigned int nVars, unsigned int soasz)
 {
@@ -490,12 +448,12 @@ void unpack_fringe_u(
 
 void unpack_fringe_u_wrapper(
     double* U_fringe, double* U,
-    unsigned int* fringe_fpts,
+    int* fringe_fpts,
     unsigned int nFringe, 
     unsigned int nFpts, unsigned int nVars,
     unsigned int soasz, int stream)
 {
-  int threads = 128;
+  int threads = 256;
   //int blocks = (nFringe * nFpts * nVars + threads - 1) / threads;
   int blocks = ( nFpts  + threads - 1) / threads;
 
@@ -511,6 +469,46 @@ void unpack_fringe_u_wrapper(
 }
 
 __global__
+void reset_mpi_face_artbnd_status(
+    double* status,
+    int* mapping, 
+    double val,
+    unsigned int nface,
+    unsigned int nfpts,
+    unsigned int nvars, unsigned int soasz) {
+
+    const unsigned int pt = (blockDim.x * blockIdx.x + threadIdx.x);
+    if(pt >= nfpts) return;
+    
+    unsigned int gft = mapping[pt];
+
+    for(unsigned int var=0; var < nvars; var++){
+        status[gft+var*soasz] = val;
+    }
+}
+
+void reset_mpi_face_artbnd_status_wrapper(
+    double* status, 
+    int* mapping,
+    double val, 
+    unsigned int nface,
+    unsigned int nfpts, unsigned int nvars, unsigned int soasz, int stream) {
+    
+    const int threads = 256;
+    int blocks = (nfpts + threads -1) / threads;
+    if (stream == -1) {
+        reset_mpi_face_artbnd_status<<<blocks, threads>>> (
+            status, mapping, val, nface, nfpts, nvars, soasz
+        );
+    } else {
+        reset_mpi_face_artbnd_status<<<blocks, threads, 0, stream_handles[stream]>>> (
+            status, mapping, val, nface, nfpts, nvars, soasz
+        );
+    }   
+
+}
+
+__global__
 void move_flat(
     double* flatcoords,
     double* flatcoords_ref,
@@ -518,23 +516,29 @@ void move_flat(
     unsigned int ndims,
     double sgn,
     double* Rmat,
-    double* offset) {
+    double* offset,
+    double* pivot) {
   const unsigned int pt = (blockDim.x * blockIdx.x + threadIdx.x);
   if(pt>= npts)
     return;
-  //printf("Rmat is %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e %15.7e\n",
-  //  Rmat[0], Rmat[1], Rmat[2], Rmat[3], Rmat[4], Rmat[5], Rmat[6], Rmat[7], Rmat[8]  
-  //);
+    
+  double pvt[3] = {pivot[0], pivot[1], pivot[2]};
+
+  //for(unsigned int d1 = 0; d1 <ndims; d1++) {
+  //  pvt[d1] += offset[d1];
+  //}
+
   double xtmp[3] = {0.0}; // fix it
   for(unsigned int d1 = 0; d1 < ndims; d1++) {
+    xtmp[d1] = offset[d1];
     for(unsigned int d2 = 0; d2 < ndims;d2++) {
-        xtmp[d1] += Rmat[d1*ndims+d2]*(flatcoords_ref[pt*ndims+d2]+offset[d2]);
+        //xtmp[d1] += Rmat[d1*ndims+d2]*(flatcoords_ref[pt*ndims+d2]+offset[d2]);
+        xtmp[d1] += Rmat[d1*ndims+d2]*(flatcoords_ref[pt*ndims+d2]-pvt[d2]);
     }
   }
 
   for(unsigned int d = 0; d<ndims; d++)
-    flatcoords[pt*ndims+d] = xtmp[d];
-  
+    flatcoords[pt*ndims+d] = xtmp[d] + pvt[d];
 }
 
 void move_grid_flat_wrapper(
@@ -545,6 +549,7 @@ void move_grid_flat_wrapper(
     double sgn,
     double* Rmat,
     double* offset,
+    double* pivot,
     int stream) {
 
   int threads = 128;
@@ -552,11 +557,11 @@ void move_grid_flat_wrapper(
 
   if(stream == -1) {
     move_flat<<<blocks,threads>>>(
-        flatcoords, flatcoords_ref, npts, ndims, sgn,Rmat,offset
+        flatcoords, flatcoords_ref, npts, ndims, sgn,Rmat,offset, pivot
     );
   } else {
     move_flat<<<blocks,threads,0,stream_handles[stream]>>>(
-        flatcoords, flatcoords_ref, npts, ndims, sgn, Rmat, offset
+        flatcoords, flatcoords_ref, npts, ndims, sgn, Rmat, offset, pivot
     );
   }
   check_error();
@@ -571,7 +576,8 @@ void move_nested(
     unsigned int ndims,
     double sgn, 
     double* Rmat,
-    double* offset) {
+    double* offset,
+    double* pivot) {
 
   const unsigned int pt = (blockDim.x * blockIdx.x + threadIdx.x);
   const unsigned int nc = pt / npts;
@@ -580,15 +586,25 @@ void move_nested(
   if(nc >= ncells)
     return;
   // for nested ecoords, coord[ele+ncells*(d+ndims*i)] (nupts, dim, eles)
+
+  double pvt[3] = {pivot[0], pivot[1], pivot[2]};
+
+  //for(unsigned int d1 = 0; d1 <ndims; d1++) {
+  //  pvt[d1] += offset[d1];
+  //}
+  //printf("pivot %lf %lf %lf\n", pivot[0], pivot[1], pivot[2]);
+
   double xtmp[3] = {0.0}; // fix it
   for(unsigned int d1 = 0; d1 < ndims;d1++) {
+    xtmp[d1] = offset[d1];
     for(unsigned int d2 = 0; d2 < ndims; d2++){
-      xtmp[d1] += Rmat[d1*ndims+d2]*(nestedcoords_ref[nc+ncells*(d2+ndims*upt)]+offset[d2]);
+      //xtmp[d1] += Rmat[d1*ndims+d2]*(nestedcoords_ref[nc+ncells*(d2+ndims*upt)]+offset[d2]);
+      xtmp[d1] += Rmat[d1*ndims+d2]*(nestedcoords_ref[nc+ncells*(d2+ndims*upt)]-pvt[d2]);
     }
   }
 
   for(unsigned int d = 0; d<ndims; d++) {
-    nestedcoords[nc+ncells*(d+ndims*upt)] = xtmp[d];
+    nestedcoords[nc+ncells*(d+ndims*upt)] = xtmp[d] + pvt[d];
   }
 }
 
@@ -602,19 +618,129 @@ void move_grid_nested_wrapper(
     double sgn,
     double* Rmat,
     double* offset,
+    double* pivot,
     int stream) { 
   int threads = 128;
   int blocks = (ncells*npts+ threads - 1)/threads;
 
   if(stream == -1) {
     move_nested<<<blocks,threads>>>(
-      nestedcoords, nestedcoords_ref, ncells, npts, ndims, sgn, Rmat, offset
+      nestedcoords, nestedcoords_ref, ncells, npts, ndims, sgn, Rmat, offset, pivot
     );
   } else {
     move_nested<<<blocks,threads,0,stream_handles[stream]>>>(
-      nestedcoords, nestedcoords_ref, ncells, npts, ndims, sgn, Rmat, offset
+      nestedcoords, nestedcoords_ref, ncells, npts, ndims, sgn, Rmat, offset, pivot
     );
   }
   check_error();
+}
+
+__global__
+void copy_to_mpi_rhs(
+    double* base, 
+    double* src,
+    unsigned int* doffset, //offset from the base in char 1 byte
+    unsigned int* fidx,
+    unsigned int* soffset, // offset from the base in double 8 bytes
+    unsigned int* nfpts,
+    unsigned int* fbase,
+    unsigned int nvar,
+    unsigned int nface
+    ) {
+  const unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  if(tid >= nface ) return;
+
+  int fid = fidx[tid];// fid is the global id
+  int doff = doffset[fid]; // in bytes
+  int nft = nfpts[fid]; //
+ 
+
+  int soff = soffset[tid]; // local id
+  double* source = src + soff;   
+  
+  char* cdest = ((char*) base) + doff; 
+  double* dest = (double*) cdest;// this is for first variable of the face
+    
+  //printf("offset for face %d\n", fbase[fid]);
+  //printf("base is %ld\n", (long long) (base));
+  //printf("base of face is %d %d %d %d\n", doffset[0],doffset[1], doffset[2], doffset[3]);
+  for(int i=0;i<nvar;++i) { 
+    double* vdest = dest + i*fbase[fid]; // fbase is offset interms of double
+    for(int j=0;j<nft;++j) {
+        
+        //printf("source %lf \n", source[j*nvar + i]);
+        
+        vdest[j] = source[j*nvar + i];
+    }
+  }
+
+}
+
+// the wrapper to copy the data 
+void copy_to_mpi_rhs_wrapper(
+    double* base, double* src,
+    unsigned int* doffset, unsigned int* fidx,  // these two decide the offset for dest
+    unsigned int* soffset, // this one decide the offset for src
+    unsigned int* nfpts,
+    unsigned int* fbase, 
+    unsigned int nvar, unsigned int nface, int stream
+) {
+  int threads = 256;
+  int blocks = (int) (nface + threads -1) /threads;
+  if(stream == -1) {
+    copy_to_mpi_rhs<<<blocks, threads>>>(
+        base, src, doffset, fidx, soffset, nfpts, fbase, nvar, nface
+    );
+  } else {
+    copy_to_mpi_rhs<<<blocks, threads, 0, stream_handles[stream]>>> (
+        base, src, doffset, fidx, soffset, nfpts, fbase, nvar, nface
+    );
+  }
+}
+
+__global__
+void pointwise_copy_to_mpi_rhs(
+    double* base,            // starting address of mpi data at pyfr side
+    long long int* mapping,   // offset from the base in char 1 byte for each point
+    int* strides,   // variable strides for in double
+    double* src,             // source of the data to copy
+    int* fptsid,    // id of the current fpts
+    unsigned int nfpts,    // total number of fpts
+    unsigned int nvar       // number of variables
+    ) {
+
+  unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  if(tid >= nfpts) return;
+  int pid = fptsid[tid];
+  char* cdest = ((char*) base) + mapping[pid];  // second addressing is in 
+  double* dest = (double*) cdest;// this is for first variable of the face
+  // note that in destination, the data are stored variable by variable 
+  for(int k=0;k<nvar;++k) { 
+    double* vdest = dest + k*strides[pid]; // fbase is offset interms of double
+    *vdest = src[tid*nvar + k];
+  }
+
+}
+
+void pointwise_copy_to_mpi_rhs_wrapper(
+    double* base, long long int* mapping, int* strides,
+    double* src, int* fptsids,   
+    unsigned int nfpts, unsigned int nvar,
+    int stream
+    ) {
+  
+  constexpr int threads = 512;
+  int blocks = (int) (nfpts + threads -1) /threads;
+
+  if(stream == -1) {
+    pointwise_copy_to_mpi_rhs<<<blocks, threads>>>(
+      base, mapping, strides, src, fptsids, nfpts, nvar
+    );
+  } else {
+    pointwise_copy_to_mpi_rhs<<<blocks, threads, 0, stream_handles[stream]>>> (
+      base, mapping, strides, src, fptsids, nfpts, nvar
+    );
+  }
+
 }
 

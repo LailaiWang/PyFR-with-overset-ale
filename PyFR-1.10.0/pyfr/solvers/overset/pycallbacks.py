@@ -61,7 +61,11 @@ def face_vidx_incell():
 
 
 def gmsh_to_structured_quad(nNodes):
+    '''
+    function to convert from gmsh to stuctured notation
+    '''
     gmsh_to_ijk = [0]*nNodes
+
     if nNodes != 8:
         nNodes1D = int(np.sqrt(nNodes))
         assert nNodes1D*nNodes1D != nNodes, 'nNodes must be a square number'
@@ -311,620 +315,392 @@ def gmsh_to_structured_hex(order):
 class Py_callbacks(tg.callbacks):
     def __init__(self, system, griddata):
         tg.callbacks.__init__(self)
-
         self.system = system
         self.gid = system.gid
         self.griddata = griddata
         self.backend = system.backend
-        tg.tioga_set_soasz(self.system.backend.soasz)
+        self.setup_interior_mapping()
+        self.setup_mpi_mapping()
+        self.setup_mpi_rhs_mapping()
+        self.setup_bc_rhs_basedata()
+        self.setup_bc_mapping()
+        self.setup_structured_to_srted_mapping()
+        self.setup_facecoords_mapping()
+        self.setup_cell_info_by_type()
+        self.setup_solution_points()
+        # set up mpi artbnd status
+        self.setup_mpi_artbnd_status_aux()
 
-    # int* cellid int* nnodes # of solution points basis.upts
-    def get_nodes_per_cell(self, cellid, nnodes):
-        cidx = ptrAt(cellid,0)
-        etype = self.griddata['celltypes'][cidx]
-        n = self.system.ele_map[etype].basis.nupts
-        writeAt(nnodes,0,int(n))
+    def setup_solution_points(self):
+        ele_map = self.system.ele_map
+        ctype_to_int_dict = {'hex': 8}
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        eles_nqpts = lambda ctype, eles: eles.basis.order + 1 if ctype_to_int(ctype) == 8 else eles.basis.nupts
+        qpts = lambda ctype, eles: list(eles.basis.upts[:eles.basis.order+1,0]) if ctype_to_int(ctype) == 8 else list(eles.basis.upts)
+        fpdtype = self.system.backend.fpdtype
+        upts = [np.array(qpts(etype, eles)).astype(fpdtype) for etype, eles in ele_map.items()]
+        upts = np.concatenate(upts).astype(fpdtype)
 
-    # int* faceid, int *nnodes # fpt
-    def get_nodes_per_face(self, faceid, nnodes):
-        fidx = ptrAt(faceid,0)
-        cidx1, cidx2  = self.griddata['f2corg'][fidx]
-        fpos1, fpos2  = self.griddata['faceposition'][fidx] 
-        etyp1  = self.griddata['celltypes'][cidx1]
-        etyp2  = self.griddata['celltypes'][cidx2] if cidx2 != -1 else etyp1
-        n1 = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
-        n2 = self.system.ele_map[etyp2].basis.nfacefpts[fpos2]
-        if n1 != n2: raise RuntimeError('callback: nodes_per_face inconsistency')
-        # write data to corresponding address
-        writeAt(nnodes, 0, int(n1))
+        ntypes = np.array([ctype_to_int(etype) for etype, eles in ele_map.items()]).astype('int32')
+        nupts = np.array([eles_nqpts(etype, eles) for etype, eles in ele_map.items()]).astype('int32')
+        tg.tioga_set_solution_points(ntypes.ctypes.data, nupts.ctypes.data, upts.ctypes.data)
 
-    # int* cellid, int* nnodes, double* xyz
-    def get_receptor_nodes(self, cellid, nnodes, xyz):
-        cidx = ptrAt(cellid,0)
-        etyp = self.griddata['celltypes'][cidx]
-        eles = self.system.ele_map[etyp]
-        n = eles.basis.nupts
-        writeAt(nnodes,0,n)
-        if eles.mvgrid is True:
-            ploc_upts = eles.ploc_at_ncon('upts')
-        else:
-            ploc_upts = eles.ploc_at('upts')
-        # need local cell idx for this ele_map
-        offset = self.griddata['celloffset'][cidx]
-        typecid = cidx - offset
-        coords = ploc_upts[:, :, typecid].reshape(-1)
-        # write data to corresponding address
-        for idx, coo in enumerate(coords):
-            writeAt(xyz, idx, coo)
+    def setup_structured_to_srted_mapping(self):
+        grid = self.griddata
+        ncells, ctype, off = grid['ncells'], grid['celltypes'], grid['celloffset']
+        maxnfpts, maxnface = grid['maxnfpts'], grid['maxnface']
+        
+        ele_map = self.system.ele_map
+        
+        rf = lambda cidx : cidx - off[cidx]
+        get_ctype = lambda cidx: ctype[cidx]
+        get_nface  = lambda ctype : len(ele_map[ctype].basis.faces)
+        
+        # add necessary padding to these two
+        get_unsrted = (lambda ctype: [ ele_map[ctype].basis.facefpts[fpos] +
+              (maxnfpts - len(ele_map[ctype].basis.facefpts[fpos])) * [0] 
+              if fpos < get_nface(ctype) else maxnfpts * [0] for fpos in range(maxnface)
+            ])
+        get_srted = (lambda ctype,cidx: [list(ele_map[ctype]._srtd_face_fpts[fpos][rf(cidx)]) + 
+              (maxnfpts - len(list(ele_map[ctype]._srtd_face_fpts[fpos][rf(cidx)]))) * [0]
+              if fpos < get_nface(ctype) else maxnfpts * [0] for fpos in range(maxnface)
+            ])
+        
+        unsrted_info = [ get_unsrted(get_ctype(i)) for i in range(ncells)]
+        srted_info = [get_srted(get_ctype(i), i) for i in range(ncells)]
+        unsrted_info = np.array(unsrted_info).astype('int32').reshape(-1)
+        srted_info = np.array(srted_info).astype('int32').reshape(-1)
+        
+        tg.tioga_set_data_reorder_map(srted_info.ctypes.data, unsrted_info.ctypes.data, ncells)
 
-    # get the face points in standard element
-    def get_face_nodes(self, faceid, nnodes, xyz):
-        # fpts are calculate in elements
-        fidx, nn = ptrAt(faceid,0), ptrAt(nnodes,0)
-        cidx1, cidx2 = self.griddata['f2corg'][fidx]
-        fpos1, fpos2 = self.griddata['faceposition'][fidx]
-        etyp1  = self.griddata['celltypes'][cidx1]
-        etyp2  = self.griddata['celltypes'][cidx2] if cidx2 != -1 else etyp1
-        if etyp1 != etyp2: raise RuntimeError('get_face_nodes: face type inconsistency')
-        eles = self.system.ele_map[etyp1]
-        fptsid = eles.basis.facefpts[fpos1]
-        offset = self.griddata['celloffset'][cidx1]
-        typecidx = cidx1 - offset
-        plocfpts = eles.plocfpts[:,typecidx,:]
-        fpts = plocfpts[fptsid].reshape(-1)
-        for idx, coo in enumerate(fpts):
-            writeAt(xyz, idx, coo)
+    def setup_bc_rhs_basedata(self):
+        # set this for overset grid
+        mpi_inters = self.system._mpi_inters
+        if mpi_inters != [] and mpi_inters[-1]._rhsrank == None:
+            basedata = mpi_inters[-1]._scal_rhs.data
+            tg.tioga_set_bc_rhs_basedata(basedata)
+            
 
-    def donor_inclusion_test(self, cellid, xyz, passflag, rst):
-        cidx = ptrAt(cellid,0)
-        ndims = self.system.ndims
-        # copy xyz into numpy array
-        coords = np.array([ptrAt(xyz, i) for i in range(ndims)])[None,...]
-        # using newton's method to get rst
-        etype = self.griddata['celltypes'][cidx]
-        eles = self.system.ele_map[etype]
-        # shape coordinates 
-        offset = self.griddata['celloffset'][cidx]
-        typecid = cidx - offset
-        eshape = eles.eles[:,cidx,:]
-        # spts uniformly divided standard elements 
-        stdshape = np.array(eles.basis.spts)
-        stdlower = np.array([np.min(stdshape[:,i]) for i in range(ndims)])[None,...]
-        stdupper = np.array([np.max(stdshape[:,i]) for i in range(ndims)])[None,...]
-
-        rst_p = np.array([0.0,0.0,0.0])[None,...]
-        rst_n = rst_p
-        # using rst to get the initial xyz
-        eop    = eles.basis.sbasis.nodal_basis_at(rst_p)
-
-        dxyz = eop @ eshape - coords
-        # apply newton's method
-        iters = 0
-        while np.linalg.norm(dxyz)>1e-10:
-            # get the jac_nodal_basis
-            eop    = eles.basis.sbasis.nodal_basis_at(rst_n)
-            eop_df = eles.basis.sbasis.jac_nodal_basis_at(rst_n).swapaxes(1,2)
-
-            rst_n = rst_n -  np.dot((eop @ eshape - coords),
-                             np.linalg.inv((eop_df @ eshape).reshape(ndims,ndims)))
-
-            dxyz = eop @ eshape - coords
-            iters = iters + 1
-            if iters > 10:
-                break
-
-        if np.linalg.norm(dxyz) <= 1e-6: # converged
-            dd = (rst_n > stdlower - 1e-5)
-            ee = (rst_n < stdupper + 1e-5)
-            ff = np.logical_and(dd,ee)
-            if np.all(ff):
-                writeAt(passflag,0,1) # pass
-            else:
-                writeAt(passflag,0,0) # no pass
-        else:
-            writeAt(passflag,0,0) # no pass
-        for i in range(ndims):
-            writeAt(rst,i,rst_n[0][i])
-
-    def convert_to_modal(self, cellid, nspts, q_in, npts, index_out, q_out):
-        cid, nnspts = ptrAt(cellid,0), ptrAt(nspts,0)
-        idout = cid*nnspts
-        writeAt(index_out,0,idout)
-        for i in range(nnspts):
-            writeAt(q_out,i,ptrAt(q_in[i]))
-
-    def donor_frac(self, cellid, xyz, nweights, inode, weights, rst, buffsize):
-        # inode is not used xyz is not used
-        cidx = ptrAt(cellid,0)
-        ndims = self.system.ndims
-        etype = self.griddata['celltypes'][cidx]
-        eles  = self.system.ele_map[etype]
-        nspts = eles.basis.nupts
-        writeAt(nweights,0,nspts)
-        assert nspts <= ptrAt(buffsize,0), 'weights buffer not enough space'
-        offset = self.griddata['celloffset'][cidx]
-        typecidx = cidx - offset
-        rst_loc = np.array([ptrAt(rst, i) for i in range(ndims)])[None,...]
-        eop = eles.basis.ubasis.nodal_basis_at(rst_loc)
-        for i in range(nspts):
-            writeAt(weights,i,eop[i])
+    def setup_bc_mapping(self):
+        grid = self.griddata
+        nfaces, nbcfaces = grid['nfaces'], grid['nbcfaces']
+        if nbcfaces == 0: return    
     
-    def donor_frac_gpu(self, cellids, nfringe, rst, weights):
-        # tioga does not support multiple type of elements
-        etype = 'hex-g{}'.format(self.gid)
-        eles = self.system.ele_map[etype]
-        order = eles.basis.order
-        nSpts1D = order+1
-        nspts = eles.basis.nupts
-        spts1d = np.atleast_2d(
-            np.array(eles.basis.upts[:order+1,0])
-        ).astype(self.backend.fpdtype)
-        # copy data to device
-        xiGrid = self.griddata['xi1d']
-        tg.tg_copy_to_device(
-          xiGrid, addrToFloatPtr(spts1d.__array_interface__['data'][0]), spts1d.nbytes
-        )
-        tg.get_nodal_basis_wrapper(
-          cellids,rst,weights,addrToFloatPtr(xiGrid),nfringe,int(nspts),int(nSpts1D),3
+        f2c, fpos = grid['f2corg'], grid['faceposition'] 
+        ctype, off = grid['celltypes'], grid['celloffset']
+        
+        ctype_to_int_dict = {'hex': 8}
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        info_in_int = lambda fid: [ctype_to_int(ctype[f2c[fid][0]]),f2c[fid][0],fpos[fid][0]]
+        rf = lambda cidx : cidx - off[cidx]
+        info_in_tuple = lambda fid: (ctype[f2c[fid][0]],rf(f2c[fid][0]),fpos[fid][0],0)
+        
+        bc_side_in_int = [info_in_int(fid) for fid in range(nbcfaces)]
+        bc_side_in_tuple = [info_in_tuple(fid) for fid in range(nbcfaces)]
+
+        bc_fpts_artbnd = self._scal_view_artbnd(
+            bc_side_in_tuple, 'get_scal_fpts_artbnd_for_inter'
         )
 
-    # using golfbal cellidx to get the ele_map as well as local cidx per type
-    def find_eles_instance(self, cellid):
-        etype = self.griddata['celltypes'][cellid]
-        eles = self.system.ele_map[etype]
-        offset = self.griddata['celloffset'][cellid]
-        cidx = cellid - offset
-        return eles, cidx
+        get_nfpts = lambda etype, pos : self.system.ele_map[etype].basis.nfacefpts[pos]
+        bc_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in bc_side_in_tuple]
+
+        pad = lambda a,n: np.concatenate((np.tile(a,(n,1)),np.array(range(n)).reshape(-1,1)),axis=1)
+
+        bc_side_in_int  = [ pad(a,n) for a, n in zip(bc_side_in_int, bc_side_nfpts)]
+        bc_side_in_int = np.array(bc_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
+        
+        bc_mapping = bc_fpts_artbnd.mapping.get().squeeze(0)
+
+        basedata = int(bc_fpts_artbnd.basedata)
+        tg.tioga_set_bc_mapping(basedata, bc_side_in_int.ctypes.data, bc_mapping.ctypes.data, bc_mapping.shape[0])
+
+    def setup_mpi_rhs_mapping(self):
+        mpi_inters = self.system._mpi_inters
+        if mpi_inters == []: return
+        
+        grid = self.griddata
+        rhs_basedata = self.system._mpi_inters[0]._scal_rhs.data
+        face_mapping = grid['mpientry'] # entry for each face
+        mpi_nfpts = grid['mnfpts'] # fpts per mpi face
+        face_strides = grid['mbaseface'] # stride for each variable
+        nmpifaces = grid['nmpifaces']
+        
+        itemsize = np.dtype(self.system.backend.fpdtype).itemsize
+        # note that facemapping is in bytes
+        # now we populate it for each flux points
+        fpts_rhs_mapping = [ list(face_mapping[i] + itemsize*np.arange(mpi_nfpts[i])) for i in range(nmpifaces)]
+        fpts_rhs_strides = [ [face_strides[i]] * mpi_nfpts[i] for i in range(nmpifaces)] 
+        fpts_rhs_mapping = np.array(fpts_rhs_mapping).astype('int64').reshape(-1)
+        fpts_rhs_strides = np.array(fpts_rhs_strides).astype('int32').reshape(-1)
+        
+        tg.tioga_set_mpi_rhs_mapping(rhs_basedata, fpts_rhs_mapping.ctypes.data, fpts_rhs_strides.ctypes.data, fpts_rhs_mapping.shape[0])        
+
+    def setup_mpi_mapping(self):
+        grid = self.griddata
+        nfaces, nbcfaces, nmpifaces = grid['nfaces'], grid['nbcfaces'], grid['nmpifaces']
+        if nmpifaces == 0: return    
     
-    # return a float 
-    def get_q_spt(self, cidx, spt, var):
-        eles, typecidx = self.find_eles_instance(cidx)
-        elesdata = eles.scal_upts_inb._curr_mat
-        # check if it is an numpy array
-        if hasattr(elesdata,'__array_interface__'):
-            # using etype and eid to calculate the offset
-            datashape = elesdata.datashape # [nspt, neled1, nvar, neled2]
-            neled1, neled2 = datashape[1], datashape[-1]
-            neles, nvars = eles.neles, eles.nvars
-            offset = ((typecidx//neled2)*nvars + var)*nelesd2 + typecidx % nelesd2
-            # calculate the datashape
-            a = elesdata.data[spt,offset]
-        else:
-            # using etype and eid to calculate the offset
-            raise RuntimeError('CUDA get_q_spt not implemented')
-        return a
+        f2c, fpos = grid['f2corg'], grid['faceposition'] 
+        ctype, off = grid['celltypes'], grid['celloffset']
+        
+        ctype_to_int_dict = {'hex': 8}
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        info_in_int = lambda fid: [ctype_to_int(ctype[f2c[fid][0]]),f2c[fid][0],fpos[fid][0]]
+        rf = lambda cidx : cidx - off[cidx]
+        info_in_tuple = lambda fid: (ctype[f2c[fid][0]],rf(f2c[fid][0]),fpos[fid][0],0)
+        
+        mpi_side_in_int = [info_in_int(fid) for fid in range(nbcfaces, nbcfaces+nmpifaces)]
+        mpi_side_in_tuple = [info_in_tuple(fid) for fid in range(nbcfaces, nbcfaces+nmpifaces)]
 
-    # return an address
-    def get_q_fpt(self, fidx, fpt, var):
-        # note data are mapped 
-        cidx1, cidx2 = self.griddata['f2corg'][fidx]
-        # use left or right for interior artificial bnds? that's a question
-        # using blanking info to choose whether left or right
-        side = 0 if self.griddata['iblank_cell'][cidx1] == 1 else 1
-        cidx_f = cidx1 if side == 0 else cidx2
-        if cidx_f < 0: raise RuntimeError("get_q_fpt, cidx_f <0")
-        eles, typecidx = self.find_eles_instance(cidx_f)
-        elesdata = eles._scal_fpts
+        mpi_fpts_artbnd = self._scal_view_artbnd(
+            mpi_side_in_tuple, 'get_scal_fpts_artbnd_for_inter'
+        )
 
-        if hasattr(elesdata.data, '__array_interface__'):
-            datashape = elesdata.datashape
-            nfpt, neled1, nvars, neled2 = datashape
-            offset = ((typecidx//neled2)*nvars + var)*neled2 + typecidx % neled2
-            a = elesdata.data[fpt:, offset:]
-        else:
-            raise RuntimeError('CUDA get_q_fpt not implemented')
+        get_nfpts = lambda etype, pos : self.system.ele_map[etype].basis.nfacefpts[pos]
+        mpi_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in mpi_side_in_tuple]
 
-        # here return the address as int
-        return a.__array_interface__['data'][0]
+        pad = lambda a,n: np.concatenate((np.tile(a,(n,1)),np.array(range(n)).reshape(-1,1)),axis=1)
 
-    # return a float
-    def get_dq_spt(self, cidx, spt, dim, var):
-        eles, typecidx = self.find_eles_instance(cidx)
-        elesdata = eles._vect_upts
-        if hasattr(elesdata.data,'__array_interface__'):
-            # using etype and eid to calculate the offset
-            datashape = elesdata.datashape # [dim, nspt, neled1, nvar, neled2]
-            dim, nspt = datashape[0], datashape[1]
-            neled1, neled2 = datashape[2], datashape[-1]
-            neles, nvars = eles.neles, eles.nvars
-            offset = ((typecidx//neled2)*nvars + var)*neled2 + typecidx % neled2
-            # calculate the datashape
-            a = elesdata.data[dim*nspt+spt,offset]
-        else:
-            # using etype and eid to calculate the offset
-            raise RuntimeError('CUDA get_q_spt not implemented')
-        return a
+        mpi_side_in_int  = [ pad(a,n) for a, n in zip(mpi_side_in_int, mpi_side_nfpts)]
+        mpi_side_in_int = np.array(mpi_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
+        
+        mpi_mapping = mpi_fpts_artbnd.mapping.get().squeeze(0)
 
-    # return an address
-    def get_dq_fpt(self, fidx, fpt, dim,var):
-        cidx1, cidx2 = self.griddata['f2corg'][fidx]
-        side = 0 if self.griddata['iblank_cell'][cidx1] == 1 else 1
-        cidx_f = cidx1 if side == 0 else cidx2
-        if cidx_f < 0: raise RuntimeError("get_dq_fpt, cidx_f <0")
-        eles, typecidx = self.find_eles_instance(cidx_f)
+        basedata = int(mpi_fpts_artbnd.basedata)
+        tg.tioga_set_mpi_mapping(basedata, mpi_side_in_int.ctypes.data, mpi_mapping.ctypes.data, mpi_mapping.shape[0])
+     
+    def setup_facecoords_mapping(self):   
+        grid = self.griddata
+        nfaces, nbcfaces, nmpifaces = grid['nfaces'], grid['nbcfaces'], grid['nmpifaces']
+        f2c, fpos = grid['f2corg'], grid['faceposition']
+        ctype, off = grid['celltypes'], grid['celloffset']
+        
+        # now only support this for hex
+        ctype_to_int_dict = {'hex': 8}
+        # define some lambdas
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        info_in_int = lambda fid, i: [ctype_to_int(ctype[f2c[fid][i]]),f2c[fid][i],fpos[fid][i]]
+        rf = lambda cidx : cidx - off[cidx] # cell idx in its own type is needed for tuple
+        info_in_tuple = lambda fid, i: (ctype[f2c[fid][i]],rf(f2c[fid][i]),fpos[fid][i],0)
+        
+        # get left and right separately
+        left_side_in_int = [info_in_int(fid, 0) for fid in range(nfaces)]
+        left_side_in_tuple = [info_in_tuple(fid, 0) for fid in range(nfaces)]
+        
+        # new generate the information
+        fpts_ploc_left = self._scal_view_fpts_ploc(
+            left_side_in_tuple, 'get_scal_unsrted_fpts_ploc_for_inter'
+        )
 
-        elesdata = eles._vect_fpts
-        # here return the address as int
-        if hasattr(elesdata, '__array_interface__'):
-            datashape = elesdata.datashape
-            ndims, nfpt, neled1, nvars, neled2 = datashape
-            offset = ((typecidx//neled2)*nvars + var)*neled2 + typecidx % neled2
-            a = elesdata.data[ (nfpt*dim + fpt):, offset:]
-        else:
-            raise RuntimeError('CUDA get_q_fpt not implemented')
-        return a.__array_interface__['data'][0]
+        get_nfpts = lambda etype, pos : self.system.ele_map[etype].basis.nfacefpts[pos]
+        left_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in left_side_in_tuple]
 
-    # return an address
-    def get_q_spts(self, ele_stride, spt_stride, var_stride, ele_type):
-        etype = 'hex-g{}'.format(self.gid)
-        eles = self.system.ele_map[etype]
-        elesdata = eles.scal_upts_inb._curr_mat
-        nspt, neled1, nvars, neled2 = elesdata.datashape
-        es = nvars*neled2
-        ss = neled1*nvars*neled2
-        vs = neled2
-        writeAt(ele_stride, 0, es)
-        writeAt(spt_stride, 0, ss)
-        writeAt(var_stride, 0, vs)
-        return elesdata.data.__array_interface__['data'][0]
-
-    # return an address
-    def get_dq_spts(self, ele_stride, spt_stride, var_stride, dim_stride, ele_type):
-        etype = 'hex-g{}'.format(self.gid)
-        eles = self.system.ele_map[etype]
-        elesdata = eles._vect_upts
-        ndim, nspt, neled1, nvars, neled2 = elesdata.datashape
-        es =  nvars*neled2
-        ss =  neled1*nvars*neled2 
-        vs =  neled2
-        ds =  neled1*nvars*neled2*nspt
-        writeAt(ele_stride, 0, es)
-        writeAt(spt_stride, 0, ss)
-        writeAt(var_stride, 0, vs)
-        writeAt(dim_stride, 0, ds)
-        return elesdata.data.__array_interface__['data'][0]
+        pad = lambda a,n: np.concatenate((np.tile(a,(n,1)),np.array(range(n)).reshape(-1,1)),axis=1)
+        left_side_in_int  = [ pad(a,n) for a, n in zip(left_side_in_int, left_side_nfpts)]
+        left_side_in_int = np.array(left_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
+        left_mapping = fpts_ploc_left.mapping.get().squeeze(0).astype('int32')
+        basedata = int(fpts_ploc_left.basedata)
+        tg.tioga_set_facecoords_mapping(
+            basedata, left_side_in_int.ctypes.data, left_mapping.ctypes.data, left_mapping.shape[0]
+        )
     
-    # fringe_data_to_device
-    # see faces.cpp
+    def setup_cell_info_by_type(self):
+        grid = self.griddata
+        ele_map = self.system.ele_map
+        ctype, off  = grid['celltypes'], grid['celloffset']
+        ntypes, ncells = grid['ncelltypes'], grid['ncells']
+        # now only support this for hex
+        ctype_to_int_dict = {'hex': 8}
+        # define some lambdas
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        celltypes  = np.array([ ctype_to_int(a) for a in ctype]).astype('int32')
+        nupts_per_type = np.array( 
+                [[ctype_to_int(etype), eles.basis.nupts] for etype, eles in ele_map.items()]
+            ).astype('int32').reshape(-1)
+        
+        get_strides = lambda s: [s[2]*s[3],s[1]*s[2]*s[3],s[3]]
+        get_datashape = lambda eles : eles.scal_upts_inb._curr_mat.datashape
+        # now get strides for state variable
+        ustrides = np.array(
+                [[ctype_to_int(etype)] + get_strides(get_datashape(eles)) for etype, eles in ele_map.items() ]
+            ).astype('int32').reshape(-1)
+        get_du_strides = lambda s: [s[3]*s[4], s[2]*s[3]*s[4], s[4], s[1]*s[2]*s[3]*s[4]]
+        get_du_datashape = lambda eles: eles._vect_upts.datashape
+        dustrides = np.array(
+                [[ctype_to_int(etype)] + get_du_strides(get_du_datashape(eles)) for etype, eles in ele_map.items() ]
+            ).astype('int32').reshape(-1)
+        # memory address for u is subject to change at different stages of RK methods,
+        # we need to get it dynamically
+        # this is memory address use int64
+        du_basedata = np.array([
+            [ctype_to_int(etype),int(eles._vect_upts.data)] for etype, eles in ele_map.items()]
+            ).astype('int64').reshape(-1)
+
+        cstrides = np.array([
+
+            [ctype_to_int(etype)] + eles.ploc_at_ncon('upts').datashape for etype, eles in ele_map.items()
+            ]).astype('int32').reshape(-1)
+        
+        coords_basedata = np.array([
+            [ctype_to_int(etype),int(eles.ploc_at_ncon('upts').data)] for etype, eles in ele_map.items()
+            ]). astype('int64').reshape(-1)
+            
+        # now get strides for gradient variables
+        tg.tioga_set_cell_info_by_type(
+                ntypes, ncells,
+                celltypes.ctypes.data, 
+                nupts_per_type.ctypes.data, 
+                ustrides.ctypes.data, dustrides.ctypes.data, 
+                du_basedata.ctypes.data, 
+                cstrides.ctypes.data, coords_basedata.ctypes.data
+            )
+                   
+    def setup_interior_mapping(self):
+        grid = self.griddata
+        nfaces, nbcfaces, nmpifaces = grid['nfaces'], grid['nbcfaces'], grid['nmpifaces']
+        f2c, fpos = grid['f2corg'], grid['faceposition']
+        ctype, off = grid['celltypes'], grid['celloffset']
+        
+        # now only support this for hex
+        ctype_to_int_dict = {'hex': 8}
+        # define some lambdas
+        ctype_to_int = lambda ctype : ctype_to_int_dict[ctype.split('-')[0]]
+        info_in_int = lambda fid, i: [ctype_to_int(ctype[f2c[fid][i]]),f2c[fid][i],fpos[fid][i]]
+        rf = lambda cidx : cidx - off[cidx] # cell idx in its own type is needed for tuple
+        info_in_tuple = lambda fid, i: (ctype[f2c[fid][i]],rf(f2c[fid][i]),fpos[fid][i],0)
+        
+        # get left and right separately
+        left_side_in_int = [info_in_int(fid, 0) for fid in range(nbcfaces+nmpifaces, nfaces)]
+        left_side_in_tuple = [info_in_tuple(fid, 0) for fid in range(nbcfaces+nmpifaces, nfaces)]
+        
+        # new generate the information
+        fpts_u_left = self._scal_view_fpts_u(
+            left_side_in_tuple, 'get_scal_unsrted_fpts_for_inter'
+        )
+
+        fpts_du_left = self._vect_view_fpts_du(
+            left_side_in_tuple, 'get_vect_unsrted_fpts_for_inter'
+        )
+
+        get_nfpts = lambda etype, pos : self.system.ele_map[etype].basis.nfacefpts[pos]
+        left_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in left_side_in_tuple]
+
+        pad = lambda a,n: np.concatenate((np.tile(a,(n,1)),np.array(range(n)).reshape(-1,1)),axis=1)
+        left_side_in_int  = [ pad(a,n) for a, n in zip(left_side_in_int, left_side_nfpts)]
+        left_side_in_int = np.array(left_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
+        left_mapping = fpts_u_left.mapping.get().squeeze(0).astype('int32')
+        left_grad_mapping = fpts_du_left.mapping.get().squeeze(0).astype('int32')
+        left_grad_strides = fpts_du_left.rstrides.get().squeeze(0).astype('int32')
+        
+        # now lets do the same thing for right side
+        righ_side_in_int = [info_in_int(fid, 1) for fid in range(nbcfaces+nmpifaces, nfaces)]
+        righ_side_in_tuple = [info_in_tuple(fid, 1) for fid in range(nbcfaces+nmpifaces, nfaces)]
+        # new generate the information
+        fpts_u_righ = self._scal_view_fpts_u(
+            righ_side_in_tuple, 'get_scal_unsrted_fpts_for_inter'
+        )
+      
+        fpts_du_righ = self._vect_view_fpts_du(
+            righ_side_in_tuple, 'get_vect_unsrted_fpts_for_inter'
+        )
+        
+        righ_side_nfpts = [get_nfpts(etype, pos) for etype,_,pos,_ in righ_side_in_tuple]
+        righ_side_in_int  = [ pad(a,n) for a, n in zip(righ_side_in_int, righ_side_nfpts)]
+        righ_side_in_int = np.array(righ_side_in_int).reshape(-1,4).reshape(-1).astype('int32')
+        righ_mapping = fpts_u_righ.mapping.get().squeeze(0).astype('int32')
+        righ_grad_mapping = fpts_du_righ.mapping.get().squeeze(0).astype('int32')
+        righ_grad_strides = fpts_du_righ.rstrides.get().squeeze(0).astype('int32')
+
+        sum_info = np.concatenate((left_side_in_int, righ_side_in_int)).astype('int32')
+        # this could exceed int
+        sum_mapping = np.concatenate((left_mapping, righ_mapping)).astype('int32')
+        # now we set the information on tioga
+        sum_grad_mapping = np.concatenate((left_grad_mapping, righ_grad_mapping)).astype('int32')        
+        sum_grad_strides = np.concatenate((left_grad_strides, righ_grad_strides)).astype('int32')
+
+        if int(fpts_u_left.basedata) != int(fpts_u_righ.basedata):
+            raise RuntimeError("Interior left and right basedata not consistent")
+        # need to copy this base data as well
+        basedata = int(fpts_u_left.basedata)
+        if int(fpts_du_left.basedata) != int(fpts_du_righ.basedata):
+            raise RuntimeError("Interior left and right grad basedata not consistent")
+        grad_basedata = int(fpts_du_left.basedata)
+        #another = int(self.system.ele_map['hex-g{}'.format(self.gid)]._vect_fpts.basedata)
+        #print(f'one is {grad_basedata} another is {another}')
+        tg.tioga_set_interior_mapping(
+            basedata, grad_basedata, sum_info.ctypes.data, sum_mapping.ctypes.data, 
+            sum_grad_mapping.ctypes.data, sum_grad_strides.ctypes.data, sum_mapping.shape[0]
+        )
+
+    def setup_mpi_artbnd_status_aux(self):
+        # information of all mpi interfaces
+        nbcfaces = self.griddata['nbcfaces']
+        nmpifaces = self.griddata['nmpifaces']
+        if nmpifaces == 0:
+            self._mpi_fpts_artbnd = None
+            return
+ 
+        tot_nfpts_mpi = 0
+        faceinfo_mpi = []
+        facefpts_mpi_range = []
+        for fid in range(nbcfaces, nbcfaces + nmpifaces):
+            cidx1, cidx2 = self.griddata['f2corg'][fid]
+            fpos1, _ = self.griddata['faceposition'][fid]
+            etyp1 = self.griddata['celltypes'][cidx1]
+            etyp2 = self.griddata['celltypes'][cidx2]
+            if cidx2 >= 0:
+                raise RuntimeError(f'Right cell of a mpi face shoud not be {cidx2}')
+            
+            perface = (etyp1, cidx1 - self. griddata['celloffset'][cidx1], fpos1, 0)
+            faceinfo_mpi.append(perface)
+
+            nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
+            tot_nfpts_mpi = tot_nfpts_mpi + nfpts
+            facefpts_mpi_range.append(tot_nfpts_mpi)
+
+        self.init_info_mpi = faceinfo_mpi
+        self.init_nfpts_mpi = tot_nfpts_mpi
+        self.init_mpi_range = facefpts_mpi_range
+
+        self._init_fpts_artbnd = self._scal_view_artbnd(
+            self.init_info_mpi, 'get_scal_fpts_artbnd_for_inter'
+        )
+        
+        # tioga function to reset the status value to -1
+        tg.reset_mpi_face_artbnd_status_wrapper(
+            addrToFloatPtr(int(self._init_fpts_artbnd._mats[0].basedata)),
+            addrToIntPtr(self._init_fpts_artbnd.mapping.data),
+            -1.0,
+            nmpifaces, self.init_nfpts_mpi, 1, self.backend.soasz, 3
+        )
+
     def fringe_data_to_device(self, fringeids, nfringe, gradflag, data):
         if nfringe == 0: return
-        if gradflag == 0: # passing u
+        if self.system.istage == 0: # we only need to find the information for first stage
+            tg.tioga_update_fringe_face_info(gradflag)
+            tg.tioga_reset_entire_mpi_face_artbnd_status_pointwise(1)
+            tg.tioga_reset_mpi_face_artbnd_status_pointwise(1)
+        
+        if gradflag == 0: 
             self.fringe_u_device(fringeids, nfringe, data)
-        else: # passing du
+        else: 
             self.fringe_du_device(fringeids, nfringe, data)
-
-    def fringe_u_device(self, fringeids, nfringe, data):
-        if nfringe == 0: return 0
-
-        # first deal with  inner artbnd
-        tot_nfpts = 0
-        faceinfo = []
-        side_int = []
-        side_idx = [0]
-        faceinfo_test = []
-        for i in range(nfringe):
-            fid = ptrAt(fringeids,i)
-            cidx1, cidx2 = self.griddata['f2corg'][fid]
-            fpos1, fpos2 = self.griddata['faceposition'][fid]
-            etyp1 = self.griddata['celltypes'][cidx1]
-            etyp2 = self.griddata['celltypes'][cidx2] 
-            if cidx2>0:
-                side = 1 if self.griddata['iblank_cell'][cidx1] == 1 else 0
-                # for multiple element types in one partition
-                if self.griddata['iblank_cell'][cidx1] == self.griddata['iblank_cell'][cidx2] :
-                    raise RuntimeError("this should not happen")
-                perface = (
-                    (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
-                    if side == 0 else 
-                    (etyp2, cidx2 - self.griddata['celloffset'][cidx2], fpos2, 0)
-                )
-                faceinfo.append(perface)
-                side_int.append(side)
-            
-                # always use left face
-                nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
-                tot_nfpts = tot_nfpts + nfpts
-                side_idx.append(tot_nfpts)
-        
-        # save for later use
-        self.fringe_u_fpts_d = self.griddata['fringe_u_fpts_d']
-        self.fringe_faceinfo = faceinfo
-        self.tot_nfpts = tot_nfpts
-
-        if faceinfo != []:
-            self._scal_fpts_u = self._scal_view_fpts_u(
-                faceinfo, 'get_scal_unsrted_fpts_for_inter')
-            # test 
-            #datatest = np.array(
-            #    [ptrAt(data,i) for i in range(tot_nfpts*5)]
-            #).astype(self.backend.fpdtype)
-            #datatest = datatest.reshape(-1,5)
-            
-            #datatest = datatest.reshape(-1)
-
-            #tg.tg_copy_to_device(
-            #    self.fringe_u_fpts_d,
-            #    addrToFloatPtr(datatest.__array_interface__['data'][0]),
-            #    datatest.nbytes
-            #)
-            # copy data to device
-            nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
-            nbytes = nbytes*self.system.nvars
-            tg.tg_copy_to_device( self.fringe_u_fpts_d, data, int(nbytes))
-            
-            # datashape of eles._scal_fpts is [nfpts, neled2, nvars, soasz]
-            tg.unpack_fringe_u_wrapper (
-                addrToFloatPtr(self.fringe_u_fpts_d),
-                addrToFloatPtr(int(self._scal_fpts_u._mats[0].basedata)),
-                addrToUintPtr(self._scal_fpts_u.mapping.data),
-                nfringe, tot_nfpts, self.system.nvars, self.backend.soasz, 3
-            )
-
-        # then deal with overset artbnd
-        tot_nfpts_ov = 0
-        faceinfo_ov = []
-        facefpts_ov_range = [0]
-        for i in range(nfringe):
-            fid = ptrAt(fringeids,i)
-            cidx1, cidx2 = self.griddata['f2corg'][fid]
-            fpos1, fpos2 = self.griddata['faceposition'][fid]
-            etyp1 = self.griddata['celltypes'][cidx1]
-            etyp2 = self.griddata['celltypes'][cidx2] 
-            
-            if cidx2 < 0:
-                # always use left info here
-                perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0) 
-                faceinfo_ov.append(perface)
-            
-                # always use left face
-                nfpts = self.system.ele_map[etyp1].basis.nfacefpts[fpos1]
-                tot_nfpts_ov = tot_nfpts_ov + nfpts
-                facefpts_ov_range.append(tot_nfpts_ov)
-
-        # save for later use
-        self.fringe_faceinfo_ov = faceinfo_ov
-        # save for later use
-        self.tot_nfpts_ov = tot_nfpts_ov
-        if faceinfo_ov != []:
-            offset = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
-            offset = offset*self.system.nvars
-            nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts_ov
-            nbytes = nbytes*self.system.nvars
-            
-            # a reordering is necessary here as the date layout in here is 
-            # different
-            datatest = np.array(
-                [ptrAt(data,i) for i in range(tot_nfpts_ov*5)]
-            ).astype(self.backend.fpdtype)
-
-            datatest = datatest.reshape(-1,5)
-
-            for idx, face in enumerate(faceinfo_ov):
-                etype, typecidx, fpos, _ = face
-                srted_ord = self.system.ele_map[etype]._srtd_face_fpts[fpos][typecidx]
-                unsrted_ord = self.system.ele_map[etype].basis.facefpts[fpos]
-                # swap data according to the node ordering
-                nodesmap = []
-                for n in srted_ord:
-                    nodesmap.append(unsrted_ord.index(n))
-                # swap data 
-                a = datatest[facefpts_ov_range[idx]:facefpts_ov_range[idx+1]]
-                datatest[facefpts_ov_range[idx]:facefpts_ov_range[idx+1]] = a[nodesmap]
-
-            cc = datatest.swapaxes(0,1).reshape(-1)
-            # overset-mpi is the last one
-            matrix_entry = self.system._mpi_inters[-1]._scal_rhs
-            #tg.tg_copy_to_device(matrix_entry.data,data,int(nbytes))
-            tg.tg_copy_to_device(
-                matrix_entry.data,
-                addrToFloatPtr(cc.__array_interface__['data'][0]),
-                int(nbytes)
-            )
-
-    def fringe_du_device(self, fringeids, nfringe, data):
-        # known from previous step fringe_u_device
-        tot_nfpts = self.tot_nfpts
-        if tot_nfpts == 0: return
-        faceinfo = self.fringe_faceinfo
-        # copy data to device
-        self.fringe_du_fpts_d = self.griddata['fringe_du_fpts_d']
-        nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
-        nbytes = nbytes*self.system.nvars*self.system.ndims
-        tg.tg_copy_to_device(self.fringe_du_fpts_d, data, int(nbytes))
-        self._vect_fpts_du = self._vect_view_fpts_du(
-                faceinfo, 'get_vect_unsrted_fpts_for_inter')
-        # copy to the place
-        matrix_entry = self.system.ele_map['hex-g{}'.format(self.gid)]._vect_fpts
-        datashape = matrix_entry.datashape
-        dim_stride = datashape[1]*datashape[2]*datashape[3]*datashape[4]
-        # datashape of eles._scal_fpts is [nfpts, neled2, nvars, soasz]
-        tg.unpack_fringe_grad_wrapper (
-            addrToFloatPtr(self.fringe_du_fpts_d),
-            addrToFloatPtr(int(matrix_entry.basedata)),
-            addrToUintPtr(self._vect_fpts_du.mapping.data),
-            addrToUintPtr(self._vect_fpts_du.rstrides.data),
-            nfringe, tot_nfpts, self.system.nvars, self.system.ndims,
-            self.backend.soasz, 3
-        )
-
-    def get_face_nodes_gpu(self, faceids, nfaces, nptsface, xyz):
-        # these faces are 
-        if nfaces == 0: return
-        tot_nfpts = 0
-        for i in range(nfaces):
-            tot_nfpts = tot_nfpts + ptrAt(nptsface, i)
-        # first build up the interface information
-        faceinfo = []
-        for i in range(nfaces):
-            fid = ptrAt(faceids,i)
-            # using faceid to get the nfpts
-            cidx1, cidx2 = self.griddata['f2corg'][fid]
-            if cidx2 <0: cidx2 = cidx1
-            fpos1, fpos2 = self.griddata['faceposition'][fid]
-            etyp1    = self.griddata['celltypes'][cidx1]
-            etyp2    = self.griddata['celltypes'][cidx2] 
-            
-            perface = (etyp1, cidx1 - self.griddata['celloffset'][cidx1], fpos1, 0)
-            faceinfo.append(perface)
-
-        # note there need to use unsorted face idx
-        # check base/element.py
-        self._scal_fpts_ploc = self._scal_view_fpts_ploc(
-                faceinfo, 'get_scal_unsrted_fpts_ploc_for_inter')
-        self.fringe_coords_d = self.griddata['fringe_coords_d']
-        # datashape of ploc_at_ncon('fpts') is [nfpts, neled2, dim, soasz]
-        # pointwise operation
-        tg.pack_fringe_coords_wrapper(
-            addrToUintPtr(self._scal_fpts_ploc.mapping.data), # offset PyFR martix
-            addrToFloatPtr(self.fringe_coords_d), # a flat matrx 
-            addrToFloatPtr(int(self._scal_fpts_ploc._mats[0].basedata)),# starting addrs
-            tot_nfpts, self.system.ndims, self.backend.soasz, 3
-        )
-        
-        nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nfpts
-        nbytes = nbytes*self.system.ndims
-        tg.tg_copy_to_host(self.fringe_coords_d, xyz, nbytes)
-
-    # cell data used for unblanking, infuse data into unblanked cells
-    # unblank_to_device
-    def cell_data_to_device(self, cellids, ncells, gradflag, data):
-        if ncells == 0: return 
-        if gradflag == 0:
-            self.cell_u_to_device(cellids, ncells, data)
-        else:
-            # this will never be called 
-            self.cell_du_to_device(cellids, ncells, data)
-
-    def cell_u_to_device(self, cellids, ncells, data):
-        # there are from get_cell_coords
-        unblank_ids_ele = self.unblank_ids_ele_host
-        unblank_ids_loc = self.unblank_ids_loc_host
-        self.unblank_u_d = self.griddata['unblank_u_d']
-
-        # copy data from host to device
-        tot_nspts = self.tot_nspts
-        nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nspts*self.system.nvars
-        tg.tg_copy_to_device(self.unblank_u_d, data, int(nbytes))
-
-        # for each type do the copy inject data into unblanked cells
-        for etype in unblank_ids_ele.keys():
-            ele_soln = self.system.ele_map[etype].scal_upts_inb._curr_mat
-            nspts = self.system.ele_map[etype].basis.nupts
-            encells = unblank_ids_ele[etype].shape[1]
-            
-            neled2 = ele_soln.datashape[1]
-
-            tg.unpack_unblank_u_wrapper(
-                addrToIntPtr(self.unblank_ids_loc[etype]),
-                addrToIntPtr(self.unblank_ids_ele[etype]),
-                addrToFloatPtr(self.unblank_u_d),
-                addrToFloatPtr(ele_soln.data),
-                int(encells), int(nspts), int(self.system.nvars), 
-                int(self.system.backend.soasz), int(neled2), 3
-            )
-
-    def cell_du_to_device(self, cellids, ncell, data):
-        raise RuntimeError("copy du to device should not happen")
     
-    def get_cell_nodes_gpu(self, cellids, ncells, nptscell, xyz):
-        if ncells == 0 : return
-        unblank_ids_ele = OrderedDict()
-        unblank_ids_loc = OrderedDict() # stores the entrance of each cell spts
-        for etype in self.system.ele_types:
-            unblank_ids_ele[etype] = []
-            unblank_ids_loc[etype] = []
-        # do the copy element by element
-        tot_nspts = 0
-        for i in range(ncells):
-            # cell id
-            cid = ptrAt(cellids, i)
-            etype = self.griddata['celltypes'][cid]
-            typecidx = self.griddata['celloffset'][cid]
-            unblank_ids_ele[etype].append(cid-typecidx) 
-            npts = self.system.ele_map[etype].basis.nupts
-            unblank_ids_loc[etype].append(tot_nspts)
-            tot_nspts = tot_nspts + npts
-            # write data to nptscell
-            writeAt(nptscell, i, int(npts))
-        for etype in self.system.ele_types:
-            unblank_ids_ele[etype] = np.atleast_2d(
-                np.array(unblank_ids_ele[etype])
-            ).astype('int32')
-            unblank_ids_loc[etype] = np.atleast_2d(
-                np.array(unblank_ids_loc[etype])
-            ).astype('int32')
-        
-        # save for later use
-        self.unblank_ids_ele_host = unblank_ids_ele
-        self.unblank_ids_loc_host = unblank_ids_loc
-        self.tot_nspts = tot_nspts
-        self.unblank_ids_ele = self.griddata['unblank_ids_ele']
-        self.unblank_ids_loc = self.griddata['unblank_ids_loc']
-        self.unblank_coords_d = self.griddata['unblank_coords_d']
+    def fringe_u_device(self, fringeids, nfringe, data):
+        tg.tioga_prepare_mpi_artbnd_target_data(data, self.system.nvars)            
+        tg.tioga_prepare_interior_artbnd_target_data(data, self.system.nvars)
+        tg.tioga_prepare_overset_artbnd_target_data(data, self.system.nvars)       
+ 
+    def fringe_du_device(self, fringeids, nfringe, data):
+        tg.tioga_prepare_interior_artbnd_target_data_gradient(
+            data, self.system.nvars, self.system.ndims
+        )
 
-        # copy unblank_ids_ele and unblank_ids_loc to backend
-        for etype in unblank_ids_ele.keys():
-            ptr_ele = unblank_ids_ele[etype].__array_interface__['data'][0]
-            ptr_loc = unblank_ids_loc[etype].__array_interface__['data'][0]
-            nbytes_e = unblank_ids_ele[etype].nbytes
-            nbytes_l = unblank_ids_loc[etype].nbytes
-            tg.tg_copy_to_device(
-                self.unblank_ids_ele[etype],addrToIntPtr(ptr_ele), int(nbytes_e)
-            )
-            tg.tg_copy_to_device(
-                self.unblank_ids_loc[etype],addrToIntPtr(ptr_loc), int(nbytes_l)
-            )
-
-        # for each type do the copy
-        for etype in unblank_ids_ele.keys():
-            ele_coords = self.system.ele_map[etype].ploc_at_ncon('upts')
-            nspts = self.system.ele_map[etype].basis.nupts
-            ncells = unblank_ids_ele[etype].shape[1]
-            neled2 = ele_coords.datashape[1]
-
-            tg.pack_cell_coords_wrapper(
-                addrToIntPtr(self.unblank_ids_loc[etype]),
-                addrToIntPtr(self.unblank_ids_ele[etype]),
-                addrToFloatPtr(self.unblank_coords_d),
-                addrToFloatPtr(ele_coords.data),
-                int(ncells), int(nspts), int(self.system.ndims), 
-                int(self.system.backend.soasz), int(neled2), 3
-            )
-        # copy data from device to xyz
-        nbytes = np.dtype(self.backend.fpdtype).itemsize*tot_nspts*self.system.ndims
-        tg.tg_copy_to_host(self.unblank_coords_d, xyz, int(nbytes))
-        
-    def get_q_spts_gpu(self, ele_stride, spt_stride, var_stride, ele_type):
-        etype = 'hex-g{}'.format(self.gid)
-        eles = self.system.ele_map[etype]
-        elesdata = eles.scal_upts_inb._curr_mat
-        nspt, neled1, nvars, neled2 = elesdata.datashape
-        es = nvars*neled2
-        ss = neled1*nvars*neled2
-        vs = neled2
-        writeAt(ele_stride, 0, es)
-        writeAt(spt_stride, 0, ss)
-        writeAt(var_stride, 0, vs)
-        return int(elesdata.data)
-        
-    def get_dq_spts_gpu(self, ele_stride, spt_stride, var_stride, dim_stride, ele_type):
-        etype = 'hex-g{}'.format(self.gid)
-        eles = self.system.ele_map[etype]
-        elesdata = eles._vect_upts
-        ndim, nspt, neled1, nvars, neled2 = elesdata.datashape
-        es =  nvars*neled2
-        ss =  neled1*nvars*neled2 
-        vs =  neled2
-        ds =  neled1*nvars*neled2*nspt
-        writeAt(ele_stride, 0, int(es))
-        writeAt(spt_stride, 0, int(ss))
-        writeAt(var_stride, 0, int(vs))
-        writeAt(dim_stride, 0, int(ds))
-        return int(elesdata.data)
-
-    def get_nweights_gpu(self, cellid):
-        eles, _ = self.find_eles_instance(cellid)
-        return int(eles.basis.nupts)
+    def get_q_spts_gpu(self, et):
+        int_to_ctype_dict = {8: 'hex'}
+        etype = f'{int_to_ctype_dict[et]}-g{self.gid}'
+        return int(self.system.ele_map[etype].scal_upts_inb._curr_mat.data)
 
     def _view(self, inter, meth, vshape=tuple()):
         # no permute
@@ -941,3 +717,6 @@ class Py_callbacks(tg.callbacks):
 
     def _vect_view_fpts_du(self, inter, meth):
         return self._view(inter, meth, (self.system.ndims, self.system.nvars))
+
+    def _scal_view_artbnd(self, inter, meth):
+        return self._view(inter, meth, (1,))

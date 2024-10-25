@@ -6,7 +6,7 @@
 <%include file='pyfr.solvers.euler.kernels.rsolvers.${rsolver}'/>
 <%include file='pyfr.solvers.navstokes.kernels.flux'/>
 
-<% beta, tau = c['ldg-beta'], c['ldg-tau'] %>
+<% lbeta, tau = c['ldg-beta'], c['ldg-tau'] %>
 
 <%one = 1 %>
 
@@ -22,47 +22,56 @@
               mvell = 'in view fpdtype_t[${str(ndims)}][${str(one)}]'
               mvelr = 'inout mpi  fpdtype_t[${str(ndims)}][${str(one)}]'
               nl='in fpdtype_t[${str(ndims)}]'
-              magnl='in fpdtype_t'>
+              magnl='in fpdtype_t'
+              ovmarker='in view fpdtype_t'>
 
-// copy mvell into mvelr for mpi-overset interfaces
-% if ovset is True:
+    fpdtype_t beta;
+    beta = ${lbeta};
+% if mvgrid is True:
 % for i in range(ndims):
     mvelr[${i}][0] = mvell[${i}][0];
 % endfor
 % endif
 
-    // Perform the Riemann solve
-    // integrating grid velocity
+% if ovmpi is True: 
+    %if lbeta !=0.5:
+        printf("some thing is wrong, mpi-overset face beta != 0.5 %lf\n", beta);
+    %endif
+% else:
+    %if overset is True:
+        beta = ovmarker > 0? 0.5:beta;
+    %endif
+% endif
+
     fpdtype_t ficomm[${nvars}], fvcomm;
     ${pyfr.expand('rsolve','ul','ur','mvell','mvelr','nl','ficomm')};
 
-% if beta != -0.5:
+    // we need to evaluate both left and right
     fpdtype_t fvl[${ndims}][${nvars}] = {{0}};
     ${pyfr.expand('viscous_flux_add', 'ul', 'gradul', 'fvl')};
     ${pyfr.expand('artificial_viscosity_add', 'gradul', 'fvl', 'artviscl')};
-% endif
 
-% if beta != 0.5:
     fpdtype_t fvr[${ndims}][${nvars}] = {{0}};
     ${pyfr.expand('viscous_flux_add', 'ur', 'gradur', 'fvr')};
     ${pyfr.expand('artificial_viscosity_add', 'gradur', 'fvr', 'artviscr')};
-% endif
 
 % for i in range(nvars):
-% if beta == -0.5:
-    fvcomm = ${' + '.join('nl[{j}]*fvr[{j}][{i}]'.format(i=i, j=j)
+    // here use beta to check, downgrade to c language
+    if (beta == -0.5) {
+        fvcomm = ${' + '.join('nl[{j}]*fvr[{j}][{i}]'.format(i=i, j=j)
                           for j in range(ndims))};
-% elif beta == 0.5:
-    fvcomm = ${' + '.join('nl[{j}]*fvl[{j}][{i}]'.format(i=i, j=j)
+    } else if (beta == 0.5) {
+        fvcomm = ${' + '.join('nl[{j}]*fvl[{j}][{i}]'.format(i=i, j=j)
                           for j in range(ndims))};
-% else:
-    fvcomm = ${0.5 + beta}*(${' + '.join('nl[{j}]*fvl[{j}][{i}]'
+    } else {
+        fvcomm = (0.5 + beta)*(${' + '.join('nl[{j}]*fvl[{j}][{i}]'
                                          .format(i=i, j=j)
                                          for j in range(ndims))})
-           + ${0.5 - beta}*(${' + '.join('nl[{j}]*fvr[{j}][{i}]'
+               + (0.5 - beta)*(${' + '.join('nl[{j}]*fvr[{j}][{i}]'
                                          .format(i=i, j=j)
                                          for j in range(ndims))});
-% endif
+    }
+
 % if tau != 0.0:
     fvcomm += ${tau}*(ul[${i}] - ur[${i}]);
 % endif

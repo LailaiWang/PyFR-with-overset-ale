@@ -318,7 +318,7 @@ extern "C" {
 
   void tioga_set_ab_callback_gpu_(void (*h2df)(int* ids, int nf, int grad, double *data),
                                   void (*h2dc)(int* ids, int nc, int grad, double *data),
-                                  double* (*gqd)(int& es, int& ss, int& vs, int etype),
+                                  double* (*gqd)(int etype),
                                   double* (*gdqd)(int& es, int& ss, int& vs, int& ds, int etype),
                                   void (*gfng)(int*, int, int*, double*),
                                   void (*gcng)(int*, int, int*, double*),
@@ -328,9 +328,10 @@ extern "C" {
     tg->set_ab_callback_gpu(h2df,h2dc,gqd,gdqd,gfng,gcng,gnw,dfg);
   }
 
-  void tioga_register_moving_grid_data(double* grid_vel, double* offset, double* Rmat)
+  void tioga_register_moving_grid_data(double* grid_vel, double* offset, 
+                                       double* Rmat, double* Pivot)
   {
-    tg->registerMovingGridData(grid_vel, offset, Rmat);
+    tg->registerMovingGridData(grid_vel, offset, Rmat, Pivot);
   }
 
   void tioga_set_amr_callback_(void (*f1)(int *,double *,int *,double *))
@@ -338,9 +339,9 @@ extern "C" {
     tg->set_amr_callback(f1);
   }
 
-  void tioga_set_transform(double *rmat, double *offset, int ndim)
+  void tioga_set_transform(double *rmat, double *pvt,  double *offset, int ndim)
   {
-    tg->setTransform(rmat, offset, ndim);
+    tg->setTransform(rmat, pvt, offset, ndim);
   }
   
   void tioga_do_point_connectivity(void)
@@ -363,9 +364,6 @@ extern "C" {
     tg->unblankAllGrids(nvar);
   }
 
-  void tioga_set_soasz(unsigned int sz) {
-    tg->set_soasz(sz);
-  }
 
   callbackFuncs tioga_get_callbacks(void)
   {
@@ -398,5 +396,152 @@ extern "C" {
 #ifdef _GPU
     tg->registerDeviceGridData(xyz, coord, ibc,  ibf);
 #endif
+  }
+
+  void tioga_set_soasz(unsigned int sz) {
+    tg->set_soasz(sz);
+  }
+
+  void tioga_set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts) {
+    tg->set_maxnface_maxnfpts(maxnface, maxnfpts);
+  }
+  
+  void tioga_set_face_numbers(unsigned int nmpif, unsigned int nbcf) {
+    tg->set_face_numbers(nmpif, nbcf);
+  }
+
+  void tioga_set_face_fpts(unsigned long long ffpts, unsigned int ntface) {
+    int* fptr = reinterpret_cast<int*>(ffpts);
+    tg->set_face_fpts(fptr, ntface);
+  }
+  
+  void tioga_set_fcelltypes(unsigned long long fctype, unsigned int ntface) {
+    int* cptr = reinterpret_cast<int*>(fctype);
+    tg->set_fcelltypes(cptr, ntface);
+  }
+
+  void tioga_set_fposition(unsigned long long fpos, unsigned int ntface) {
+    int* posptr = reinterpret_cast<int*>(fpos);
+    tg->set_fposition(posptr, ntface);
+  }
+
+  void tioga_set_interior_mapping(unsigned long long basedata, 
+                                  unsigned long long grad_basedata,
+                                  unsigned long long faddr,
+                                  unsigned long long maddr, 
+                                  unsigned long long gmaddr,
+                                  unsigned long long gsaddr,
+                                  int nfpts) {
+    int* faceinfo = reinterpret_cast<int*>(faddr);
+    int* mapping = reinterpret_cast<int*>(maddr);
+    int* grad_mapping = reinterpret_cast<int*>(gmaddr);
+    int* grad_strides = reinterpret_cast<int*>(gsaddr);
+    tg->set_interior_mapping(basedata,grad_basedata,faceinfo,mapping,grad_mapping,grad_strides,nfpts);
+  }
+
+  void tioga_figure_out_interior_artbnd_target(unsigned long long faddr, unsigned int nfringe) {
+    int* fringe = reinterpret_cast<int*>(faddr);
+    tg->figure_out_interior_artbnd_target(fringe, nfringe);
+  }
+
+  void tioga_set_mpi_mapping(unsigned long long basedata,
+                             unsigned long long faddr,
+                             unsigned long long maddr, int nfpts) {
+    int* faceinfo = reinterpret_cast<int*>(faddr);
+    int* mapping = reinterpret_cast<int*>(maddr);
+    tg->set_mpi_mapping(basedata, faceinfo, mapping, nfpts);
+  }
+
+  void tioga_set_mpi_rhs_mapping(unsigned long long basedata,
+                                 unsigned long long maddr,
+                                 unsigned long long saddr, int nfpts) {
+    long long int* mapping = reinterpret_cast<long long int*>(maddr);
+    int* strides = reinterpret_cast<int*>(saddr);
+    tg->set_mpi_rhs_mapping(basedata, mapping, strides, nfpts);
+  }
+
+  void tioga_figure_out_mpi_artbnd_target(unsigned long long faddr, unsigned int nfringe) {
+    int* fringe = reinterpret_cast<int*>(faddr);
+    tg->figure_out_mpi_artbnd_target(fringe, nfringe);
+  }
+  
+  void tioga_set_data_reorder_map(unsigned long long saddr, unsigned long long uaddr, unsigned int ncells) {
+    int* srted = reinterpret_cast<int*>(saddr);
+    int* unsrted = reinterpret_cast<int*>(uaddr);
+    tg->set_data_reorder_map(srted, unsrted, ncells);
+  }
+
+  void tioga_set_bc_rhs_basedata(unsigned long long int basedata) {
+    tg->set_overset_rhs_basedata(basedata);
+  }
+  
+  void tioga_set_bc_mapping(unsigned long long basedata,
+                             unsigned long long faddr,
+                             unsigned long long maddr, int nfpts) {
+    int* faceinfo = reinterpret_cast<int*>(faddr);
+    int* mapping = reinterpret_cast<int*>(maddr);
+    tg->set_overset_mapping(basedata, faceinfo, mapping, nfpts);
+  }
+
+  void tioga_figure_out_bc_artbnd_target(unsigned long long faddr, unsigned int nfringe) {
+    int* fringe = reinterpret_cast<int*>(faddr);
+    tg->figure_out_overset_artbnd_target(fringe, nfringe);
+  }
+
+  void tioga_update_fringe_face_info(unsigned int flag) {
+    tg->update_fringe_face_info(flag);
+  }
+ 
+  void tioga_reset_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+    tg->reset_mpi_face_artbnd_status_pointwise(nvar);
+  }
+ 
+  void tioga_reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+    tg->reset_entire_mpi_face_artbnd_status_pointwise(nvar);
+  } 
+
+  void tioga_prepare_interior_artbnd_target_data(double* data, int nvar) {
+    tg->prepare_interior_artbnd_target_data(data, nvar);
+  }
+
+  void tioga_prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim) {
+    tg->prepare_interior_artbnd_target_data_gradient(data, nvar, dim);
+  }
+
+  void tioga_prepare_overset_artbnd_target_data(double* data, int nvar) {
+    tg->prepare_overset_artbnd_target_data(data, nvar);
+  }
+ 
+  void tioga_prepare_mpi_artbnd_target_data(double* data, int nvar) {
+    tg->prepare_mpi_artbnd_target_data(data, nvar);
+  }
+  
+  void tioga_set_facecoords_mapping(unsigned long long int base, unsigned long long int faddr, unsigned long long int maddr, int nfpts) {
+    int* faceinfo = reinterpret_cast<int*>(faddr);
+    int* mapping = reinterpret_cast<int*>(maddr);
+    tg->set_facecoords_mapping(base, faceinfo, mapping, nfpts);
+  }
+
+  void tioga_set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
+        unsigned long long caddr, unsigned long long nuptsaddr, 
+        unsigned long long uaddr, unsigned long long duaddr, 
+        unsigned long long baseaddr,
+        unsigned long long csaddr, unsigned long long cbaseaddr
+    ) {
+    int* celltypes = reinterpret_cast<int*>(caddr);
+    int* nupts_per_type = reinterpret_cast<int*>(nuptsaddr);
+    int* ustrides = reinterpret_cast<int*>(uaddr);
+    int* dustrides = reinterpret_cast<int*>(duaddr);
+    unsigned long long* du_basedata = reinterpret_cast<unsigned long long*>(baseaddr);
+    int* cstrides = reinterpret_cast<int*>(csaddr);
+    unsigned long long* c_basedata = reinterpret_cast<unsigned long long*>(cbaseaddr);
+    tg->set_cell_info_by_type(nctypes, ncells, celltypes, nupts_per_type, ustrides, dustrides, du_basedata, cstrides, c_basedata);
+  }
+
+  void tioga_set_solution_points(unsigned long long taddr, unsigned long long caddr, unsigned long long daddr) {
+    int* types = reinterpret_cast<int*>(taddr);
+    int* cnupts = reinterpret_cast<int*>(caddr);
+    double* data = reinterpret_cast<double*>(daddr);
+    tg->set_solution_points(types, cnupts, data);
   }
 }

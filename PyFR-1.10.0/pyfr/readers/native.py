@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from collections import Mapping, OrderedDict
+from collections import OrderedDict
+from collections.abc import Mapping
 import os
 import re
 
@@ -14,8 +15,6 @@ class NativeReader(Mapping):
     def __init__(self, fname):
         self.fname = os.path.abspath(fname)
         self._file = h5py.File(fname, 'r')
-
-        test = 1
 
     def __contains__(self, aname):
         return aname in self._file

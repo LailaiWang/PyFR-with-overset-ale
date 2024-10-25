@@ -37,14 +37,9 @@ class VTKWriter(BaseWriter):
             self._post_proc_fields = self._post_proc_fields_scal
             self._soln_fields = self.stats.get('data', 'fields').split(',')
             self._vtk_vars = [(k, [k]) for k in self._soln_fields]
-        
-        # only works when the first solnf supplied is instantaneous field
-        self.kte = args.kte 
-        if args.kte and self.dataprefix == 'soln':
-            # rebuild the variables lists
-            fluc = [(a+'_prime',b) for a,b in self._vtk_vars]
-            self._vtk_vars = fluc
 
+        self.blanking = args.blanking
+        self.gradients = args.gradients
         # See if we are computing gradients
         if args.gradients:
             self._pre_proc_fields_ref = self._pre_proc_fields
@@ -93,7 +88,7 @@ class VTKWriter(BaseWriter):
     def _post_proc_fields_scal(self, vsoln):
         return [vsoln[self._soln_fields.index(v)] for v, _ in self._vtk_vars]
 
-    def _pre_proc_fields_grad(self, name, mesh, soln):
+    def _pre_proc_fields_grad(self, name, mesh, soln, gid):
         # Call the reference pre-processor
         soln = self._pre_proc_fields_ref(name, mesh, soln)
 
@@ -104,7 +99,7 @@ class VTKWriter(BaseWriter):
         basiscls = subclass_where(BaseShape, name=name)
 
         # Construct an instance of the relevant elements class
-        eles = self.elementscls(basiscls, mesh, self.cfg)
+        eles = self.elementscls(basiscls, mesh, self.cfg, gid)
 
         # Get the smats and |J|^-1 to untransform the gradient
         smat = eles.smat_at_np('upts').transpose(2, 0, 1, 3)
@@ -137,6 +132,15 @@ class VTKWriter(BaseWriter):
     def _get_npts_ncells_nnodes(self, sk):
         etype, neles = self.soln_inf[sk][0], self.soln_inf[sk][1][2]
         
+        if 'overset' in self.cfg.sections():
+            # check if I need to blank the blanked elements
+            if self.blanking is True:
+                skpre, skpost = sk.rsplit('_', 1)
+                unblanked = self.soln[f'{skpre}_blank_{skpost}']
+                idxunblanked = [idx for idx, stat in enumerate(unblanked) if stat == 1]
+
+                neles = len(idxunblanked)
+
         etype = etype.split('-')[0]
         # Get the shape and sub division classes
         shapecls = subclass_where(BaseShape, name=etype)
@@ -356,18 +360,25 @@ class VTKWriter(BaseWriter):
         mesh = mesh[mk].astype(self.dtype)
         soln = self.soln[sk].swapaxes(0, 1).astype(self.dtype)
 
-        if self.kte:
-            avsoln = self.avsoln[sk.replace('soln','tavg')]
         # Handle the case of partial solution files
         if soln.shape[2] != mesh.shape[1]:
             skpre, skpost = sk.rsplit('_', 1)
 
             mesh = mesh[:, self.soln[f'{skpre}_idxs_{skpost}'], :]
 
-            # averaged solution includes the whole flow field
-            if self.kte:
-                avsoln = avsoln[:,:,self.soln[f'{skpre}_idxs_{skpost}']]
-
+        # handle the case where overset blanking information is available
+        # only output unblanked cells for visualization
+        if 'overset' in self.cfg.sections():
+            skpre, skpost = sk.rsplit('_', 1)
+            unblanked = self.soln[f'{skpre}_blank_{skpost}']
+            idxunblanked = [idx for idx, stat in enumerate(unblanked) if stat == 1]
+            # testing overset output
+            if gid == 0 and self.blanking is False:
+                soln = self.postoverset.bksoln[sk].swapaxes(0,1)
+            else:
+                mesh = mesh[:, idxunblanked, :]
+                soln = soln[:, :, idxunblanked]
+            
         # Dimensions
         nspts, neles = mesh.shape[:2]
 
@@ -390,19 +401,24 @@ class VTKWriter(BaseWriter):
             rmat = np.array(motion['Rmat']).reshape(-1,3).astype(vpts.dtype)
             offset = np.array(motion['offset'])
             offset = np.tile(offset,(vpts.shape[0], vpts.shape[1],1))
+            
+            # moving the pivot point for rotation
+            pivot = np.array(motion['pivot'])
+            pivot = np.tile(pivot,(vpts.shape[0], vpts.shape[1],1))
+            pivot = pivot + offset
 
             vpts = vpts + offset
             vpts = vpts.swapaxes(0,2)
-            vpts = np.einsum('ij,jk...->ik...', rmat, vpts)
+            pivot = pivot.swapaxes(0,2)
+            vpts = np.einsum('ij,jk...->ik...', rmat, vpts-pivot) + pivot
             vpts = vpts.swapaxes(0,2)
 
 
         # Pre-process the solution
-        soln = self._pre_proc_fields(name, mesh, soln).swapaxes(0, 1)
-        # If fluctuations are to be calculated
-        if self.kte:
-            # calculate the fluctuations
-            soln = soln - avsoln
+        if self.gradients:
+            soln = self._pre_proc_fields(name, mesh, soln, gid).swapaxes(0, 1)
+        else:
+            soln = self._pre_proc_fields(name, mesh, soln).swapaxes(0, 1)
 
         # Interpolate the solution to the vis points
         vsoln = soln_vtu_op @ soln.reshape(len(soln), -1)
@@ -471,7 +487,7 @@ class TensorProdShapeSubDiv(BaseShapeSubDiv):
             conbase = np.hstack((conbase, conbase + (1 + n)**2))
 
         # Calculate offset of each subdivided element's nodes
-        nodeoff = np.zeros((n,)*cls.ndim, dtype=np.int)
+        nodeoff = np.zeros((n,)*cls.ndim, dtype=int)
         for dim, off in enumerate(np.ix_(*(range(n),)*cls.ndim)):
             nodeoff += off*(n + 1)**dim
 

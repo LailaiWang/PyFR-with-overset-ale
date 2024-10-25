@@ -24,8 +24,8 @@ ld=$(CXX)
 
 SWIG = $(SWIG_BIN)/swig
 
-CFLAGS = -std=c++11 -fPIC -rdynamic -fsigned-char
-CUFLAGS = -std=c++11 --default-stream per-thread -Xcompiler -fPIC -Xcompiler -fsigned-char
+CFLAGS = -std=c++20 -fPIC -rdynamic -fsigned-char
+CUFLAGS = -std=c++20 --default-stream per-thread -Xcompiler -fPIC -Xcompiler -fsigned-char
 FFLAGS = -fPIC  #-CB -traceback #-fbacktrace -fbounds-check
 SFLAGS = -I$(strip $(PYTHON_INC_DIR))/ -I$(strip $(MPI4PY_INC_DIR))/ -I$(strip $(NUMPY_INC_DIR))/
 
@@ -115,7 +115,7 @@ OBJECTS = $(BINDIR)/buildADTrecursion.o $(BINDIR)/searchADTrecursion.o $(BINDIR)
 	$(BINDIR)/parallelComm.o $(BINDIR)/highOrder.o \
 	$(BINDIR)/cartOps.o $(BINDIR)/CartGrid.o $(BINDIR)/CartBlock.o $(BINDIR)/getCartReceptors.o $(BINDIR)/get_amr_index_xyz.o\
 	$(BINDIR)/exchangeAMRDonors.o $(BINDIR)/funcs.o $(BINDIR)/points.o \
-	$(BINDIR)/superMesh.o $(BINDIR)/tiogaInterface.o
+	$(BINDIR)/superMesh.o $(BINDIR)/tiogaInterface.o $(BINDIR)/gmres_pmg.o
 OBJSWIG = $(BINDIR)/tioga_wrap.o
 
 ifeq ($(strip $(CUDA)),YES)

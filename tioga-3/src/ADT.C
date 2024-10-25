@@ -121,12 +121,13 @@ void ADT::buildADT(int d, int nelements, double *elementBbox)
   free(adtWork);
 }
 
-void ADT::setTransform(double* mat, double* off, int nDims)
+void ADT::setTransform(double* mat, double* pvt, double* off, int nDims)
 {
   if (nDims != ndim/2)
     FatalError("ADT:setTransform:nDims != ADT::ndim/2");
 
   rrot = true;
   Rmat = mat;
+  Pivot = pvt;
   offset = off;
 }

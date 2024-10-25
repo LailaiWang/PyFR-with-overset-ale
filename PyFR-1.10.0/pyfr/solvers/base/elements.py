@@ -180,6 +180,11 @@ class BaseElements(object):
         ndims, nvars, neles, mvars = self.ndims, self.nvars, self.neles, self.ndims
         nfpts, nupts, nqpts = self.nfpts, self.nupts, self.nqpts
         sbufs, abufs = self._scratch_bufs, []
+        
+
+        # update bufs
+        if self.overset is True:
+            sbufs |= {'scal_fpts_artbnd'}
 
         # update bufs
         if self.mvgrid is True: self.mvgrid_cls.update_bufs(sbufs)
@@ -196,6 +201,7 @@ class BaseElements(object):
 
         vmelalloc = lambda ex, n: alloc(ex, (ndims, n, 1, neles))
         sgclalloc = lambda ex, n: alloc(ex, (n, 1, neles))
+        
 
         # Allocate required scalar scratch space
         if 'scal_fpts' in sbufs and 'scal_qpts' in sbufs:
@@ -207,6 +213,11 @@ class BaseElements(object):
         elif 'scal_qpts' in sbufs:
             self._scal_qpts = salloc('scal_qpts', nqpts)
         
+        # we want to allocate a fpts-wise array to store the status 
+        # of a mpi face, to indicate if it is a artbnd face
+        if self.overset is True:
+            self._scal_fpts_artbnd = sgclalloc('scal_fpts_artbnd', nfpts)
+       
         # allocate required scalar scratch space for mvel
         # non additional matrix is needed for 
         # updating pnorms in backend
@@ -493,6 +504,14 @@ class BaseElements(object):
 
         return (self.ploc_at_ncon('fpts').mid,)*nfp, rmap, cmap
         
+    # artbnd status for the overset method
+    def get_scal_fpts_artbnd_for_inter(self, eidx, fidx):
+        nfp = self.nfacefpts[fidx]
+
+        rmap = self._srtd_face_fpts[fidx][eidx]
+        cmap = (eidx,)*nfp
+
+        return (self._scal_fpts_artbnd.mid,)*nfp, rmap, cmap
 
     # for geometric conservation law
     def get_scal_fpts_mvel_for_inter(self, eidx, fidx):

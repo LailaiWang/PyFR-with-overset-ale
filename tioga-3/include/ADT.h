@@ -41,6 +41,7 @@ private :
 
   bool rrot = false;         /** Flag for rigid-body rotation (apply transform to all search points) */
   double* Rmat = NULL;   /** Rotation Matrix (global->body coords) for rigid motion */
+  double* Pivot = NULL;  /** Pivot point for rotation**/
   double* offset = NULL; /** Translation Offset (in global coords) for rigid motion */
 
 public :
@@ -69,7 +70,7 @@ public :
 
   void buildADT(int d,int nelements,double *elementBbox);  
 
-  void setTransform(double* mat, double* off, int ndims);
+  void setTransform(double* mat, double* pvt, double* off, int ndims);
 
   //! Search the ADT for the element containint the point xsearch
   void searchADT(MeshBlock *mb, int *cellIndex, double *xsearch, double* rst);

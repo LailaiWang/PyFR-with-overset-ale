@@ -35,7 +35,7 @@ extern "C" {
 
 struct callbackFuncs
 {
-  void (*setTransform)(double*, double*, int);
+  void (*setTransform)(double*, double*, double*, int);
 };
 
 void tioga_init_f90_(int *scomm);
@@ -106,18 +106,20 @@ void tioga_set_ab_callback_(void (*gnf)(int* id, int* npf),
 
 void tioga_set_ab_callback_gpu_(void (*h2df)(int* ids, int nf, int grad, double *data),
                                 void (*h2dc)(int* ids, int nc, int grad, double *data),
-                                double* (*gqd)(int& es, int& ss, int& vs, int etype),
+                                double* (*gqd)(int etype),
                                 double* (*gdqd)(int& es, int& ss, int& vs, int& ds, int etype),
                                 void (*gfng)(int* ids, int nf, int* nptf, double* xyz),
                                 void (*gcng)(int* ids, int nf, int* nptf, double* xyz),
                                 int (*gnw)(int),
                                 void (*dfg)(int*, int, double*, double*));
 
-void tioga_set_soasz(unsigned int sz);
 
-void tioga_register_moving_grid_data(double* grid_vel, double* offset, double* Rmat);
+void tioga_register_moving_grid_data(double* grid_vel,
+                                     double* offset,
+                                     double* Rmat,
+                                     double* Pivot);
 
-void tioga_set_transform(double *mat, double *off, int ndim);
+void tioga_set_transform(double *mat, double* pvt, double *off, int ndim);
 
 void tioga_do_point_connectivity(void);
 
@@ -137,4 +139,47 @@ void tioga_set_device_geo_data(double* xyz, double* coord, int* ibc, int* ibf);
 
 callbackFuncs tioga_get_callbacks(void);
 
+void tioga_set_soasz(unsigned int sz);
+void tioga_set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts);
+void tioga_set_face_numbers(unsigned int nmpif, unsigned int nbcf);
+void tioga_set_face_fpts(unsigned long long ffpts, unsigned int ntface);
+void tioga_set_fcelltypes(unsigned long long fctype, unsigned int ntface);
+void tioga_set_fposition(unsigned long long fpos, unsigned int ntface);
+void tioga_set_interior_mapping(unsigned long long basedata, 
+                                unsigned long long grad_basedata,
+                                unsigned long long faceinfo,
+                                unsigned long long mapping, 
+                                unsigned long long grad_mapping,
+                                unsigned long long grad_strides,
+                                int nfpts);
+void tioga_figure_out_interior_artbnd_target(unsigned long long fringe, unsigned int nfringe);
+void tioga_set_mpi_mapping(unsigned long long basedata,
+                           unsigned long long faceinfo,
+                           unsigned long long mapping, int nfpts);
+void tioga_set_mpi_rhs_mapping(unsigned long long basedata,
+                               unsigned long long mapping,
+                               unsigned long long strides, int nfpts);
+void tioga_figure_out_mpi_artbnd_target(unsigned long long fringe, unsigned int nfringe);
+void tioga_set_data_reorder_map(unsigned long long srted, unsigned long long unsrted, unsigned int ncells);
+void tioga_set_bc_rhs_basedata(unsigned long long basedata);
+void tioga_set_bc_mapping(unsigned long long basedata,
+                           unsigned long long faceinfo,
+                           unsigned long long mapping, int nfpts);
+void tioga_figure_out_bc_artbnd_target(unsigned long long fringe, unsigned int nfringe);
+
+void tioga_update_fringe_face_info(unsigned int flag);
+void tioga_reset_mpi_face_artbnd_status_pointwise(unsigned int nvar);
+void tioga_reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
+void tioga_prepare_interior_artbnd_target_data(double* data, int nvar);
+void tioga_prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim);
+void tioga_prepare_overset_artbnd_target_data(double* data, int nvar);
+void tioga_prepare_mpi_artbnd_target_data(double* data, int nvar);
+void tioga_set_facecoords_mapping(unsigned long long basedata, unsigned long long faceinfo, unsigned long long mapping, int nfpts);
+void tioga_set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
+        unsigned long long celltypes, unsigned long long nupts_per_type, 
+        unsigned long long ustrides, unsigned long long dustrides, 
+        unsigned long long du_basedata,
+        unsigned long long cstrides, unsigned long long c_basedata
+    );
+void tioga_set_solution_points(unsigned long long types, unsigned long long cnupts, unsigned long long data);
 } /* extern "C" */

@@ -1,4 +1,4 @@
-#ifndef MESHBLOCK_H
+# ifndef MESHBLOCK_H
 #define MESHBLOCK_H
 //
 // This file is part of the Tioga software library
@@ -27,7 +27,12 @@
  */
 #include <map>
 #include <unordered_set>
+#include <unordered_map>
 #include <set>
+#include <vector>
+#include <mutex>
+
+#include <algorithm>
 
 #include "codetypes.h"
 #include "funcs.hpp"
@@ -39,6 +44,27 @@
 #include "dADT.h"
 #include "dMeshBlock.h"
 #endif
+
+extern void reset_mpi_face_artbnd_status_wrapper(double*, int*, double, unsigned int, unsigned int, unsigned int, unsigned int, int);
+extern void unpack_fringe_u_wrapper(double*, double*, int*, unsigned int, unsigned int, unsigned int, unsigned int, int);
+extern void unpack_fringe_grad_wrapper(double*, double*, int*, int*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, int);
+extern void pointwise_copy_to_mpi_rhs_wrapper(double*, long long int*, int*, double*, int*, unsigned int, unsigned int, int);
+extern void pack_fringe_coords_wrapper(int*, double*, double*, int, int, unsigned int ,int);
+
+extern void pack_cell_coords_wrapper(int*, int*, double*, double*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, int);
+extern void unpack_unblank_u_wrapper(int*, int*, double*, double*, unsigned int, unsigned int, unsigned int, unsigned int, unsigned itn, int);
+
+extern void get_nodal_basis_wrapper(int*, double*, double*, double*, int, int,int,int);
+
+struct vector_hash {
+  int operator()(const std::vector<int> &V) const {
+    int hash = V.size();
+    for(auto &i : V) {
+      hash ^= i + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+    }
+    return hash;
+  }
+};
 
 //! Helper struct for direct-cut method [Galbraith 2013]
 typedef struct CutMap
@@ -60,6 +86,9 @@ class MeshBlock
 friend class dMeshBlock;
 private:
   unsigned int soasz = 0;
+
+  int nbcfaces;  /**< number of boundary faces*/
+  int nmpifaces; /**< number of mpi faces*/
 
   int nnodes;  /** < number of grid nodes */
   int ncells;  /** < total number of cells */
@@ -121,6 +150,7 @@ private:
 
   bool rrot = false;
   double* Rmat = NULL;
+  double* Pivot = NULL;
   double* offset = NULL;
 
 #ifdef _GPU
@@ -128,7 +158,104 @@ private:
   dMeshBlock mb_d;  /** GPU-based mesh data */
 #endif
 
-  //
+  int maxnface; // max number of faces per element
+  int maxnfpts; // max number of fpts per face
+
+  // pyfr related
+  std::vector<int> face_fpts; // number of fpts per face
+  std::vector<std::vector<int>> fcelltypes; // left and right cell type
+  std::vector<std::vector<int>> fposition;  // left and right face position
+
+  std::unordered_map<std::vector<int>, int, vector_hash> interior_mapping;
+  std::unordered_map<std::vector<int>, int, vector_hash> interior_grad_mapping;
+  std::unordered_map<std::vector<int>, int, vector_hash> interior_grad_strides;
+
+  std::unordered_map<std::vector<int>, int, vector_hash> mpi_mapping;
+  std::unordered_map<std::vector<int>, int, vector_hash> overset_mapping;
+  std::unordered_map<std::vector<int>, int, vector_hash> fcoords_mapping;
+
+  std::vector<std::pair<int,int>> interior_ab_faces; //pair first->global id second loc id
+  std::vector<std::pair<int,int>> mpi_ab_faces;
+  std::vector<std::pair<int,int>> overset_ab_faces;
+  
+  unsigned long long int fcoords_basedata;
+  int fcoords_tnfpts{0};
+  std::vector<int> fcoords_target_nfpts;
+  std::vector<int> fcoords_target_scan;
+  std::vector<int> fcoords_target_mapping;
+  dvec<int> fcoords_target_mapping_d;
+  dvec<double> fcoords_data_d;
+
+  unsigned long long int interior_basedata;
+  unsigned long long int interior_grad_basedata;
+  int interior_tnfpts{0};
+  std::vector<int> interior_target_nfpts; // fringe nfpts per face
+  std::vector<int> interior_target_scan; // staring idx of fpts on each face
+  std::vector<int> interior_target_mapping; // mapping of very fpts 
+  
+  std::vector<int> interior_target_grad_mapping;
+  std::vector<int> interior_target_grad_strides;
+
+  dvec<int> interior_target_mapping_d; // interior mapping
+  dvec<int> interior_target_grad_mapping_d;
+  dvec<int> interior_target_grad_strides_d;
+  dvec<double> interior_data_d; // memory buffer to interior ab
+  dvec<double> interior_data_grad_d;
+
+  unsigned long long int mpi_basedata; // address
+  unsigned long long int mpi_rhs_basedata;
+  int mpi_tnfpts{0}; // total number of mpi nfpts
+  int mpi_entire_tnfpts{0};
+  std::vector<int> mpi_target_nfpts;
+  std::vector<int> mpi_target_scan;
+  std::vector<int> mpi_target_mapping;
+  dvec<int> mpi_target_mapping_d; 
+  std::vector<int> mpi_entire_mapping_h;
+  dvec<int> mpi_entire_mapping_d;
+  std::vector<double> mpi_data_h;
+  dvec<double> mpi_data_d; // memory buffer to interior ab
+  
+  std::vector<int> mpi_entire_nfpts;
+  std::vector<int> mpi_entire_scan;
+
+  std::vector<long long int> mpi_entire_rhs_mapping;
+  std::vector<int> mpi_entire_rhs_strides;
+  std::vector<int> mpi_target_rhs_fptsid;
+  dvec<long long int> mpi_entire_rhs_mapping_d;
+  dvec<int> mpi_entire_rhs_strides_d;
+  dvec<int> mpi_target_rhs_fptsid_d;
+
+  unsigned long long int overset_basedata;
+  unsigned long long int overset_rhs_basedata;
+  int overset_tnfpts{0};
+  std::vector<int> overset_target_nfpts;
+  std::vector<int> overset_target_scan;
+  std::vector<int> overset_target_mapping;
+  dvec<int> overset_target_mapping_d;
+  std::vector<double> overset_data_h;
+  dvec<double> overset_data_d;
+
+  std::vector<std::vector<std::vector<int>>> srted_order;
+  std::vector<std::vector<std::vector<int>>> unsrted_order;
+  std::vector<std::vector<std::unordered_map<int, int>>> face_unsrted_to_srted_map;
+    
+  std::vector<int> celltypes; // 8 -> hex
+  std::unordered_map<int, int> cell_nupts_per_type;
+  std::unordered_map<int, std::vector<int>> cell_u_strides_per_type;
+  std::unordered_map<int, std::vector<int>> cell_du_strides_per_type;
+  std::unordered_map<int, unsigned long long int> cell_du_basedata_per_type;
+  std::unordered_map<int, std::vector<int>> cell_coords_strides_per_type;
+  std::unordered_map<int, unsigned long long int> cell_coords_basedata_per_type;
+  std::vector<int> cell_target_coords_scan;
+  dvec<int> cell_target_coords_scan_d;
+  dvec<int> cell_target_ids_d;
+  dvec<double> cell_target_coords_data_d;
+  dvec<double> cell_target_soln_data_d;
+  
+
+  dvec<double> solution_points_d;
+  std::unordered_map<int, std::vector<int>> soln_pts_range;
+  std::unordered_map<int, int> cell_nupts_interp_per_type;
   // Alternating digital tree library
   //
   ADT *adt;   /** < Digital tree for searching this block */
@@ -186,7 +313,7 @@ private:
   double* (*get_dq_spts)(int& ele_stride, int& spt_stride, int& var_stride, int& dim_stride, int etype);
 
   // GPU-related functions
-  double* (*get_q_spts_d)(int& ele_stride, int& spt_stride, int& var_stride, int etype);
+  double* (*get_q_spts_d)(int etype);
   double* (*get_dq_spts_d)(int& ele_stride, int& spt_stride, int& var_stride, int& dim_stride, int etype);
 
   void (*get_face_nodes_gpu)(int* fringeIDs, int nFringe, int* nptPerFace, double* xyz);
@@ -410,7 +537,7 @@ private:
 
   void setGridVelocity(double *grid_vel);
 
-  void setTransform(double *mat, double* offset, int ndim);
+  void setTransform(double *mat, double* pvt, double* offset, int ndim);
 
   void calcNextGrid(double dt);
   void resetCurrentGrid(void);
@@ -570,14 +697,14 @@ private:
 
   void setCallbackArtBndGpu(void (*h2df)(int* ids, int nf, int grad, double *data),
                             void (*h2dc)(int* ids, int nf, int grad, double *data),
-                            double* (*gqd)(int& es, int& ss, int& vs, int etype),
+                            double* (*gqd)(int etype),
                             double* (*gdqd)(int& es, int& ss, int& vs, int& ds, int etype),
                             void (*gfng)(int*, int, int*, double*),
                             void (*gcng)(int*, int, int*, double*),
                             int (*gnw)(int),
                             void (*dfg)(int*, int, double*, double*))
   {
-    face_data_to_device = h2df;
+    face_data_to_device = h2df; // this is the function to move face data to device
     cell_data_to_device = h2dc;
     get_q_spts_d = gqd;
     get_dq_spts_d = gdqd;
@@ -667,6 +794,53 @@ private:
 #endif
   void set_soasz(unsigned int sz);
   unsigned int get_soasz() { return soasz;};
+
+  void set_maxnface_maxnfpts(unsigned int, unsigned int);
+  void set_face_fpts(int* ffpts, unsigned int ntface);   
+  void set_fcelltypes(int* fctype, unsigned int ntface);
+  void set_fposition(int* fpos, unsigned int ntface);
+  void set_face_numbers(unsigned int nmpif, unsigned int nbcf);
+
+  void set_data_reorder_map(int* srted, int* unsrted, int ncells);
+  void set_interior_mapping(unsigned long long int basedata, 
+                            unsigned long long int grad_basedata,
+                            int* faceinfo, int* mapping, 
+                            int* grad_mapping, int* grad_strides,
+                            int nfpts);
+  void set_interior_gradient_mapping();
+  void set_mpi_rhs_mapping(unsigned long long int basedata, long long int* mapping, int* strides, int nfpts);
+  void set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void set_overset_rhs_basedata(unsigned long long int basedata);
+  void set_overset_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void set_facecoords_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void figure_out_interior_artbnd_target();
+  void figure_out_mpi_artbnd_target();
+  void figure_out_overset_artbnd_target();
+  void figure_out_facecoords_target();
+
+  void prepare_interior_artbnd_target_data(double* data, int nvar);
+  void prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim);
+  void prepare_mpi_artbnd_target_data(double* data, int nvar);
+  void prepare_overset_artbnd_target_data(double* data, int nvar);
+
+  void update_fringe_face_info(unsigned int flag);
+
+  void reset_mpi_face_artbnd_status_pointwise(unsigned int nvar);
+  void reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
+
+  void unpack_interior_artbnd_u_pointwise(unsigned int nvar);
+  void unpack_interior_artbnd_du_pointwise(unsigned int nvar, unsigned int dim);
+  
+  void pack_fringe_facecoords_pointwise(double* rxyz);
+  void set_cell_info_by_type(unsigned int nctypes, unsigned int nc,
+                             int* ctypes, int* nupts_per_type,
+                             int* ustrides, int* dustrides, unsigned long long* du_basedata,
+                             int* cstrides, unsigned long long* c_basedata
+                            );
+  void pointwise_pack_cell_coords(int ntotal, double* rxyz);
+  void pointwise_unpack_cell_soln(double* data, int nvar);
+  void set_solution_points(int* types, int* nupts, double* data);
+  void donor_frac_native(int* cellids, int nfringe, double* rst, double* weights);
 };
 
 #endif

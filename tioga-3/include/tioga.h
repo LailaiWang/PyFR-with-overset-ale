@@ -211,13 +211,13 @@ class tioga
       int nWallFaces, int nMpi, int* overFaces, int* wallFaces, int* mpiFaces, 
       int *procR, int *idR);
 
-  void registerMovingGridData(double *grid_vel, double* offset, double *Rmat)
+  void registerMovingGridData(double *grid_vel, double* offset, double *Rmat, double* Pivot)
   {
     mb->setGridVelocity(grid_vel);
 
     if (offset != NULL)
     {
-      mb->setTransform(Rmat, offset, 3);
+      mb->setTransform(Rmat, Pivot, offset,  3);
     }
   }
 
@@ -254,7 +254,8 @@ class tioga
   void doHoleCutting(bool unblanking = false);
   void doPointConnectivity(bool unblanking = false);
 
-  void setTransform(double *mat, double *off, int nDims) { mb->setTransform(mat,off,nDims); }
+  void setTransform(double *mat, double* pvt, double *off, int nDims) 
+                { mb->setTransform(mat,pvt,off,nDims); }
 
   /** Perform overset interpolation and data communication */
 
@@ -298,9 +299,6 @@ class tioga
    mb->set_cell_iblank(iblank_cell);
   }
 
-  void set_soasz(unsigned int sz) {
-    mb->set_soasz(sz);
-  }
   
   //! Set callback functions for general high-order methods
   void setcallback(void (*f1)(int*, int*),
@@ -333,7 +331,7 @@ class tioga
 
   void set_ab_callback_gpu(void (*h2df)(int* ids, int nf, int grad, double* data),
                            void (*h2dc)(int* ids, int nc, int grad, double* data),
-                           double* (*gqd)(int& es, int& ss, int& vs, int etype),
+                           double* (*gqd)(int etype),
                            double* (*gdqd)(int& es, int& ss, int& vs, int& ds, int etype),
                            void (*gfng)(int*,int,int*,double*),
                            void (*gcng)(int*, int, int*, double*),
@@ -379,6 +377,50 @@ class tioga
   //! Set pointers to storage of geometry data on device
   void registerDeviceGridData(double *xyz, double* coords, int *ibc, int *ibf);
 #endif
+  void set_soasz(unsigned int sz) {
+    mb->set_soasz(sz);
+  }
+
+  void set_maxnface_maxnfpts(unsigned int maxnface, unsigned int maxnfpts) {
+    mb->set_maxnface_maxnfpts(maxnface, maxnfpts);
+  }
+ 
+  void set_face_numbers(unsigned int nmpif, unsigned int nbcf) {
+    mb->set_face_numbers(nmpif, nbcf);
+  }  
+
+  void set_face_fpts(int* ffpts, unsigned int ntface);
+  void set_fcelltypes(int* fctype, unsigned int ntface);
+  void set_fposition(int* fpos, unsigned int ntface);
+  void set_interior_mapping(unsigned long long int basedata, 
+                            unsigned long long int grad_basedata,
+                            int* faceinfo, int* mapping, 
+                            int* grad_mapping, int* grad_strides,
+                            int nfpts);
+  void figure_out_interior_artbnd_target(int* fringe, int nfringe);
+  void set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void set_mpi_rhs_mapping(unsigned long long int basedata, long long int* mapping, int* strides, int nfpts);
+  void figure_out_mpi_artbnd_target(int* fringe, int nfringe);
+  void set_data_reorder_map(int* srted, int* unsrted, int ncells);
+  void set_overset_rhs_basedata(unsigned long long int basedata);
+  void set_overset_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void figure_out_overset_artbnd_target(int* fringe, int nfringe);
+  void update_fringe_face_info(unsigned int flag);
+  void reset_mpi_face_artbnd_status_pointwise(unsigned int nvar);
+  void reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar);
+
+  void prepare_interior_artbnd_target_data(double* data, int nvar);
+  void prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim);
+  void prepare_overset_artbnd_target_data(double* data, int nvar);
+  void prepare_mpi_artbnd_target_data(double* data, int nvar);
+
+  void set_facecoords_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts);
+  void set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
+                             int* celltypes, int* nupts_per_type,
+                             int* ustrides, int* dustrides, unsigned long long* du_basedata,
+                             int* cstrides, unsigned long long* c_basedata
+                            );
+  void set_solution_points(int* types, int* cnupts, double* data);
 };
       
 #endif

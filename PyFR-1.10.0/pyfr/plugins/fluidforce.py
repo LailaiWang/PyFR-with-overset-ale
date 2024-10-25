@@ -129,7 +129,12 @@ class FluidForcePlugin(BasePlugin):
 
         # Force vector
         f = np.zeros(2*ndims if self._viscous else ndims)
-
+        
+        if hasattr(intg.system, "Rmat"):
+            Rmat = np.array(intg.system.Rmat).reshape(3,-1)
+        else:
+            Rmat = np.array([1,0,0,0,1,0,0,0,1]).reshape(3,-1)
+        
         for etype, fidx in self._m0:
             # Get the interpolation operator
             m0 = self._m0[etype, fidx]
@@ -150,7 +155,9 @@ class FluidForcePlugin(BasePlugin):
             # Get the quadrature weights and normal vectors
             qwts = self._qwts[etype, fidx]
             norms = self._norms[etype, fidx]
-
+            
+            norms = np.einsum('ij,mkj->mki', Rmat, norms)
+        
             # Do the quadrature
             f[:ndims] += np.einsum('i...,ij,jik', qwts, p, norms)
 

@@ -99,7 +99,12 @@ void tioga::profile(void)
 
   MPI_Allreduce(&iartbnd, &iabGlobal, 1, MPI_INT, MPI_MAX, scomm);
   MPI_Allreduce(&ihigh, &ihighGlobal, 1, MPI_INT, MPI_MAX, scomm);
-    
+  
+  int rank = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  //printf("finish get ihigh %d\n",rank);
+
   if (iabGlobal)
   {
     /// TODO: find a better location for this?
@@ -109,6 +114,8 @@ void tioga::profile(void)
     MPI_Comm_size(meshcomm, &nprocMesh);
 
     gridType = mb->gridType;
+    
+    //printf("set gridtype %d\n",rank);
 
     // For the direct-cut method
     // gridType == 0: background;  gridType == 1: body grid
@@ -126,6 +133,7 @@ void tioga::profile(void)
     std::vector<int> ptags(nproc);
     MPI_Allgather(&mytag, 1, MPI_INT, ptags.data(), 1, MPI_INT, scomm);
 
+    //printf("set mytag %d\n",rank);
     // Enforcing symmetry in sends/recvs
     int nsend = 0;
     for (int i = 0; i < nproc; i++)
@@ -142,12 +150,19 @@ void tioga::profile(void)
       }
     }
 
+    //printf("set symm %d\n",rank);
+
     pc->setMap(nsend, nsend, sndMap.data(), sndMap.data());
+    //printf("finish set map %d\n",rank);
 
     mb->setupADT();
 
+    //printf("finish set adt %d\n",rank);
     mb->extraConn();
+    //printf("finish extraconn %d\n",rank);
   }
+  //printf("finish profile %d\n",rank);
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void tioga::performConnectivity(void)
@@ -563,6 +578,16 @@ void tioga::directCut(void)
   MPI_Waitall((int)sreqs.size(), sreqs.data(), MPI_STATUSES_IGNORE);
   MPI_Waitall((int)rreqs.size(), rreqs.data(), MPI_STATUSES_IGNORE);
 
+  
+  // this is a fatal bug Lai Wang 7/16/2024
+  for(int i=0;i<bbox_g.size();++i) {
+    for (int d = 0; d < nDims; d++)
+    {
+      bbox_g[i][d]       =  BIG_DOUBLE;
+      bbox_g[i][d+nDims] = -BIG_DOUBLE;
+    }
+  }
+
   // Reduce the bounding box data to one box per grid, using only bboxes of
   // ranks sending faces to us
   for (int i = 0; i < nrecv; i++)
@@ -570,15 +595,11 @@ void tioga::directCut(void)
     int p = dcRcvMap[i];
     int g = gridIDs[p];
 
-    for (int d = 0; d < nDims; d++)
-    {
-      bbox_g[g][d]       =  BIG_DOUBLE;
-      bbox_g[g][d+nDims] = -BIG_DOUBLE;
-    }
 
     for (int d = 0; d < nDims; d++)
     {
-      bbox_g[g][d] = std::min(bbox_g[g][d], bbox_tmp[2*nDims*p+d]);
+      auto dst = std::min(bbox_g[g][d], bbox_tmp[2*nDims*p+d]);
+      bbox_g[g][d] = dst;
       bbox_g[g][d+nDims] = std::max(bbox_g[g][d+nDims], bbox_tmp[2*nDims*p+d+nDims]);
     }
   }
@@ -1368,3 +1389,98 @@ void tioga::set_stream_handle(cudaStream_t handle, cudaEvent_t event)
   mb->set_stream_handle(handle, event);
 }
 #endif
+
+void tioga::set_face_fpts(int* ffpts, unsigned int ntface) {
+  mb->set_face_fpts(ffpts, ntface);
+}
+
+void tioga::set_fcelltypes(int* fctype, unsigned int ntface) {
+  mb->set_fcelltypes(fctype, ntface);
+}
+
+void tioga::set_fposition(int* fpos, unsigned int ntface) {
+  mb->set_fposition(fpos, ntface);
+}
+
+void tioga::set_interior_mapping(unsigned long long int basedata,
+                                 unsigned long long int grad_basedata,
+                                 int* faceinfo, int* mapping,
+                                 int* grad_mapping, int* grad_strides,
+                                 int nfpts) {
+  mb->set_interior_mapping(basedata,grad_basedata,faceinfo,mapping,grad_mapping,grad_strides,nfpts);
+}
+
+void tioga::figure_out_interior_artbnd_target(int* fringe, int nfringe) {
+  mb->figure_out_interior_artbnd_target();
+}
+
+void tioga::set_mpi_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
+  mb->set_mpi_mapping(basedata, faceinfo, mapping, nfpts);
+}
+
+void tioga::set_mpi_rhs_mapping(unsigned long long int basedata, long long int* mapping, int* strides, int nfpts) {
+  mb->set_mpi_rhs_mapping(basedata, mapping, strides, nfpts);
+}
+
+void tioga::figure_out_mpi_artbnd_target(int* fringe, int nfringe) {
+  mb->figure_out_mpi_artbnd_target();
+}
+
+void tioga::set_data_reorder_map(int* srted, int* unsrted, int ncells) {
+  mb->set_data_reorder_map(srted, unsrted, ncells);
+}
+
+void tioga::set_overset_rhs_basedata(unsigned long long int basedata) {
+  mb->set_overset_rhs_basedata(basedata);
+}
+
+void tioga::set_overset_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
+  mb->set_overset_mapping(basedata, faceinfo, mapping, nfpts);
+}
+
+void tioga::figure_out_overset_artbnd_target(int* fringe, int nfringe) {
+  mb->figure_out_overset_artbnd_target();
+}
+
+void tioga::update_fringe_face_info(unsigned int flag) {
+  mb->update_fringe_face_info(flag);
+}
+
+void tioga::reset_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+  mb->reset_mpi_face_artbnd_status_pointwise(nvar);
+}
+void tioga::reset_entire_mpi_face_artbnd_status_pointwise(unsigned int nvar) {
+  mb->reset_entire_mpi_face_artbnd_status_pointwise(nvar);
+}
+
+void tioga::prepare_interior_artbnd_target_data(double* data, int nvar) {
+  mb->prepare_interior_artbnd_target_data(data, nvar);
+}
+
+void tioga::prepare_interior_artbnd_target_data_gradient(double* data, int nvar, int dim) {
+  mb->prepare_interior_artbnd_target_data_gradient(data, nvar, dim);
+}
+
+void tioga::prepare_overset_artbnd_target_data(double* data, int nvar) {
+  mb->prepare_overset_artbnd_target_data(data, nvar);
+}
+
+void tioga::prepare_mpi_artbnd_target_data(double* data, int nvar) {
+  mb->prepare_mpi_artbnd_target_data(data, nvar);
+}
+
+void tioga::set_facecoords_mapping(unsigned long long int basedata, int* faceinfo, int* mapping, int nfpts) {
+  mb->set_facecoords_mapping(basedata, faceinfo, mapping, nfpts);
+}
+
+void tioga::set_cell_info_by_type(unsigned int nctypes, unsigned int ncells,
+                             int* celltypes, int* nupts_per_type,
+                             int* ustrides, int* dustrides, unsigned long long* du_basedata,
+                             int* cstrides, unsigned long long* c_basedata
+                            ) {
+  mb->set_cell_info_by_type(nctypes, ncells, celltypes, nupts_per_type, ustrides, dustrides, du_basedata, cstrides, c_basedata);
+}
+
+void tioga::set_solution_points(int* types, int* cnupts, double* data) {
+  mb->set_solution_points(types, cnupts, data);
+}
